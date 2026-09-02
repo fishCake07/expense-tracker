@@ -6,7 +6,7 @@ const EXPENSE_CATEGORIES = [
   { name: "Entertainment", icon: "🎬", color: "#8b5cf6" },
   { name: "Bills & Utilities", icon: "⚡", color: "#eab308" },
   { name: "Health & Medical", icon: "💊", color: "#10b981" },
-  { name: "Savings & Investments", icon: "💰", color: "#10b981" },
+  { name: "Savings & Investments", icon: "💰", color: "#059669" },
   { name: "Education", icon: "📚", color: "#06b6d4" },
   { name: "Other", icon: "📦", color: "#64748b" }
 ];
@@ -28,10 +28,9 @@ const CATEGORY_ICONS = Object.fromEntries(ALL_CATEGORIES.map(c => [c.name, c.ico
 const state = {
   transactions: [],
   currency: "$",
-  monthlyBudget: 0,
   filterCategory: "ALL",
   selectedCategory: null,
-  periodFilter: "ALL",
+  periodFilter: "THIS_MONTH", // Default to Current Month to prevent Wealth Illusion
   searchQuery: "",
   customStartDate: "",
   customEndDate: "",
@@ -40,8 +39,7 @@ const state = {
 
 const STORAGE_KEYS = {
   tx: "expense_tracker_transactions_v1",
-  currency: "expense_tracker_currency_v1",
-  budget: "expense_tracker_budget_v1"
+  currency: "expense_tracker_currency_v1"
 };
 
 // DOM Cache
@@ -56,29 +54,27 @@ const dom = {
   note: $("note"),
   currencySelect: $("currency-select"),
   currencyDisplay: $("currency-display"),
-  budgetSpent: $("budget-spent-display"),
-  budgetLimit: $("budget-limit-display"),
-  budgetBtnText: $("budget-btn-text"),
-  budgetMonthLabel: $("budget-month-label"),
-  budgetBarFill: $("budget-bar-fill"),
-  budgetRemaining: $("budget-remaining-text"),
-  budgetPercentage: $("budget-percentage-text"),
-  budgetDialog: $("budget-dialog"),
-  budgetForm: $("budget-form"),
-  budgetInput: $("budget-input"),
-  budgetCurrency: $("budget-dialog-currency"),
-  editBudgetBtn: $("edit-budget-btn"),
-  cancelBudgetBtn: $("cancel-budget-btn"),
-  spendableBalance: $("spendable-balance"),
-  spendableSub: $("spendable-sub"),
-  totalSaved: $("total-saved"),
-  savingsSub: $("savings-sub"),
+  // Hero Two-Tone Spendable Bar
+  spendableMonthLabel: $("spendable-month-label"),
+  heroSpendableVal: $("hero-spendable-val"),
+  heroSpendableTag: $("hero-spendable-tag"),
+  heroSpentVal: $("hero-spent-val"),
+  heroPoolVal: $("hero-pool-val"),
+  twoToneTrack: $("two-tone-track"),
+  twoToneSpentFill: $("two-tone-spent-fill"),
+  gaugeSpentText: $("gauge-spent-text"),
+  gaugeAvailableText: $("gauge-available-text"),
+  heroFooterText: $("hero-footer-text"),
+  // Monthly Cards below
   totalIncome: $("total-income"),
   incomeCount: $("income-count"),
+  totalSaved: $("total-saved"),
+  savingsSub: $("savings-sub"),
   totalSpend: $("total-spend"),
   txCount: $("transaction-count"),
   topCategory: $("top-category"),
   topCategoryAmt: $("top-category-amount"),
+  // Donut & Breakdown
   donutWrapper: $("donut-wrapper"),
   donutSegments: $("donut-segments-group"),
   donutCenter: $("donut-center-info"),
@@ -86,6 +82,7 @@ const dom = {
   donutVal: $("donut-center-val"),
   donutHint: $("donut-center-hint"),
   breakdownList: $("category-breakdown-list"),
+  // History & Filters
   txList: $("transaction-list"),
   filterCategory: $("filter-category"),
   filterPeriod: $("filter-period"),
@@ -100,6 +97,7 @@ const dom = {
   exportJsonBtn: $("export-json-btn"),
   importBtn: $("import-btn"),
   importFileInput: $("import-file-input"),
+  // Edit Dialog
   editDialog: $("edit-dialog"),
   editForm: $("edit-expense-form"),
   editTxId: $("edit-tx-id"),
@@ -118,6 +116,7 @@ function init() {
   loadStorage();
   setDefaultDate();
   populateCategorySelects();
+  dom.filterPeriod.value = state.periodFilter;
   bindEvents();
   render();
   registerSW();
@@ -144,8 +143,6 @@ function loadStorage() {
       state.currency = curr;
       dom.currencySelect.value = curr;
     }
-    const bg = localStorage.getItem(STORAGE_KEYS.budget);
-    if (bg) state.monthlyBudget = parseFloat(bg) || 0;
   } catch (e) {
     state.transactions = [];
   }
@@ -155,7 +152,6 @@ function saveStorage() {
   try {
     localStorage.setItem(STORAGE_KEYS.tx, JSON.stringify(state.transactions));
     localStorage.setItem(STORAGE_KEYS.currency, state.currency);
-    localStorage.setItem(STORAGE_KEYS.budget, state.monthlyBudget.toString());
   } catch (e) {}
 }
 
@@ -178,7 +174,6 @@ function showToast(msg) {
 
 // Event Bindings
 function bindEvents() {
-  // Option 6: Type Toggle Tabs (Expense vs Income)
   dom.tabExpense.addEventListener("click", () => setFormType("expense"));
   dom.tabIncome.addEventListener("click", () => setFormType("income"));
 
@@ -238,24 +233,6 @@ function bindEvents() {
     if (state.periodFilter === "CUSTOM") render();
   });
 
-  // Budget dialog
-  dom.editBudgetBtn.addEventListener("click", () => {
-    dom.budgetInput.value = state.monthlyBudget > 0 ? state.monthlyBudget : "";
-    dom.budgetCurrency.textContent = state.currency;
-    dom.budgetDialog?.showModal ? dom.budgetDialog.showModal() : promptBudget();
-  });
-
-  dom.cancelBudgetBtn.addEventListener("click", () => dom.budgetDialog.close());
-
-  dom.budgetForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    state.monthlyBudget = Math.max(0, parseFloat(dom.budgetInput.value) || 0);
-    saveStorage();
-    renderBudget();
-    dom.budgetDialog.close();
-    showToast(state.monthlyBudget > 0 ? `Budget set to ${formatCurrency(state.monthlyBudget)}` : "Budget cleared.");
-  });
-
   // Donut center tap to deselect
   dom.donutCenter.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -292,15 +269,6 @@ function setFormType(type) {
   }
 }
 
-function promptBudget() {
-  const p = prompt("Enter monthly budget target:", state.monthlyBudget || "");
-  if (p !== null) {
-    state.monthlyBudget = Math.max(0, parseFloat(p) || 0);
-    saveStorage();
-    renderBudget();
-  }
-}
-
 // Add Transaction (Expense or Income)
 function handleAddTransaction(e) {
   e.preventDefault();
@@ -317,7 +285,7 @@ function handleAddTransaction(e) {
 
   state.transactions.unshift({
     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
-    type: state.currentFormType, // "expense" or "income"
+    type: state.currentFormType,
     amount: Number(amt.toFixed(2)),
     category: cat,
     date: dt,
@@ -336,7 +304,7 @@ function handleAddTransaction(e) {
   showToast(`${state.currentFormType === "income" ? "Income" : "Expense"} added!`);
 }
 
-// Option 4: Edit Transaction Functions
+// Edit Transaction Functions
 function openEditModal(id) {
   const tx = state.transactions.find(t => t.id === id);
   if (!tx) return;
@@ -406,7 +374,7 @@ function deleteExpense(id) {
   showToast(`Deleted "${deleted.note}"`);
 }
 
-// Option 5: Multi-Criteria Filter Logic
+// Multi-Criteria Filter Logic
 function getFilteredTransactions() {
   const now = new Date();
   const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -437,93 +405,105 @@ function getFilteredTransactions() {
 // Main Render
 function render() {
   dom.currencyDisplay.textContent = state.currency;
-  dom.budgetCurrency.textContent = state.currency;
-  renderBudget();
-  renderMetrics();
+  dom.editCurrency.textContent = state.currency;
+  renderHeroSpendableGaugeAndMetrics();
   renderBreakdown();
   renderTransactionList();
 }
 
-// Render Budget (Calculated from Expenses only)
-function renderBudget() {
+// Hero Two-Tone Spendable Gauge & Monthly Metrics (Prevents Wealth Illusion)
+function renderHeroSpendableGaugeAndMetrics() {
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  dom.budgetMonthLabel.textContent = `Monthly Budget (${now.toLocaleString(undefined, { month: "long", year: "numeric" })})`;
+  const monthName = now.toLocaleString(undefined, { month: "long", year: "numeric" });
 
-  const monthSpend = state.transactions
-    .filter(t => (t.type || "expense") === "expense" && t.date && t.date.startsWith(ym))
-    .reduce((sum, t) => sum + t.amount, 0);
+  dom.spendableMonthLabel.textContent = `Spendable Cash Flow (${monthName})`;
 
-  dom.budgetSpent.textContent = formatCurrency(monthSpend);
+  // Strictly scoped to the current month to prevent Wealth Illusion
+  const currentMonthTx = state.transactions.filter(t => t.date && t.date.startsWith(ym));
 
-  if (!state.monthlyBudget || state.monthlyBudget <= 0) {
-    dom.budgetLimit.textContent = "Not set";
-    dom.budgetBtnText.textContent = "Set Budget";
-    dom.budgetBarFill.style.width = "0%";
-    dom.budgetBarFill.className = "budget-bar-fill";
-    dom.budgetRemaining.textContent = "No budget target set";
-    dom.budgetRemaining.className = "budget-remaining";
-    dom.budgetPercentage.textContent = "—";
-    return;
+  const monthlyIncomes = currentMonthTx.filter(t => t.type === "income");
+  const monthlyExpenses = currentMonthTx.filter(t => (t.type || "expense") === "expense");
+
+  const monthIncomeAmt = monthlyIncomes.reduce((s, t) => s + t.amount, 0);
+
+  // Month Savings (Savings & Investments)
+  const monthSavingsTx = currentMonthTx.filter(t => t.category === "Savings & Investments");
+  const monthSavedAmt = monthSavingsTx.reduce((s, t) => s + t.amount, 0);
+
+  // Month Living Expenses (excluding savings)
+  const monthLivingTx = monthlyExpenses.filter(t => t.category !== "Savings & Investments");
+  const monthLivingAmt = monthLivingTx.reduce((s, t) => s + t.amount, 0);
+
+  // Spendable Pool = Month Income - Month Savings
+  const spendablePool = Math.max(0, monthIncomeAmt - monthSavedAmt);
+  // Spendable Balance = Spendable Pool - Living Expenses
+  const spendableBalance = spendablePool - monthLivingAmt;
+
+  // 1. Update Values
+  dom.heroSpendableVal.textContent = formatCurrency(spendableBalance);
+  dom.heroSpentVal.textContent = formatCurrency(monthLivingAmt);
+  dom.heroPoolVal.textContent = formatCurrency(spendablePool);
+
+  // 2. Render Two-Tone Visual Gauge
+  if (spendablePool > 0) {
+    dom.twoToneTrack.className = "two-tone-track";
+    const spentPercent = (monthLivingAmt / spendablePool) * 100;
+
+    if (monthLivingAmt > spendablePool) {
+      // Over budget / Deficit
+      dom.twoToneTrack.classList.add("overspend");
+      dom.twoToneSpentFill.style.width = "100%";
+      dom.heroSpendableVal.className = "spendable-balance-val deficit";
+      dom.heroSpendableTag.className = "spendable-balance-tag deficit";
+      dom.heroSpendableTag.textContent = "Deficit";
+      dom.gaugeSpentText.textContent = `🔴 ${spentPercent.toFixed(0)}% Spent`;
+      dom.gaugeAvailableText.textContent = `⚠️ Over budget by ${formatCurrency(monthLivingAmt - spendablePool)}`;
+      dom.heroFooterText.textContent = `⚠️ You have exceeded your monthly spendable pool! Currently dipping into savings by ${formatCurrency(monthLivingAmt - spendablePool)}.`;
+    } else {
+      dom.twoToneSpentFill.style.width = `${spentPercent.toFixed(1)}%`;
+      dom.heroSpendableVal.className = "spendable-balance-val";
+      dom.heroSpendableTag.className = "spendable-balance-tag";
+      dom.heroSpendableTag.textContent = "Available";
+      const availPercent = 100 - spentPercent;
+      dom.gaugeSpentText.textContent = `🔴 ${spentPercent.toFixed(1)}% Spent (${formatCurrency(monthLivingAmt)})`;
+      dom.gaugeAvailableText.textContent = `🟢 ${availPercent.toFixed(1)}% Available (${formatCurrency(spendableBalance)})`;
+      
+      const savingsNote = monthSavedAmt > 0 ? ` with ${formatCurrency(monthSavedAmt)} (${((monthSavedAmt/monthIncomeAmt)*100).toFixed(0)}%) locked in savings` : "";
+      dom.heroFooterText.textContent = `Based on ${formatCurrency(monthIncomeAmt)} salary${savingsNote}. Safe to spend without touching savings.`;
+    }
+  } else {
+    dom.twoToneTrack.className = "two-tone-track empty";
+    dom.twoToneSpentFill.style.width = "0%";
+    dom.heroSpendableVal.className = "spendable-balance-val";
+    dom.heroSpendableTag.className = "spendable-balance-tag";
+    dom.heroSpendableTag.textContent = "Clean Slate";
+    dom.gaugeSpentText.textContent = "🔴 0% Spent";
+    dom.gaugeAvailableText.textContent = "🟢 Ready for salary";
+    dom.heroFooterText.textContent = "Tip: Log your monthly salary and savings to establish your safe spendable pool for this month.";
   }
 
-  dom.budgetBtnText.textContent = "Edit Budget";
-  dom.budgetLimit.textContent = formatCurrency(state.monthlyBudget);
+  // 3. Update Monthly Stat Cards Below
+  dom.totalIncome.textContent = formatCurrency(monthIncomeAmt);
+  dom.incomeCount.textContent = `${monthlyIncomes.length} ${monthlyIncomes.length === 1 ? "earning" : "earnings"} this month`;
 
-  const pct = (monthSpend / state.monthlyBudget) * 100;
-  dom.budgetBarFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
-  dom.budgetBarFill.className = "budget-bar-fill";
-  dom.budgetRemaining.className = "budget-remaining";
+  dom.totalSaved.textContent = formatCurrency(monthSavedAmt);
+  dom.savingsSub.textContent = monthIncomeAmt > 0
+    ? `${((monthSavedAmt / monthIncomeAmt) * 100).toFixed(0)}% of salary saved`
+    : "0% of salary saved";
 
-  if (monthSpend > state.monthlyBudget) {
-    dom.budgetBarFill.classList.add("danger");
-    dom.budgetRemaining.classList.add("over");
-    dom.budgetRemaining.textContent = `⚠️ Over budget by ${formatCurrency(monthSpend - state.monthlyBudget)}`;
+  dom.totalSpend.textContent = formatCurrency(monthLivingAmt);
+  dom.txCount.textContent = `${monthLivingTx.length} ${monthLivingTx.length === 1 ? "expense" : "expenses"} this month`;
+
+  if (!monthLivingTx.length) {
+    dom.topCategory.textContent = "—";
+    dom.topCategoryAmt.textContent = "No expenses yet";
   } else {
-    dom.budgetRemaining.textContent = `Remaining: ${formatCurrency(state.monthlyBudget - monthSpend)}`;
-    if (pct >= 80) dom.budgetBarFill.classList.add("warning");
-  }
-  dom.budgetPercentage.textContent = `${pct.toFixed(0)}% spent`;
-}
-
-// Render Spendable Balance & Savings Metrics
-function renderMetrics() {
-  const incomes = state.transactions.filter(t => t.type === "income");
-  const expenses = state.transactions.filter(t => (t.type || "expense") === "expense");
-
-  const totalIncomeAmt = incomes.reduce((s, t) => s + t.amount, 0);
-
-  // Savings deposits (explicitly allocated to bank savings / investments)
-  const savingsTx = state.transactions.filter(t => t.category === "Savings & Investments");
-  const totalSavedAmt = savingsTx.reduce((s, t) => s + t.amount, 0);
-
-  // Living expenses (all expenses excluding savings deposits)
-  const livingExpensesTx = expenses.filter(t => t.category !== "Savings & Investments");
-  const livingExpensesAmt = livingExpensesTx.reduce((s, t) => s + t.amount, 0);
-
-  // Spendable Balance = (Income - Savings) - Living Expenses
-  const spendableBalance = (totalIncomeAmt - totalSavedAmt) - livingExpensesAmt;
-
-  dom.totalIncome.textContent = formatCurrency(totalIncomeAmt);
-  dom.incomeCount.textContent = `${incomes.length} ${incomes.length === 1 ? "earning" : "earnings"} logged`;
-
-  dom.totalSaved.textContent = formatCurrency(totalSavedAmt);
-  dom.savingsSub.textContent = totalIncomeAmt > 0
-    ? `${((totalSavedAmt / totalIncomeAmt) * 100).toFixed(0)}% of salary saved`
-    : "Locked in bank savings";
-
-  dom.totalSpend.textContent = formatCurrency(livingExpensesAmt);
-  dom.txCount.textContent = `${livingExpensesTx.length} living expenses`;
-
-  dom.spendableBalance.textContent = formatCurrency(spendableBalance);
-  if (spendableBalance >= 0) {
-    dom.spendableBalance.className = "metric-value";
-    dom.spendableSub.textContent = totalSavedAmt > 0
-      ? `Safe to spend (after ${formatCurrency(totalSavedAmt)} saved)`
-      : (totalIncomeAmt > 0 ? "Spendable income available" : "Ready for salary / income");
-  } else {
-    dom.spendableBalance.className = "metric-value deficit";
-    dom.spendableSub.textContent = `⚠️ Over budget! Dipping into savings by ${formatCurrency(Math.abs(spendableBalance))}`;
+    const catTotals = {};
+    monthLivingTx.forEach(t => catTotals[t.category] = (catTotals[t.category] || 0) + t.amount);
+    const top = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
+    dom.topCategory.textContent = `${CATEGORY_ICONS[top[0]] || "🏷️"} ${top[0]}`;
+    dom.topCategoryAmt.textContent = `${formatCurrency(top[1])} total`;
   }
 }
 
@@ -550,7 +530,7 @@ function toggleCategory(cat) {
   state.selectedCategory === cat ? deselectCategory() : selectCategory(cat);
 }
 
-// Render Donut & Breakdown (Focuses on Expenses)
+// Render Donut & Breakdown
 function renderBreakdown() {
   const expenses = state.transactions.filter(t => (t.type || "expense") === "expense");
   const total = expenses.reduce((s, t) => s + t.amount, 0);
@@ -662,7 +642,7 @@ function renderBreakdown() {
   });
 }
 
-// Transaction List Render (Supports Income & Expense)
+// Transaction List Render (Filtered)
 function renderTransactionList() {
   const filtered = getFilteredTransactions();
   let list = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt - a.createdAt);
@@ -718,7 +698,7 @@ function renderTransactionList() {
   }).join("");
 }
 
-// Option 3: Export to CSV (Includes Type column)
+// Export & Import Handlers
 function exportToCSV() {
   if (!state.transactions.length) return showToast("No transactions to export.");
 
@@ -738,14 +718,12 @@ function exportToCSV() {
   showToast(`Exported ${state.transactions.length} transactions to CSV!`);
 }
 
-// Option 3: Export to JSON (Full Backup)
 function exportToJSON() {
   const backupData = {
     appName: "Expense Tracker",
     version: 1,
     exportedAt: new Date().toISOString(),
     currency: state.currency,
-    monthlyBudget: state.monthlyBudget,
     transactions: state.transactions
   };
 
@@ -766,7 +744,6 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Import JSON or CSV file
 function handleFileImport(e) {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -786,7 +763,6 @@ function handleFileImport(e) {
         showToast("Unsupported file format. Use .json or .csv.");
       }
     } catch (err) {
-      console.error(err);
       showToast("Failed to parse imported file.");
     } finally {
       dom.importFileInput.value = "";
@@ -813,7 +789,6 @@ function importJSONData(jsonStr) {
   } else {
     state.transactions = validTx;
     if (parsed.currency) state.currency = parsed.currency;
-    if (parsed.monthlyBudget) state.monthlyBudget = parsed.monthlyBudget;
   }
 
   saveStorage();
@@ -891,17 +866,18 @@ function resetAllFilters() {
   state.searchQuery = "";
   dom.searchInput.value = "";
   dom.clearSearchBtn.style.display = "none";
-  state.periodFilter = "ALL";
-  dom.filterPeriod.value = "ALL";
+  state.periodFilter = "THIS_MONTH";
+  dom.filterPeriod.value = "THIS_MONTH";
   dom.customDateInputs.style.display = "none";
   deselectCategory();
 }
 
-// Sample Data Loader (Includes Incomes & Expenses)
+// Sample Data Loader (Current Month Demonstration)
 function loadSampleData() {
-  const d = (ago) => {
-    const dt = new Date();
-    dt.setDate(dt.getDate() - ago);
+  const today = new Date();
+  const d = (daysAgo) => {
+    const dt = new Date(today);
+    dt.setDate(today.getDate() - daysAgo);
     return dt.toISOString().split("T")[0];
   };
 
@@ -915,10 +891,9 @@ function loadSampleData() {
   ];
 
   state.transactions = [...samples, ...state.transactions];
-  if (!state.monthlyBudget) state.monthlyBudget = 1000;
   saveStorage();
   render();
-  showToast("Sample transactions with income & expenses loaded!");
+  showToast("Loaded: RM 3,500 salary with RM 700 saved!");
 }
 
 function escapeHtml(s) {

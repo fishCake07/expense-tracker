@@ -1125,3 +1125,141 @@ body {
 .savings-card .metric-value {
   color: #059669;
 }
+
+
+/* Hero Component: Two-Tone Spendable Balance Gauge */
+.spendable-hero-card {
+  padding: 1.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.spendable-hero-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.spendable-amount-display {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.spendable-balance-val {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #059669; /* Emerald */
+  line-height: 1.1;
+}
+
+.spendable-balance-val.deficit {
+  color: var(--danger) !important;
+}
+
+.spendable-balance-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.spendable-balance-tag.deficit {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.spendable-stats-right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.spendable-stat-box {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+}
+
+.stat-mini-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.stat-mini-val {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.stat-mini-val.text-danger {
+  color: var(--danger);
+}
+
+.two-tone-gauge-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.two-tone-track {
+  height: 16px;
+  background: #10b981; /* Default Available Green track */
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.two-tone-track.empty {
+  background: var(--bg-subtle);
+}
+
+.two-tone-track.overspend {
+  background: #b91c1c !important; /* Dark red when completely depleted */
+}
+
+.two-tone-spent-fill {
+  height: 100%;
+  width: 0%;
+  background: #ef4444; /* High-contrast Red for expenses made */
+  border-radius: 999px 0 0 999px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.two-tone-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.legend-spent {
+  color: var(--danger);
+}
+
+.legend-available {
+  color: #059669;
+}
+
+.spendable-hero-footer {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--border-color);
+  padding-top: 0.75rem;
+}
