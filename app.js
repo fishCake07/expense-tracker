@@ -819,7 +819,7 @@ function renderHeroSpendableGaugeAndMetrics() {
       dom.heroSpendableTag.className = "spendable-balance-tag deficit";
       dom.heroSpendableTag.textContent = "Deficit";
       dom.gaugeSpentText.textContent = `🔴 ${spentPercent.toFixed(0)}% Spent`;
-      dom.gaugeAvailableText.textContent = `⚠️ Over budget by ${formatCurrency(monthLivingAmt - spendablePool)}`;
+      dom.gaugeAvailableText.textContent = `⚠️ Over by ${formatCurrency(monthLivingAmt - spendablePool)}`;
       dom.heroFooterText.textContent = `⚠️ You have exceeded your spendable pool! Currently dipping into savings by ${formatCurrency(monthLivingAmt - spendablePool)}.`;
     } else {
       dom.twoToneSpentFill.style.width = `${spentPercent.toFixed(1)}%`;
@@ -827,8 +827,8 @@ function renderHeroSpendableGaugeAndMetrics() {
       dom.heroSpendableTag.className = "spendable-balance-tag";
       dom.heroSpendableTag.textContent = "Available";
       const availPercent = 100 - spentPercent;
-      dom.gaugeSpentText.textContent = `🔴 ${spentPercent.toFixed(1)}% Spent (${formatCurrency(monthLivingAmt)})`;
-      dom.gaugeAvailableText.textContent = `🟢 ${availPercent.toFixed(1)}% Available (${formatCurrency(spendableBalance)})`;
+      dom.gaugeSpentText.textContent = `🔴 ${spentPercent.toFixed(1)}% (${formatCurrency(monthLivingAmt)})`;
+      dom.gaugeAvailableText.textContent = `🟢 ${availPercent.toFixed(1)}% (${formatCurrency(spendableBalance)})`;
       
       const savingsNote = monthSavedAmt > 0 ? ` with ${formatCurrency(monthSavedAmt)} (${((monthSavedAmt/monthIncomeAmt)*100).toFixed(0)}%) locked in savings` : "";
       dom.heroFooterText.textContent = `Based on ${formatCurrency(monthIncomeAmt)} salary${savingsNote}. Safe to spend without touching savings.`;
