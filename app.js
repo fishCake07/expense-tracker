@@ -14,11 +14,13 @@ const CATEGORY_ICONS = {
 const state = {
   transactions: [],
   currency: "$",
+  monthlyBudget: 0,
   filterCategory: "ALL"
 };
 
 const STORAGE_KEY_TRANSACTIONS = "expense_tracker_transactions_v1";
 const STORAGE_KEY_CURRENCY = "expense_tracker_currency_v1";
+const STORAGE_KEY_BUDGET = "expense_tracker_budget_v1";
 
 // DOM Elements
 const form = document.getElementById("expense-form");
@@ -42,6 +44,21 @@ const filterCategorySelect = document.getElementById("filter-category");
 const clearAllBtn = document.getElementById("clear-all-btn");
 const loadSampleBtn = document.getElementById("load-sample-btn");
 const toastEl = document.getElementById("toast");
+
+// Budget Elements (Option 1)
+const budgetMonthLabel = document.getElementById("budget-month-label");
+const budgetSpentDisplay = document.getElementById("budget-spent-display");
+const budgetLimitDisplay = document.getElementById("budget-limit-display");
+const editBudgetBtn = document.getElementById("edit-budget-btn");
+const budgetBtnText = document.getElementById("budget-btn-text");
+const budgetBarFill = document.getElementById("budget-bar-fill");
+const budgetRemainingText = document.getElementById("budget-remaining-text");
+const budgetPercentageText = document.getElementById("budget-percentage-text");
+const budgetDialog = document.getElementById("budget-dialog");
+const budgetForm = document.getElementById("budget-form");
+const budgetInput = document.getElementById("budget-input");
+const cancelBudgetBtn = document.getElementById("cancel-budget-btn");
+const budgetDialogCurrency = document.getElementById("budget-dialog-currency");
 
 // Initialize Application
 function init() {
@@ -71,6 +88,10 @@ function loadFromStorage() {
       state.currency = savedCurrency;
       currencySelect.value = savedCurrency;
     }
+    const savedBudget = localStorage.getItem(STORAGE_KEY_BUDGET);
+    if (savedBudget !== null) {
+      state.monthlyBudget = parseFloat(savedBudget) || 0;
+    }
   } catch (err) {
     console.error("Failed to read from localStorage", err);
     state.transactions = [];
@@ -81,6 +102,7 @@ function saveToStorage() {
   try {
     localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(state.transactions));
     localStorage.setItem(STORAGE_KEY_CURRENCY, state.currency);
+    localStorage.setItem(STORAGE_KEY_BUDGET, state.monthlyBudget.toString());
   } catch (err) {
     console.error("Failed to save to localStorage", err);
   }
@@ -99,6 +121,18 @@ function formatDate(dateString) {
   if (!year || !month || !day) return dateString;
   const d = new Date(year, month - 1, day);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+// Helper: Get Current Month Spending
+function getCurrentMonthSpending() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
+  const monthPrefix = `${currentYear}-${currentMonth}`;
+
+  return state.transactions
+    .filter(t => t.date && t.date.startsWith(monthPrefix))
+    .reduce((sum, t) => sum + t.amount, 0);
 }
 
 // Toast notification helper
@@ -120,6 +154,7 @@ function bindEvents() {
   currencySelect.addEventListener("change", (e) => {
     state.currency = e.target.value;
     currencyDisplay.textContent = state.currency;
+    budgetDialogCurrency.textContent = state.currency;
     saveToStorage();
     render();
     showToast(`Currency updated to ${state.currency}`);
@@ -146,6 +181,38 @@ function bindEvents() {
   loadSampleBtn.addEventListener("click", () => {
     loadSampleData();
   });
+
+  // Budget Edit Listeners (Option 1)
+  editBudgetBtn.addEventListener("click", () => {
+    budgetInput.value = state.monthlyBudget > 0 ? state.monthlyBudget : "";
+    budgetDialogCurrency.textContent = state.currency;
+    if (typeof budgetDialog.showModal === "function") {
+      budgetDialog.showModal();
+    } else {
+      const prompted = prompt("Enter monthly budget target:", state.monthlyBudget || "");
+      if (prompted !== null) {
+        saveNewBudget(parseFloat(prompted));
+      }
+    }
+  });
+
+  cancelBudgetBtn.addEventListener("click", () => {
+    budgetDialog.close();
+  });
+
+  budgetForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const val = parseFloat(budgetInput.value);
+    saveNewBudget(isNaN(val) ? 0 : val);
+    budgetDialog.close();
+  });
+}
+
+function saveNewBudget(val) {
+  state.monthlyBudget = Math.max(0, val || 0);
+  saveToStorage();
+  renderBudget();
+  showToast(state.monthlyBudget > 0 ? `Monthly budget set to ${formatCurrency(state.monthlyBudget)}` : "Budget cleared.");
 }
 
 // Form Submission & Validation
@@ -157,7 +224,6 @@ function handleAddExpense(e) {
   const date = dateInput.value;
   const note = noteInput.value.trim();
 
-  // Reset errors
   document.getElementById("amount-error").textContent = "";
   document.getElementById("category-error").textContent = "";
   document.getElementById("date-error").textContent = "";
@@ -190,11 +256,9 @@ function handleAddExpense(e) {
     createdAt: Date.now()
   };
 
-  // Prepend to array
   state.transactions.unshift(newTransaction);
   saveToStorage();
 
-  // Reset form inputs (keep date as today)
   amountInput.value = "";
   categorySelect.value = "";
   noteInput.value = "";
@@ -219,9 +283,59 @@ function deleteExpense(id) {
 // Render Functions
 function render() {
   currencyDisplay.textContent = state.currency;
+  budgetDialogCurrency.textContent = state.currency;
+  renderBudget();
   renderMetrics();
   renderBreakdown();
   renderTransactionList();
+}
+
+// Render Budget Section (Option 1)
+function renderBudget() {
+  const now = new Date();
+  const monthName = now.toLocaleString(undefined, { month: "long", year: "numeric" });
+  budgetMonthLabel.textContent = `Monthly Budget (${monthName})`;
+
+  const currentMonthSpent = getCurrentMonthSpending();
+  budgetSpentDisplay.textContent = formatCurrency(currentMonthSpent);
+
+  if (!state.monthlyBudget || state.monthlyBudget <= 0) {
+    budgetLimitDisplay.textContent = "Not set";
+    budgetBtnText.textContent = "Set Budget";
+    budgetBarFill.style.width = "0%";
+    budgetBarFill.className = "budget-bar-fill";
+    budgetRemainingText.textContent = "No budget target set";
+    budgetRemainingText.className = "budget-remaining";
+    budgetPercentageText.textContent = "—";
+    return;
+  }
+
+  budgetBtnText.textContent = "Edit Budget";
+  budgetLimitDisplay.textContent = formatCurrency(state.monthlyBudget);
+
+  const percentage = (currentMonthSpent / state.monthlyBudget) * 100;
+  const clampedPercentage = Math.min(100, Math.max(0, percentage));
+  budgetBarFill.style.width = `${clampedPercentage}%`;
+
+  // Color threshold & alerts
+  budgetBarFill.className = "budget-bar-fill";
+  budgetRemainingText.className = "budget-remaining";
+
+  if (currentMonthSpent > state.monthlyBudget) {
+    const overAmt = currentMonthSpent - state.monthlyBudget;
+    budgetBarFill.classList.add("danger");
+    budgetRemainingText.classList.add("over");
+    budgetRemainingText.textContent = `⚠️ Over budget by ${formatCurrency(overAmt)}`;
+    budgetPercentageText.textContent = `${percentage.toFixed(0)}% spent`;
+  } else {
+    const remaining = state.monthlyBudget - currentMonthSpent;
+    budgetRemainingText.textContent = `Remaining: ${formatCurrency(remaining)}`;
+    budgetPercentageText.textContent = `${percentage.toFixed(0)}% spent`;
+
+    if (percentage >= 80) {
+      budgetBarFill.classList.add("warning");
+    }
+  }
 }
 
 function renderMetrics() {
@@ -239,7 +353,6 @@ function renderMetrics() {
     return;
   }
 
-  // Calculate top category
   const categoryTotals = {};
   state.transactions.forEach(t => {
     categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
@@ -258,7 +371,6 @@ function renderMetrics() {
   topCategoryEl.textContent = `${topIcon} ${maxCategory}`;
   topCategoryAmountEl.textContent = `${formatCurrency(maxAmount)} total`;
 
-  // Latest activity
   const sortedByDate = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt - a.createdAt);
   const latest = sortedByDate[0];
   latestDateEl.textContent = formatDate(latest.date);
@@ -302,8 +414,6 @@ function renderBreakdown() {
 
 function renderTransactionList() {
   let list = [...state.transactions];
-
-  // Sort reverse chronological
   list.sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt - a.createdAt);
 
   if (state.filterCategory !== "ALL") {
@@ -396,9 +506,12 @@ function loadSampleData() {
   ];
 
   state.transactions = [...samples, ...state.transactions];
+  if (!state.monthlyBudget) {
+    state.monthlyBudget = 500;
+  }
   saveToStorage();
   render();
-  showToast("Sample expenses loaded!");
+  showToast("Sample expenses & $500 budget loaded!");
 }
 
 // Utility: HTML escaping

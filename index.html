@@ -41,10 +41,42 @@
       </div>
     </header>
 
+    <!-- Monthly Budget Card (Option 1) -->
+    <section class="card budget-card" id="budget-section">
+      <div class="budget-header">
+        <div>
+          <span class="metric-label" id="budget-month-label">Monthly Budget</span>
+          <div class="budget-status-row">
+            <span class="budget-spent" id="budget-spent-display">$ 0.00</span>
+            <span class="budget-separator">of</span>
+            <span class="budget-limit" id="budget-limit-display">$ 0.00</span>
+          </div>
+        </div>
+        <button type="button" id="edit-budget-btn" class="btn-outline-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          <span id="budget-btn-text">Set Budget</span>
+        </button>
+      </div>
+
+      <!-- Budget Progress Bar -->
+      <div class="budget-progress-wrapper">
+        <div class="budget-bar-bg">
+          <div class="budget-bar-fill" id="budget-bar-fill" style="width: 0%"></div>
+        </div>
+        <div class="budget-footer-row">
+          <span id="budget-remaining-text" class="budget-remaining">Remaining: $ 0.00</span>
+          <span id="budget-percentage-text" class="budget-percentage">0% spent</span>
+        </div>
+      </div>
+    </section>
+
     <!-- Stat Highlights -->
     <section class="metrics-grid">
       <div class="metric-card primary">
-        <span class="metric-label">Total Spent</span>
+        <span class="metric-label">Total Spent (All-Time)</span>
         <div class="metric-value" id="total-spend">0.00</div>
         <span class="metric-sub" id="transaction-count">0 transactions logged</span>
       </div>
@@ -168,6 +200,32 @@
         </div>
       </section>
     </main>
+
+    <!-- Budget Edit Dialog Modal -->
+    <dialog id="budget-dialog" class="custom-dialog">
+      <form method="dialog" id="budget-form">
+        <h3>Set Monthly Budget</h3>
+        <p class="dialog-sub">Enter your spending target for this month.</p>
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="budget-input">Target Amount</label>
+          <div class="input-prefix-wrapper">
+            <span class="currency-prefix" id="budget-dialog-currency">$</span>
+            <input 
+              type="number" 
+              id="budget-input" 
+              step="1" 
+              min="0" 
+              placeholder="e.g. 500" 
+              required
+            >
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" id="cancel-budget-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="save-budget-btn" class="btn-primary-sm">Save Budget</button>
+        </div>
+      </form>
+    </dialog>
 
     <!-- Toast Notification -->
     <div id="toast" class="toast" role="status" aria-live="polite"></div>

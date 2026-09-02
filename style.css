@@ -546,3 +546,181 @@ body {
     font-size: 0.95rem;
   }
 }
+
+
+/* Budget Card Styles (Option 1) */
+.budget-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.budget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.budget-status-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.budget-spent {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.budget-separator {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.budget-limit {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.btn-outline-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-outline-sm:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.budget-progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.budget-bar-bg {
+  height: 10px;
+  background: var(--bg-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--primary);
+  transition: width 0.4s ease, background-color 0.3s ease;
+}
+
+.budget-bar-fill.warning {
+  background: #f59e0b; /* Amber */
+}
+
+.budget-bar-fill.danger {
+  background: var(--danger); /* Red */
+}
+
+.budget-footer-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.budget-remaining {
+  color: var(--text-muted);
+}
+
+.budget-remaining.over {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.budget-percentage {
+  color: var(--text-muted);
+}
+
+/* Custom Dialog Modal */
+.custom-dialog {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  background: var(--bg-surface);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.05);
+  max-width: 360px;
+  width: 90%;
+  margin: auto;
+}
+
+.custom-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.custom-dialog h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.dialog-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.btn-secondary {
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-subtle);
+}
+
+.btn-primary-sm {
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-primary-sm:hover {
+  background: var(--primary-hover);
+}
