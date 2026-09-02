@@ -73,22 +73,27 @@
       </div>
     </section>
 
-    <!-- Stat Highlights -->
+    <!-- Option 6: Cash Flow & Net Balance Metrics Grid -->
     <section class="metrics-grid">
-      <div class="metric-card primary">
-        <span class="metric-label">Total Spent (All-Time)</span>
-        <div class="metric-value" id="total-spend">0.00</div>
-        <span class="metric-sub" id="transaction-count">0 transactions logged</span>
+      <div class="metric-card net-balance-card" id="net-balance-card">
+        <span class="metric-label">Net Balance</span>
+        <div class="metric-value" id="net-balance">0.00</div>
+        <span class="metric-sub" id="net-balance-sub">Income minus expenses</span>
+      </div>
+      <div class="metric-card income-stat-card">
+        <span class="metric-label">Total Income</span>
+        <div class="metric-value positive" id="total-income">0.00</div>
+        <span class="metric-sub" id="income-count">0 earnings logged</span>
+      </div>
+      <div class="metric-card expense-stat-card">
+        <span class="metric-label">Total Expenses</span>
+        <div class="metric-value negative" id="total-spend">0.00</div>
+        <span class="metric-sub" id="transaction-count">0 expenses logged</span>
       </div>
       <div class="metric-card">
-        <span class="metric-label">Top Category</span>
+        <span class="metric-label">Top Expense Category</span>
         <div class="metric-value small" id="top-category">—</div>
         <span class="metric-sub" id="top-category-amount">No expenses yet</span>
-      </div>
-      <div class="metric-card">
-        <span class="metric-label">Latest Activity</span>
-        <div class="metric-value small" id="latest-date">—</div>
-        <span class="metric-sub" id="latest-note">Ready for your first entry</span>
       </div>
     </section>
 
@@ -97,8 +102,13 @@
       <!-- Left Column: Add Transaction Form -->
       <section class="card form-section">
         <div class="card-header">
-          <h2>Add Expense</h2>
+          <h2 id="form-heading">Add Transaction</h2>
           <button type="button" id="load-sample-btn" class="btn-text">Load Sample</button>
+        </div>
+        <!-- Option 6: Type Toggle Tabs -->
+        <div class="type-toggle-group">
+          <button type="button" class="type-tab-btn active" id="tab-expense" data-type="expense">Expense</button>
+          <button type="button" class="type-tab-btn" id="tab-income" data-type="income">Income</button>
         </div>
         <form id="expense-form" novalidate>
           <div class="form-group">
@@ -286,7 +296,15 @@
         <p class="dialog-sub">Modify the transaction details below.</p>
         <input type="hidden" id="edit-tx-id">
 
-        <div class="form-group" style="margin-top: 1rem;">
+        <div class="form-group" style="margin-top: 0.85rem;">
+          <label for="edit-type">Transaction Type</label>
+          <select id="edit-type">
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label for="edit-amount">Amount *</label>
           <div class="input-prefix-wrapper">
             <span class="currency-prefix" id="edit-dialog-currency">$</span>

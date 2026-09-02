@@ -1019,3 +1019,81 @@ body {
   background: var(--bg-surface);
   color: var(--text-main);
 }
+
+
+/* Option 6: Income & Net Balance Styles */
+.net-balance-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.net-balance-card .metric-label,
+.net-balance-card .metric-sub {
+  color: #94a3b8;
+}
+
+.metric-value.positive {
+  color: var(--success);
+}
+
+.metric-value.negative {
+  color: var(--danger);
+}
+
+.type-toggle-group {
+  display: flex;
+  background: var(--bg-subtle);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
+}
+
+.type-tab-btn {
+  flex: 1;
+  padding: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+}
+
+.type-tab-btn.active[data-type="expense"] {
+  background: var(--bg-surface);
+  color: var(--danger);
+  box-shadow: var(--shadow-sm);
+}
+
+.type-tab-btn.active[data-type="income"] {
+  background: var(--bg-surface);
+  color: var(--success);
+  box-shadow: var(--shadow-sm);
+}
+
+.tx-amount.income {
+  color: var(--success) !important;
+}
+
+.tx-amount.expense {
+  color: var(--danger) !important;
+}
+
+.tx-badge-type {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.35rem;
+}
+
+.tx-badge-type.income {
+  background: #ecfdf5;
+  color: #059669;
+}
