@@ -1,3 +1,13 @@
+const CATEGORY_COLORS = {
+  "Food & Dining": "#f97316",       // Orange
+  "Transportation": "#3b82f6",      // Blue
+  "Shopping": "#ec4899",            // Pink
+  "Entertainment": "#8b5cf6",       // Purple
+  "Bills & Utilities": "#eab308",   // Amber/Yellow
+  "Health & Medical": "#10b981",    // Emerald
+  "Education": "#06b6d4",           // Cyan
+  "Other": "#64748b"                // Slate
+};
 // Category Icons Map
 const CATEGORY_ICONS = {
   "Food & Dining": "🍔",
@@ -379,9 +389,15 @@ function renderMetrics() {
 
 function renderBreakdown() {
   const total = state.transactions.reduce((sum, t) => sum + t.amount, 0);
+  const segmentsGroup = document.getElementById("donut-segments-group");
+  const centerLabel = document.getElementById("donut-center-label");
+  const centerVal = document.getElementById("donut-center-val");
 
   if (state.transactions.length === 0 || total === 0) {
     categoryBreakdownList.innerHTML = `<p class="empty-state">No categorized expenses recorded yet.</p>`;
+    if (segmentsGroup) segmentsGroup.innerHTML = "";
+    if (centerLabel) centerLabel.textContent = "Total";
+    if (centerVal) centerVal.textContent = formatCurrency(0);
     return;
   }
 
@@ -392,24 +408,114 @@ function renderBreakdown() {
 
   const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
 
-  let html = "";
+  // 1. Render Donut Chart SVG Segments (Option 2)
+  if (segmentsGroup) {
+    const radius = 58;
+    const circumference = 2 * Math.PI * radius; // ~364.424
+    let accumulatedPercent = 0;
+    let svgSegments = "";
+
+    sortedCategories.forEach(([cat, amount]) => {
+      const percent = amount / total;
+      const strokeLength = percent * circumference;
+      const strokeDashoffset = -accumulatedPercent * circumference;
+      const color = CATEGORY_COLORS[cat] || "#64748b";
+
+      svgSegments += `
+        <circle 
+          class="donut-segment" 
+          cx="80" 
+          cy="80" 
+          r="${radius}" 
+          stroke="${color}" 
+          stroke-dasharray="${strokeLength.toFixed(2)} ${circumference.toFixed(2)}" 
+          stroke-dashoffset="${strokeDashoffset.toFixed(2)}"
+          data-category="${cat}"
+          data-amount="${amount}"
+          data-percentage="${(percent * 100).toFixed(1)}"
+        />
+      `;
+      accumulatedPercent += percent;
+    });
+
+    segmentsGroup.innerHTML = svgSegments;
+
+    // Reset center to total
+    if (centerLabel) centerLabel.textContent = "Total";
+    if (centerVal) centerVal.textContent = formatCurrency(total);
+
+    // Interactive Donut Segment Events
+    const segmentEls = segmentsGroup.querySelectorAll(".donut-segment");
+    segmentEls.forEach(seg => {
+      const cat = seg.dataset.category;
+      const amt = parseFloat(seg.dataset.amount);
+      const pct = seg.dataset.percentage;
+
+      const highlight = () => {
+        segmentEls.forEach(s => s.classList.remove("active"));
+        seg.classList.add("active");
+        if (centerLabel) centerLabel.textContent = cat;
+        if (centerVal) centerVal.textContent = `${formatCurrency(amt)} (${pct}%)`;
+      };
+
+      const unhighlight = () => {
+        seg.classList.remove("active");
+        if (centerLabel) centerLabel.textContent = "Total";
+        if (centerVal) centerVal.textContent = formatCurrency(total);
+      };
+
+      seg.addEventListener("mouseenter", highlight);
+      seg.addEventListener("mouseleave", unhighlight);
+      seg.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        highlight();
+      }, { passive: false });
+
+      seg.addEventListener("click", () => {
+        filterCategorySelect.value = cat;
+        state.filterCategory = cat;
+        renderTransactionList();
+        showToast(`Filtered by ${cat}`);
+      });
+    });
+  }
+
+  // 2. Render Breakdown Bars with Matching Color Dots
+  let listHtml = "";
   sortedCategories.forEach(([cat, amount]) => {
     const percentage = ((amount / total) * 100).toFixed(1);
     const icon = CATEGORY_ICONS[cat] || "🏷️";
-    html += `
-      <div class="breakdown-item">
+    const color = CATEGORY_COLORS[cat] || "#4f46e5";
+
+    listHtml += `
+      <div class="breakdown-item" data-category="${cat}" title="Click to filter by ${cat}">
         <div class="breakdown-header">
-          <span>${icon} ${cat}</span>
+          <span class="breakdown-header-title">
+            <span class="category-dot" style="background-color: ${color};"></span>
+            ${icon} ${cat}
+          </span>
           <span>${formatCurrency(amount)} <span style="color:var(--text-muted); font-size:0.8rem">(${percentage}%)</span></span>
         </div>
         <div class="breakdown-bar-bg">
-          <div class="breakdown-bar-fill" style="width: ${percentage}%"></div>
+          <div class="breakdown-bar-fill" style="width: ${percentage}%; background-color: ${color};"></div>
         </div>
       </div>
     `;
   });
 
-  categoryBreakdownList.innerHTML = html;
+  categoryBreakdownList.innerHTML = listHtml;
+
+  // Add click to filter from breakdown list item
+  const listItems = categoryBreakdownList.querySelectorAll(".breakdown-item");
+  listItems.forEach(item => {
+    item.addEventListener("click", () => {
+      const cat = item.dataset.category;
+      filterCategorySelect.value = cat;
+      state.filterCategory = cat;
+      renderTransactionList();
+      showToast(`Filtered by ${cat}`);
+    });
+  });
 }
 
 function renderTransactionList() {

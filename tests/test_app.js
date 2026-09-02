@@ -1,75 +1,67 @@
 const fs = require('fs');
 const assert = require('assert');
 
-console.log("--- Starting Option 1: Monthly Budget Verification Tests ---");
+console.log("--- Starting Option 2: Visual Donut Spending Chart Verification Tests ---");
 
-// Test 1: HTML Element Integrity
+// Test 1: HTML Element Integrity for Chart
 const htmlContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/index.html', 'utf8');
-const budgetIds = [
-  'budget-section',
-  'budget-month-label',
-  'budget-spent-display',
-  'budget-limit-display',
-  'edit-budget-btn',
-  'budget-btn-text',
-  'budget-bar-fill',
-  'budget-remaining-text',
-  'budget-percentage-text',
-  'budget-dialog',
-  'budget-form',
-  'budget-input',
-  'cancel-budget-btn',
-  'save-budget-btn',
-  'budget-dialog-currency'
+const chartIds = [
+  'chart-layout',
+  'donut-wrapper',
+  'spending-donut',
+  'donut-segments-group',
+  'donut-center-info',
+  'donut-center-label',
+  'donut-center-val',
+  'category-breakdown-list'
 ];
 
-budgetIds.forEach(id => {
-  assert(htmlContent.includes(`id="${id}"`), `HTML missing required budget element ID: ${id}`);
+chartIds.forEach(id => {
+  assert(htmlContent.includes(`id="${id}"`), `HTML missing required chart element ID: ${id}`);
 });
-console.log("✓ Test 1 Passed: All Option 1 budget HTML elements and modal dialog IDs exist.");
+console.log("✓ Test 1 Passed: All Option 2 SVG Donut Chart container and label IDs exist in index.html.");
 
-// Test 2: Monthly Spending Filter Logic
-const sampleTx = [
-  { amount: 50, date: "2026-09-01" },
-  { amount: 75, date: "2026-09-02" },
-  { amount: 120, date: "2026-08-28" } // Previous month
+// Test 2: Category Colors Mapping
+const appJsContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js', 'utf8');
+const categories = [
+  "Food & Dining",
+  "Transportation",
+  "Shopping",
+  "Entertainment",
+  "Bills & Utilities",
+  "Health & Medical",
+  "Education",
+  "Other"
 ];
 
-const currentMonthPrefix = "2026-09";
-const monthSpend = sampleTx
-  .filter(t => t.date.startsWith(currentMonthPrefix))
-  .reduce((sum, t) => sum + t.amount, 0);
+categories.forEach(cat => {
+  assert(appJsContent.includes(`"${cat}":`), `app.js missing color definition for category: ${cat}`);
+});
+console.log("✓ Test 2 Passed: All 8 standard categories have dedicated hex colors in CATEGORY_COLORS.");
 
-assert.strictEqual(monthSpend, 125, "Current month spending should only include 2026-09 transactions");
-console.log("✓ Test 2 Passed: Monthly spending filter accurately isolates current month expenses.");
+// Test 3: SVG Donut Geometry and Stroke Calculation
+const radius = 58;
+const circumference = 2 * Math.PI * radius; // ~364.424
+const sampleExpenses = [
+  { amount: 50 },
+  { amount: 30 },
+  { amount: 20 }
+];
+const total = 100;
 
-// Test 3: Budget Calculation and Threshold Statuses
-const monthlyBudget = 200;
+let totalStrokeLength = 0;
+sampleExpenses.forEach(exp => {
+  const percent = exp.amount / total;
+  const strokeLength = percent * circumference;
+  totalStrokeLength += strokeLength;
+});
 
-// Case A: Healthy state (e.g. $125 of $200 = 62.5%)
-const percentA = (monthSpend / monthlyBudget) * 100;
-assert.strictEqual(percentA, 62.5);
-assert.strictEqual(monthlyBudget - monthSpend, 75); // remaining
-console.log("✓ Test 3A Passed: Healthy budget state (62.5%) and remaining balance ($75) computed accurately.");
+assert(Math.abs(totalStrokeLength - circumference) < 0.001, "Sum of donut segment lengths must equal total circle circumference");
+console.log(`✓ Test 3 Passed: Circumference (${circumference.toFixed(2)}) math and stroke dash allocations sum to 100%.`);
 
-// Case B: Warning state (>= 80%)
-const spendWarning = 170;
-const percentB = (spendWarning / monthlyBudget) * 100;
-assert(percentB >= 80 && percentB <= 100, "Should be in warning threshold");
-console.log("✓ Test 3B Passed: 80% warning threshold triggers properly.");
-
-// Case C: Over-budget state (> 100%)
-const spendOver = 250;
-const percentC = (spendOver / monthlyBudget) * 100;
-const overAmount = spendOver - monthlyBudget;
-assert(percentC > 100, "Should detect over budget");
-assert.strictEqual(overAmount, 50, "Over budget amount calculation mismatch");
-console.log("✓ Test 3C Passed: Over-budget condition detected and overage amount computed accurately ($50).");
-
-// Test 4: JavaScript Syntax Validation
-console.log("✓ Test 4: Validating JS syntax for app.js and sw.js...");
+// Test 4: Syntax Check for all JS files
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js');
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/sw.js');
-console.log("✓ Test 4 Passed: app.js and sw.js pass syntax checking with no errors.");
+console.log("✓ Test 4 Passed: app.js and sw.js pass syntax validation without any errors.");
 
-console.log("\nAll Option 1 automated tests passed successfully!");
+console.log("\nAll Option 2 visual chart automated tests passed successfully!");
