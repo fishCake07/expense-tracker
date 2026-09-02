@@ -34,12 +34,14 @@ const state = {
   searchQuery: "",
   customStartDate: "",
   customEndDate: "",
-  currentFormType: "expense"
+  currentFormType: "expense",
+  subscriptions: []
 };
 
 const STORAGE_KEYS = {
   tx: "expense_tracker_transactions_v1",
-  currency: "expense_tracker_currency_v1"
+  currency: "expense_tracker_currency_v1",
+  subs: "expense_tracker_subscriptions_v1"
 };
 
 // DOM Cache
@@ -108,6 +110,18 @@ const dom = {
   editNote: $("edit-note"),
   editCurrency: $("edit-dialog-currency"),
   cancelEditBtn: $("cancel-edit-btn"),
+  // Option 6B: Subscriptions DOM
+  subsTotalCommitment: $("subs-total-commitment"),
+  subscriptionsList: $("subscriptions-list"),
+  addSubBtn: $("add-sub-btn"),
+  subDialog: $("sub-dialog"),
+  subForm: $("sub-form"),
+  subName: $("sub-name"),
+  subAmount: $("sub-amount"),
+  subCategory: $("sub-category"),
+  subBillingDay: $("sub-billing-day"),
+  subDialogCurrency: $("sub-dialog-currency"),
+  cancelSubBtn: $("cancel-sub-btn"),
   toast: $("toast")
 };
 
@@ -143,6 +157,8 @@ function loadStorage() {
       state.currency = curr;
       dom.currencySelect.value = curr;
     }
+    const subs = localStorage.getItem(STORAGE_KEYS.subs);
+    if (subs) state.subscriptions = JSON.parse(subs);
   } catch (e) {
     state.transactions = [];
   }
@@ -152,6 +168,7 @@ function saveStorage() {
   try {
     localStorage.setItem(STORAGE_KEYS.tx, JSON.stringify(state.transactions));
     localStorage.setItem(STORAGE_KEYS.currency, state.currency);
+    localStorage.setItem(STORAGE_KEYS.subs, JSON.stringify(state.subscriptions));
   } catch (e) {}
 }
 
@@ -251,6 +268,18 @@ function bindEvents() {
   dom.editType.addEventListener("change", (e) => {
     populateCategorySelects(e.target.value === "income", dom.editCategory);
   });
+
+  // Option 6B: Subscriptions Listeners
+  dom.addSubBtn.addEventListener("click", () => {
+    dom.subName.value = "";
+    dom.subAmount.value = "";
+    dom.subBillingDay.value = "";
+    dom.subDialogCurrency.textContent = state.currency;
+    dom.subDialog?.showModal ? dom.subDialog.showModal() : promptSubFallback();
+  });
+
+  dom.cancelSubBtn.addEventListener("click", () => dom.subDialog.close());
+  dom.subForm.addEventListener("submit", handleAddSubscription);
 }
 
 function setFormType(type) {
@@ -365,6 +394,138 @@ function handleSaveEdit(e) {
   showToast("Transaction updated!");
 }
 
+
+// Option 6B: Subscription Handler Functions
+function handleAddSubscription(e) {
+  e.preventDefault();
+  const name = dom.subName.value.trim();
+  const amount = parseFloat(dom.subAmount.value);
+  const category = dom.subCategory.value;
+  const billingDay = parseInt(dom.subBillingDay.value, 10);
+
+  if (!name || isNaN(amount) || amount <= 0 || !category || isNaN(billingDay) || billingDay < 1 || billingDay > 31) {
+    return showToast("Please enter valid subscription details.");
+  }
+
+  const newSub = {
+    id: "sub_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+    name,
+    amount: Number(amount.toFixed(2)),
+    category,
+    billingDay,
+    createdAt: Date.now()
+  };
+
+  state.subscriptions.push(newSub);
+  saveStorage();
+  renderSubscriptions();
+  dom.subDialog.close();
+  showToast(`Added "${name}" to recurring bills!`);
+}
+
+function promptSubFallback() {
+  const name = prompt("Bill name (e.g. Mobile Plan):");
+  if (!name) return;
+  const amt = parseFloat(prompt("Monthly Amount:"));
+  if (isNaN(amt) || amt <= 0) return;
+  const day = parseInt(prompt("Billing Day of month (1-31):"), 10) || 1;
+
+  state.subscriptions.push({
+    id: "sub_" + Date.now(),
+    name,
+    amount: Number(amt.toFixed(2)),
+    category: "Bills & Utilities",
+    billingDay: day,
+    createdAt: Date.now()
+  });
+  saveStorage();
+  renderSubscriptions();
+  showToast("Bill added!");
+}
+
+function deleteSubscription(id) {
+  const idx = state.subscriptions.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const deleted = state.subscriptions.splice(idx, 1)[0];
+  saveStorage();
+  renderSubscriptions();
+  showToast(`Removed "${deleted.name}"`);
+}
+
+function logSubscriptionNow(id) {
+  const sub = state.subscriptions.find(s => s.id === id);
+  if (!sub) return;
+
+  const today = new Date().toISOString().split("T")[0];
+  state.transactions.unshift({
+    id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+    type: "expense",
+    amount: sub.amount,
+    category: sub.category,
+    date: today,
+    note: `${sub.name} (Monthly Bill)`,
+    createdAt: Date.now()
+  });
+
+  saveStorage();
+  render();
+  showToast(`Logged ${sub.name} (${formatCurrency(sub.amount)}) into this month!`);
+}
+
+function renderSubscriptions() {
+  const totalMonthly = state.subscriptions.reduce((s, b) => s + b.amount, 0);
+  dom.subsTotalCommitment.textContent = `Fixed Commitments: ${formatCurrency(totalMonthly)} / month`;
+
+  if (!state.subscriptions.length) {
+    dom.subscriptionsList.innerHTML = `<p class="empty-state">No recurring subscriptions added yet. Click "+ Add Bill" to track fixed monthly commitments.</p>`;
+    return;
+  }
+
+  const today = new Date();
+  const currentDay = today.getDate();
+
+  // Sort by billing day
+  const sorted = [...state.subscriptions].sort((a, b) => a.billingDay - b.billingDay);
+
+  dom.subscriptionsList.innerHTML = sorted.map(sub => {
+    const icon = CATEGORY_ICONS[sub.category] || "⚡";
+    const diff = sub.billingDay - currentDay;
+
+    let dueBadge = "";
+    if (diff === 0) {
+      dueBadge = `<span class="badge-due-today">🔔 Due Today</span>`;
+    } else if (diff > 0 && diff <= 5) {
+      dueBadge = `<span class="badge-due-soon">⚠️ Due in ${diff}d</span>`;
+    }
+
+    return `
+      <div class="sub-item" data-id="${sub.id}">
+        <div class="sub-left">
+          <div class="sub-icon-badge" aria-hidden="true">${icon}</div>
+          <div class="sub-info">
+            <span class="sub-name" title="${escapeHtml(sub.name)}">${escapeHtml(sub.name)}</span>
+            <div class="sub-meta">
+              <span>Day ${sub.billingDay}</span>
+              ${dueBadge ? `<span>•</span>${dueBadge}` : ""}
+            </div>
+          </div>
+        </div>
+        <div class="sub-right">
+          <span class="sub-amount">${formatCurrency(sub.amount)}</span>
+          <button type="button" class="btn-log-now" title="Log this bill now as paid" onclick="logSubscriptionNow('${sub.id}')">
+            ⚡ Log
+          </button>
+          <button type="button" class="btn-delete" title="Delete subscription" onclick="deleteSubscription('${sub.id}')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
 function deleteExpense(id) {
   const idx = state.transactions.findIndex(t => t.id === id);
   if (idx === -1) return;
@@ -407,6 +568,7 @@ function render() {
   dom.currencyDisplay.textContent = state.currency;
   dom.editCurrency.textContent = state.currency;
   renderHeroSpendableGaugeAndMetrics();
+  renderSubscriptions();
   renderBreakdown();
   renderTransactionList();
 }
@@ -724,7 +886,8 @@ function exportToJSON() {
     version: 1,
     exportedAt: new Date().toISOString(),
     currency: state.currency,
-    transactions: state.transactions
+    transactions: state.transactions,
+    subscriptions: state.subscriptions
   };
 
   const jsonStr = JSON.stringify(backupData, null, 2);
@@ -789,6 +952,7 @@ function importJSONData(jsonStr) {
   } else {
     state.transactions = validTx;
     if (parsed.currency) state.currency = parsed.currency;
+    if (Array.isArray(parsed.subscriptions)) state.subscriptions = parsed.subscriptions;
   }
 
   saveStorage();
@@ -891,9 +1055,19 @@ function loadSampleData() {
   ];
 
   state.transactions = [...samples, ...state.transactions];
+
+  // Sample Subscriptions
+  if (!state.subscriptions.length) {
+    state.subscriptions = [
+      { id: "sub_1", name: "Mobile Postpaid Plan", amount: 45.00, category: "Bills & Utilities", billingDay: 15, createdAt: Date.now() },
+      { id: "sub_2", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, createdAt: Date.now() },
+      { id: "sub_3", name: "Cloud Storage Backup", amount: 11.90, category: "Entertainment", billingDay: today.getDate() + 2, createdAt: Date.now() }
+    ];
+  }
+
   saveStorage();
   render();
-  showToast("Loaded: RM 3,500 salary with RM 700 saved!");
+  showToast("Loaded: Salary, savings, expenses & recurring bills!");
 }
 
 function escapeHtml(s) {

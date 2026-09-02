@@ -1263,3 +1263,127 @@ body {
   border-top: 1px dashed var(--border-color);
   padding-top: 0.75rem;
 }
+
+
+/* Option 6B: Subscriptions & Fixed Bills Styles */
+.sub-total-commitment {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.subscriptions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.sub-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+}
+
+.sub-item:hover {
+  background: var(--bg-subtle);
+  border-color: #cbd5e1;
+}
+
+.sub-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.sub-icon-badge {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.sub-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sub-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+.sub-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.badge-due-soon {
+  background: #fef3c7;
+  color: #b45309;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.badge-due-today {
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.sub-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.sub-amount {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.btn-log-now {
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-log-now:hover {
+  background: var(--primary);
+  color: #fff;
+}
