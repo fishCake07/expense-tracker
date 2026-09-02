@@ -1,4 +1,15 @@
-// Category Icons Map
+// Category Color & Icon Maps
+const CATEGORY_COLORS = {
+  "Food & Dining": "#f97316",
+  "Transportation": "#3b82f6",
+  "Shopping": "#ec4899",
+  "Entertainment": "#8b5cf6",
+  "Bills & Utilities": "#eab308",
+  "Health & Medical": "#10b981",
+  "Education": "#06b6d4",
+  "Other": "#64748b"
+};
+
 const CATEGORY_ICONS = {
   "Food & Dining": "🍔",
   "Transportation": "🚗",
@@ -69,14 +80,12 @@ function init() {
   registerServiceWorker();
 }
 
-// Set Date input default to today
 function setDefaultDate() {
   const today = new Date().toISOString().split("T")[0];
   dateInput.value = today;
   dateInput.max = today;
 }
 
-// Local Storage Handlers
 function loadFromStorage() {
   try {
     const savedTransactions = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
@@ -108,13 +117,11 @@ function saveToStorage() {
   }
 }
 
-// Helper: Format Currency
 function formatCurrency(amount) {
   const num = Number(amount) || 0;
-  return `${state.currency} ${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${state.currency}${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// Helper: Format Date
 function formatDate(dateString) {
   if (!dateString) return "—";
   const [year, month, day] = dateString.split("-");
@@ -123,7 +130,6 @@ function formatDate(dateString) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-// Helper: Get Current Month Spending
 function getCurrentMonthSpending() {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -135,7 +141,6 @@ function getCurrentMonthSpending() {
     .reduce((sum, t) => sum + t.amount, 0);
 }
 
-// Toast notification helper
 let toastTimeout;
 function showToast(message) {
   if (!toastEl) return;
@@ -147,7 +152,6 @@ function showToast(message) {
   }, 2600);
 }
 
-// Event Listeners
 function bindEvents() {
   form.addEventListener("submit", handleAddExpense);
 
@@ -182,7 +186,6 @@ function bindEvents() {
     loadSampleData();
   });
 
-  // Budget Edit Listeners (Option 1)
   editBudgetBtn.addEventListener("click", () => {
     budgetInput.value = state.monthlyBudget > 0 ? state.monthlyBudget : "";
     budgetDialogCurrency.textContent = state.currency;
@@ -212,75 +215,9 @@ function saveNewBudget(val) {
   state.monthlyBudget = Math.max(0, val || 0);
   saveToStorage();
   renderBudget();
-  showToast(state.monthlyBudget > 0 ? `Monthly budget set to ${formatCurrency(state.monthlyBudget)}` : "Budget cleared.");
+  showToast(state.monthlyBudget > 0 ? `Monthly budget set to ${formatCurrency(state.monthlyBudget)}` : "Budget cleared."); }  function handleAddExpense(e) {   e.preventDefault();    const amount = parseFloat(amountInput.value);   const category = categorySelect.value;   const date = dateInput.value;   const note = noteInput.value.trim();    document.getElementById("amount-error").textContent = "";   document.getElementById("category-error").textContent = "";   document.getElementById("date-error").textContent = "";    let hasError = false;    if (isNaN(amount) \vert{}\vert{} amount <= 0) {     document.getElementById("amount-error").textContent = "Please enter a valid amount greater than 0.";     hasError = true;   }    if (!category) {     document.getElementById("category-error").textContent = "Please select a category.";     hasError = true;   }    if (!date) {     document.getElementById("date-error").textContent = "Please choose a date.";     hasError = true;   }    if (hasError) return;    const newTransaction = {     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),     amount: Number(amount.toFixed(2)),     category,     date,     note: note \vert{}\vert{} category,     createdAt: Date.now()   };    state.transactions.unshift(newTransaction);   saveToStorage();    amountInput.value = "";   categorySelect.value = "";   noteInput.value = "";   setDefaultDate();   amountInput.focus();    render();   showToast("Expense added successfully!"); }  function deleteExpense(id) {   const targetIndex = state.transactions.findIndex(t => t.id === id);   if (targetIndex === -1) return;    const deleted = state.transactions.splice(targetIndex, 1)[0];   saveToStorage();   render();   showToast(`Deleted "${deleted.note}"`);
 }
 
-// Form Submission & Validation
-function handleAddExpense(e) {
-  e.preventDefault();
-
-  const amount = parseFloat(amountInput.value);
-  const category = categorySelect.value;
-  const date = dateInput.value;
-  const note = noteInput.value.trim();
-
-  document.getElementById("amount-error").textContent = "";
-  document.getElementById("category-error").textContent = "";
-  document.getElementById("date-error").textContent = "";
-
-  let hasError = false;
-
-  if (isNaN(amount) || amount <= 0) {
-    document.getElementById("amount-error").textContent = "Please enter a valid amount greater than 0.";
-    hasError = true;
-  }
-
-  if (!category) {
-    document.getElementById("category-error").textContent = "Please select a category.";
-    hasError = true;
-  }
-
-  if (!date) {
-    document.getElementById("date-error").textContent = "Please choose a date.";
-    hasError = true;
-  }
-
-  if (hasError) return;
-
-  const newTransaction = {
-    id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
-    amount: Number(amount.toFixed(2)),
-    category,
-    date,
-    note: note || category,
-    createdAt: Date.now()
-  };
-
-  state.transactions.unshift(newTransaction);
-  saveToStorage();
-
-  amountInput.value = "";
-  categorySelect.value = "";
-  noteInput.value = "";
-  setDefaultDate();
-  amountInput.focus();
-
-  render();
-  showToast("Expense added successfully!");
-}
-
-// Delete Single Expense
-function deleteExpense(id) {
-  const targetIndex = state.transactions.findIndex(t => t.id === id);
-  if (targetIndex === -1) return;
-
-  const deleted = state.transactions.splice(targetIndex, 1)[0];
-  saveToStorage();
-  render();
-  showToast(`Deleted "${deleted.note}"`);
-}
-
-// Render Functions
 function render() {
   currencyDisplay.textContent = state.currency;
   budgetDialogCurrency.textContent = state.currency;
@@ -290,34 +227,11 @@ function render() {
   renderTransactionList();
 }
 
-// Render Budget Section (Option 1)
 function renderBudget() {
   const now = new Date();
   const monthName = now.toLocaleString(undefined, { month: "long", year: "numeric" });
-  budgetMonthLabel.textContent = `Monthly Budget (${monthName})`;
+  budgetMonthLabel.textContent = `Monthly Budget (${monthName})`;    const currentMonthSpent = getCurrentMonthSpending();   budgetSpentDisplay.textContent = formatCurrency(currentMonthSpent);    if (!state.monthlyBudget \vert{}\vert{} state.monthlyBudget <= 0) {     budgetLimitDisplay.textContent = "Not set";     budgetBtnText.textContent = "Set Budget";     budgetBarFill.style.width = "0\%";     budgetBarFill.className = "budget-bar-fill";     budgetRemainingText.textContent = "No budget target set";     budgetRemainingText.className = "budget-remaining";     budgetPercentageText.textContent = "—";     return;   }    budgetBtnText.textContent = "Edit Budget";   budgetLimitDisplay.textContent = formatCurrency(state.monthlyBudget);    const percentage = (currentMonthSpent / state.monthlyBudget) * 100;   const clampedPercentage = Math.min(100, Math.max(0, percentage));   budgetBarFill.style.width = `${clampedPercentage}%`;
 
-  const currentMonthSpent = getCurrentMonthSpending();
-  budgetSpentDisplay.textContent = formatCurrency(currentMonthSpent);
-
-  if (!state.monthlyBudget || state.monthlyBudget <= 0) {
-    budgetLimitDisplay.textContent = "Not set";
-    budgetBtnText.textContent = "Set Budget";
-    budgetBarFill.style.width = "0%";
-    budgetBarFill.className = "budget-bar-fill";
-    budgetRemainingText.textContent = "No budget target set";
-    budgetRemainingText.className = "budget-remaining";
-    budgetPercentageText.textContent = "—";
-    return;
-  }
-
-  budgetBtnText.textContent = "Edit Budget";
-  budgetLimitDisplay.textContent = formatCurrency(state.monthlyBudget);
-
-  const percentage = (currentMonthSpent / state.monthlyBudget) * 100;
-  const clampedPercentage = Math.min(100, Math.max(0, percentage));
-  budgetBarFill.style.width = `${clampedPercentage}%`;
-
-  // Color threshold & alerts
   budgetBarFill.className = "budget-bar-fill";
   budgetRemainingText.className = "budget-remaining";
 
@@ -326,50 +240,8 @@ function renderBudget() {
     budgetBarFill.classList.add("danger");
     budgetRemainingText.classList.add("over");
     budgetRemainingText.textContent = `⚠️ Over budget by ${formatCurrency(overAmt)}`;
-    budgetPercentageText.textContent = `${percentage.toFixed(0)}% spent`;
-  } else {
-    const remaining = state.monthlyBudget - currentMonthSpent;
-    budgetRemainingText.textContent = `Remaining: ${formatCurrency(remaining)}`;
-    budgetPercentageText.textContent = `${percentage.toFixed(0)}% spent`;
-
-    if (percentage >= 80) {
-      budgetBarFill.classList.add("warning");
-    }
-  }
-}
-
-function renderMetrics() {
-  const total = state.transactions.reduce((sum, t) => sum + t.amount, 0);
-  const count = state.transactions.length;
-
-  totalSpendEl.textContent = formatCurrency(total);
-  transactionCountEl.textContent = `${count} ${count === 1 ? "expense" : "expenses"} logged`;
-
-  if (count === 0) {
-    topCategoryEl.textContent = "—";
-    topCategoryAmountEl.textContent = "No expenses yet";
-    latestDateEl.textContent = "—";
-    latestNoteEl.textContent = "Ready for your first entry";
-    return;
-  }
-
-  const categoryTotals = {};
-  state.transactions.forEach(t => {
-    categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-  });
-
-  let maxCategory = "";
-  let maxAmount = -1;
-  for (const [cat, sum] of Object.entries(categoryTotals)) {
-    if (sum > maxAmount) {
-      maxAmount = sum;
-      maxCategory = cat;
-    }
-  }
-
-  const topIcon = CATEGORY_ICONS[maxCategory] || "🏷️";
-  topCategoryEl.textContent = `${topIcon} ${maxCategory}`;
-  topCategoryAmountEl.textContent = `${formatCurrency(maxAmount)} total`;
+    budgetPercentageText.textContent = `${percentage.toFixed(0)}\% spent`;   } else {     const remaining = state.monthlyBudget - currentMonthSpent;     budgetRemainingText.textContent = `Remaining: ${formatCurrency(remaining)}`;
+    budgetPercentageText.textContent = `${percentage.toFixed(0)}\% spent`;      if (percentage >= 80) {       budgetBarFill.classList.add("warning");     }   } }  function renderMetrics() {   const total = state.transactions.reduce((sum, t) => sum + t.amount, 0);   const count = state.transactions.length;    totalSpendEl.textContent = formatCurrency(total);   transactionCountEl.textContent = `${count} ${count === 1 ? "expense" : "expenses"} logged`;    if (count === 0) {     topCategoryEl.textContent = "—";     topCategoryAmountEl.textContent = "No expenses yet";     latestDateEl.textContent = "—";     latestNoteEl.textContent = "Ready for your first entry";     return;   }    const categoryTotals = {};   state.transactions.forEach(t => {     categoryTotals[t.category] = (categoryTotals[t.category] \vert{}\vert{} 0) + t.amount;   });    let maxCategory = "";   let maxAmount = -1;   for (const [cat, sum] of Object.entries(categoryTotals)) {     if (sum > maxAmount) {       maxAmount = sum;       maxCategory = cat;     }   }    const topIcon = CATEGORY_ICONS[maxCategory] \vert{}\vert{} "🏷️";   topCategoryEl.textContent = `${topIcon} ${maxCategory}`;   topCategoryAmountEl.textContent = `${formatCurrency(maxAmount)} total`;
 
   const sortedByDate = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt - a.createdAt);
   const latest = sortedByDate[0];
@@ -377,11 +249,18 @@ function renderMetrics() {
   latestNoteEl.textContent = latest.note;
 }
 
+// Option 2: Render SVG Donut Chart & Category Breakdown
 function renderBreakdown() {
   const total = state.transactions.reduce((sum, t) => sum + t.amount, 0);
+  const segmentsGroup = document.getElementById("donut-segments-group");
+  const centerLabel = document.getElementById("donut-center-label");
+  const centerVal = document.getElementById("donut-center-val");
 
   if (state.transactions.length === 0 || total === 0) {
     categoryBreakdownList.innerHTML = `<p class="empty-state">No categorized expenses recorded yet.</p>`;
+    if (segmentsGroup) segmentsGroup.innerHTML = "";
+    if (centerLabel) centerLabel.textContent = "Total";
+    if (centerVal) centerVal.textContent = formatCurrency(0);
     return;
   }
 
@@ -392,24 +271,111 @@ function renderBreakdown() {
 
   const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
 
-  let html = "";
+  // Render SVG Donut Segments
+  if (segmentsGroup) {
+    const radius = 58;
+    const circumference = 2 * Math.PI * radius;
+    let accumulatedPercent = 0;
+    let svgSegments = "";
+
+    sortedCategories.forEach(([cat, amount]) => {
+      const percent = amount / total;
+      const strokeLength = percent * circumference;
+      const strokeDashoffset = -accumulatedPercent * circumference;
+      const color = CATEGORY_COLORS[cat] || "#64748b";
+
+      svgSegments += `
+        <circle 
+          class="donut-segment" 
+          cx="80" 
+          cy="80" 
+          r="${radius}" 
+          stroke="${color}" 
+          stroke-dasharray="${strokeLength.toFixed(2)}${circumference.toFixed(2)}" 
+          stroke-dashoffset="${strokeDashoffset.toFixed(2)}"
+          data-category="${cat}"
+          data-amount="${amount}"
+          data-percentage="${(percent * 100).toFixed(1)}"
+        />
+      `;
+      accumulatedPercent += percent;
+    });
+
+    segmentsGroup.innerHTML = svgSegments;
+
+    if (centerLabel) centerLabel.textContent = "Total";
+    if (centerVal) centerVal.textContent = formatCurrency(total);
+
+    const segmentEls = segmentsGroup.querySelectorAll(".donut-segment");
+    segmentEls.forEach(seg => {
+      const cat = seg.dataset.category;
+      const amt = parseFloat(seg.dataset.amount);
+      const pct = seg.dataset.percentage;
+
+      const highlight = () => {
+        segmentEls.forEach(s => s.classList.remove("active"));
+        seg.classList.add("active");
+        if (centerLabel) centerLabel.textContent = cat;
+        if (centerVal) centerVal.textContent = `${formatCurrency(amt)} (${pct}%)`;
+      };
+
+      const unhighlight = () => {
+        seg.classList.remove("active");
+        if (centerLabel) centerLabel.textContent = "Total";
+        if (centerVal) centerVal.textContent = formatCurrency(total);
+      };
+
+      seg.addEventListener("mouseenter", highlight);
+      seg.addEventListener("mouseleave", unhighlight);
+      seg.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        highlight();
+      }, { passive: false });
+
+      seg.addEventListener("click", () => {
+        filterCategorySelect.value = cat;
+        state.filterCategory = cat;
+        renderTransactionList();
+        showToast(`Filtered by ${cat}`);
+      });
+    });
+  }
+
+  // Render Breakdown Bars with Color Indicators
+  let listHtml = "";
   sortedCategories.forEach(([cat, amount]) => {
     const percentage = ((amount / total) * 100).toFixed(1);
     const icon = CATEGORY_ICONS[cat] || "🏷️";
-    html += `
-      <div class="breakdown-item">
+    const color = CATEGORY_COLORS[cat] || "#4f46e5";
+
+    listHtml += `
+      <div class="breakdown-item" data-category="${cat}" title="Click to filter by ${cat}">
         <div class="breakdown-header">
-          <span>${icon} ${cat}</span>
+          <span class="breakdown-header-title">
+            <span class="category-dot" style="background-color: ${color};"></span>
+            ${icon}${cat}
+          </span>
           <span>${formatCurrency(amount)} <span style="color:var(--text-muted); font-size:0.8rem">(${percentage}%)</span></span>
         </div>
         <div class="breakdown-bar-bg">
-          <div class="breakdown-bar-fill" style="width: ${percentage}%"></div>
+          <div class="breakdown-bar-fill" style="width: ${percentage}\%; background-color:${color};"></div>
         </div>
       </div>
     `;
   });
 
-  categoryBreakdownList.innerHTML = html;
+  categoryBreakdownList.innerHTML = listHtml;
+
+  const listItems = categoryBreakdownList.querySelectorAll(".breakdown-item");
+  listItems.forEach(item => {
+    item.addEventListener("click", () => {
+      const cat = item.dataset.category;
+      filterCategorySelect.value = cat;
+      state.filterCategory = cat;
+      renderTransactionList();
+      showToast(`Filtered by ${cat}`);
+    });
+  });
 }
 
 function renderTransactionList() {
@@ -439,8 +405,7 @@ function renderTransactionList() {
           <div class="tx-info">
             <span class="tx-category">${tx.category}</span>
             <div class="tx-meta">
-              <span>${formatDate(tx.date)}</span>
-              ${tx.note && tx.note !== tx.category ? `<span>•</span><span class="tx-note" title="${escapeHtml(tx.note)}">${escapeHtml(tx.note)}</span>` : ""}
+              <span>${formatDate(tx.date)}</span>${tx.note && tx.note !== tx.category ? `<span>•</span><span class="tx-note" title="${escapeHtml(tx.note)}">${escapeHtml(tx.note)}</span>` : ""}
             </div>
           </div>
         </div>
@@ -450,96 +415,4 @@ function renderTransactionList() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 6h18"></path>
               <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
-    `;
-  });
-
-  transactionList.innerHTML = html;
-}
-
-// Sample Data Loader
-function loadSampleData() {
-  const today = new Date();
-  const getPastDateStr = (daysAgo) => {
-    const d = new Date();
-    d.setDate(today.getDate() - daysAgo);
-    return d.toISOString().split("T")[0];
-  };
-
-  const samples = [
-    {
-      id: "tx_sample_1",
-      amount: 14.50,
-      category: "Food & Dining",
-      date: getPastDateStr(0),
-      note: "Chicken Rice & Iced Tea lunch",
-      createdAt: Date.now() - 3600000
-    },
-    {
-      id: "tx_sample_2",
-      amount: 28.00,
-      category: "Transportation",
-      date: getPastDateStr(1),
-      note: "Petrol refill",
-      createdAt: Date.now() - 86400000
-    },
-    {
-      id: "tx_sample_3",
-      amount: 65.00,
-      category: "Shopping",
-      date: getPastDateStr(2),
-      note: "Running socks and shorts",
-      createdAt: Date.now() - 172800000
-    },
-    {
-      id: "tx_sample_4",
-      amount: 45.00,
-      category: "Bills & Utilities",
-      date: getPastDateStr(3),
-      note: "Monthly mobile data plan",
-      createdAt: Date.now() - 259200000
-    }
-  ];
-
-  state.transactions = [...samples, ...state.transactions];
-  if (!state.monthlyBudget) {
-    state.monthlyBudget = 500;
-  }
-  saveToStorage();
-  render();
-  showToast("Sample expenses & $500 budget loaded!");
-}
-
-// Utility: HTML escaping
-function escapeHtml(str) {
-  if (!str) return "";
-  return str.replace(/[&<>'"]/g, 
-    tag => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      "'": '&#39;',
-      '"': '&quot;'
-    }[tag] || tag)
-  );
-}
-
-// Register Offline Service Worker (PWA)
-function registerServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").then(reg => {
-        console.log("ServiceWorker registered successfully:", reg.scope);
-      }).catch(err => {
-        console.log("ServiceWorker registration skipped or failed:", err);
-      });
-    });
-  }
-}
-
-// Launch app on load
-window.addEventListener("DOMContentLoaded", init);
+              <path d="M8 6V4c0-1 1-2 2-2h4c1
