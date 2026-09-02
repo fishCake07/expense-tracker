@@ -1,0 +1,23 @@
+{
+  "name": "Expense Tracker",
+  "short_name": "Expenses",
+  "description": "Minimalist, responsive personal spending tracker for Android, iOS, Windows, and Mac.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
