@@ -76,6 +76,10 @@ const dom = {
   filterCategory: $("filter-category"),
   clearAllBtn: $("clear-all-btn"),
   loadSampleBtn: $("load-sample-btn"),
+  exportCsvBtn: $("export-csv-btn"),
+  exportJsonBtn: $("export-json-btn"),
+  importBtn: $("import-btn"),
+  importFileInput: $("import-file-input"),
   toast: $("toast")
 };
 
@@ -118,7 +122,7 @@ function saveStorage() {
   } catch (e) {}
 }
 
-const formatCurrency = (amt) => `${state.currency}${(Number(amt) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatCurrency = (amt) => `${state.currency} ${(Number(amt) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function formatDate(ds) {
   if (!ds) return "—";
@@ -186,6 +190,12 @@ function bindEvents() {
     e.stopPropagation();
     if (state.selectedCategory) deselectCategory();
   });
+
+  // Option 3: Export & Import Listeners
+  dom.exportCsvBtn.addEventListener("click", exportToCSV);
+  dom.exportJsonBtn.addEventListener("click", exportToJSON);
+  dom.importBtn.addEventListener("click", () => dom.importFileInput.click());
+  dom.importFileInput.addEventListener("change", handleFileImport);
 }
 
 function promptBudget() {
@@ -299,7 +309,7 @@ function renderMetrics() {
   const count = state.transactions.length;
 
   dom.totalSpend.textContent = formatCurrency(total);
-  dom.txCount.textContent = `${count}${count === 1 ? "expense" : "expenses"} logged`;
+  dom.txCount.textContent = `${count} ${count === 1 ? "expense" : "expenses"} logged`;
 
   if (!count) {
     dom.topCategory.textContent = "—";
@@ -311,9 +321,9 @@ function renderMetrics() {
 
   const totals = {};
   state.transactions.forEach(t => totals[t.category] = (totals[t.category] || 0) + t.amount);
-  const top = Object.entries(totals).sort((a, b) => b - a)[0];
-  dom.topCategory.textContent = `${CATEGORY_ICONS[top[0]] \vert{}\vert{} "🏷️"} ${top[0]}`;
-  dom.topCategoryAmt.textContent = `${formatCurrency(top)} total`;
+  const top = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+  dom.topCategory.textContent = `${CATEGORY_ICONS[top[0]] || "🏷️"} ${top[0]}`;
+  dom.topCategoryAmt.textContent = `${formatCurrency(top[1])} total`;
 
   const latest = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt - a.createdAt)[0];
   dom.latestDate.textContent = formatDate(latest.date);
@@ -359,7 +369,7 @@ function renderBreakdown() {
 
   const totals = {};
   state.transactions.forEach(t => totals[t.category] = (totals[t.category] || 0) + t.amount);
-  const sorted = Object.entries(totals).sort((a, b) => b - a);
+  const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
 
   // SVG Donut
   if (dom.donutSegments) {
@@ -380,7 +390,7 @@ function renderBreakdown() {
           class="donut-segment ${isSel ? "active" : ""}" 
           cx="80" cy="80" r="${r}" 
           stroke="${color}" 
-          stroke-dasharray="${len.toFixed(2)}${c.toFixed(2)}" 
+          stroke-dasharray="${len.toFixed(2)} ${c.toFixed(2)}" 
           stroke-dashoffset="${off.toFixed(2)}"
           data-category="${cat}"
           data-amount="${amt}"
@@ -441,12 +451,12 @@ function renderBreakdown() {
         <div class="breakdown-header">
           <span class="breakdown-header-title">
             <span class="category-dot" style="background-color:${color};"></span>
-            ${CATEGORY_ICONS[cat] \vert{}\vert{} "🏷️"} ${cat}
+            ${CATEGORY_ICONS[cat] || "🏷️"} ${cat}
           </span>
           <span>${formatCurrency(amt)} <span style="color:var(--text-muted); font-size:0.8rem">(${pct}%)</span></span>
         </div>
         <div class="breakdown-bar-bg">
-          <div class="breakdown-bar-fill" style="width:${pct}\%; background-color:${color};"></div>
+          <div class="breakdown-bar-fill" style="width:${pct}%; background-color:${color};"></div>
         </div>
       </div>
     `;
@@ -477,7 +487,8 @@ function renderTransactionList() {
         <div class="tx-info">
           <span class="tx-category">${escapeHtml(tx.category)}</span>
           <div class="tx-meta">
-            <span>${formatDate(tx.date)}</span>${tx.note && tx.note !== tx.category ? `<span>•</span><span class="tx-note" title="${escapeHtml(tx.note)}">${escapeHtml(tx.note)}</span>` : ""}
+            <span>${formatDate(tx.date)}</span>
+            ${tx.note && tx.note !== tx.category ? `<span>•</span><span class="tx-note" title="${escapeHtml(tx.note)}">${escapeHtml(tx.note)}</span>` : ""}
           </div>
         </div>
       </div>
@@ -485,4 +496,212 @@ function renderTransactionList() {
         <span class="tx-amount">-${formatCurrency(tx.amount)}</span>
         <button type="button" class="btn-delete" title="Delete expense" onclick="deleteExpense('${tx.id}')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2
+            <path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+// Sample Data Loader
+
+// Option 3: Export to CSV
+function exportToCSV() {
+  if (!state.transactions.length) return showToast("No expenses to export.");
+
+  const headers = ["Date", "Category", "Note", "Amount", "Currency"];
+  const rows = state.transactions.map(t => [
+    t.date,
+    `"${(t.category || "").replace(/"/g, '""')}"`,
+    `"${(t.note || "").replace(/"/g, '""')}"`,
+    t.amount.toFixed(2),
+    state.currency
+  ]);
+
+  const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n");
+  const today = new Date().toISOString().split("T")[0];
+  downloadBlob(new Blob([csvContent], { type: "text/csv;charset=utf-8;" }), `expenses_${today}.csv`);
+  showToast(`Exported ${state.transactions.length} expenses to CSV!`);
+}
+
+// Option 3: Export to JSON (Full Backup)
+function exportToJSON() {
+  const backupData = {
+    appName: "Expense Tracker",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    currency: state.currency,
+    monthlyBudget: state.monthlyBudget,
+    transactions: state.transactions
+  };
+
+  const jsonStr = JSON.stringify(backupData, null, 2);
+  const today = new Date().toISOString().split("T")[0];
+  downloadBlob(new Blob([jsonStr], { type: "application/json;charset=utf-8;" }), `expense_tracker_backup_${today}.json`);
+  showToast("Full backup file downloaded!");
+}
+
+// Helper: Trigger browser download via anchor
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Option 3: Import JSON or CSV file
+function handleFileImport(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  const isJson = file.name.endsWith(".json");
+  const isCsv = file.name.endsWith(".csv");
+
+  reader.onload = (evt) => {
+    try {
+      const content = evt.target.result;
+      if (isJson) {
+        importJSONData(content);
+      } else if (isCsv) {
+        importCSVData(content);
+      } else {
+        showToast("Unsupported file format. Use .json or .csv.");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to parse imported file.");
+    } finally {
+      dom.importFileInput.value = ""; // Reset file input
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function importJSONData(jsonStr) {
+  const parsed = JSON.parse(jsonStr);
+  const incomingTx = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.transactions) ? parsed.transactions : null);
+
+  if (!incomingTx) {
+    return showToast("Invalid backup format: No transactions found.");
+  }
+
+  const validTx = incomingTx.filter(t => t && t.amount > 0 && t.category && t.date);
+  if (!validTx.length) {
+    return showToast("No valid expense records found in backup.");
+  }
+
+  const shouldMerge = state.transactions.length > 0 && confirm("Do you want to MERGE with existing expenses?\n\nClick OK to Merge.\nClick Cancel to REPLACE all existing expenses.");
+
+  if (shouldMerge) {
+    const existingIds = new Set(state.transactions.map(t => t.id));
+    const toAdd = validTx.map(t => existingIds.has(t.id) ? { ...t, id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6) } : t);
+    state.transactions = [...toAdd, ...state.transactions];
+  } else {
+    state.transactions = validTx;
+    if (parsed.currency) state.currency = parsed.currency;
+    if (parsed.monthlyBudget) state.monthlyBudget = parsed.monthlyBudget;
+  }
+
+  saveStorage();
+  render();
+  showToast(`Successfully imported ${validTx.length} expenses!`);
+}
+
+function importCSVData(csvStr) {
+  const lines = csvStr.split(/\r?\n/).filter(line => line.trim().length > 0);
+  if (lines.length <= 1) return showToast("CSV file is empty or missing data.");
+
+  const imported = [];
+  // Skip header row
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length >= 4) {
+      const [date, category, note, amountStr] = cols;
+      const amt = parseFloat(amountStr);
+      if (date && category && !isNaN(amt) && amt > 0) {
+        imported.push({
+          id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6) + "_" + i,
+          amount: Number(amt.toFixed(2)),
+          category: category.trim(),
+          date: date.trim(),
+          note: (note || category).trim(),
+          createdAt: Date.now()
+        });
+      }
+    }
+  }
+
+  if (!imported.length) return showToast("Could not find valid rows in CSV.");
+
+  state.transactions = [...imported, ...state.transactions];
+  saveStorage();
+  render();
+  showToast(`Imported ${imported.length} expenses from CSV!`);
+}
+
+// Simple RFC 4180 CSV line parser
+function parseCSVLine(text) {
+  const result = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      result.push(cur);
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function loadSampleData() {
+  const d = (ago) => {
+    const dt = new Date();
+    dt.setDate(dt.getDate() - ago);
+    return dt.toISOString().split("T")[0];
+  };
+
+  const samples = [
+    { id: "tx_s1", amount: 14.50, category: "Food & Dining", date: d(0), note: "Chicken Rice & Iced Tea lunch", createdAt: Date.now() - 3600000 },
+    { id: "tx_s2", amount: 28.00, category: "Transportation", date: d(1), note: "Petrol refill", createdAt: Date.now() - 86400000 },
+    { id: "tx_s3", amount: 65.00, category: "Shopping", date: d(2), note: "Running socks and shorts", createdAt: Date.now() - 172800000 },
+    { id: "tx_s4", amount: 45.00, category: "Bills & Utilities", date: d(3), note: "Monthly mobile data plan", createdAt: Date.now() - 259200000 }
+  ];
+
+  state.transactions = [...samples, ...state.transactions];
+  if (!state.monthlyBudget) state.monthlyBudget = 1000;
+  saveStorage();
+  render();
+  showToast("Sample expenses & RM 1,000 budget loaded!");
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c] || c));
+}
+
+function registerSW() {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    });
+  }
+}
+
+window.addEventListener("DOMContentLoaded", init);

@@ -772,13 +772,23 @@ body {
   fill: none;
   stroke-width: 18;
   cursor: pointer;
-  transition: stroke-width 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+  transition: stroke-width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, filter 0.25s ease;
 }
 
-.donut-segment:hover,
+.donut-segment:hover {
+  stroke-width: 21;
+}
+
 .donut-segment.active {
   stroke-width: 22;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.22));
+  opacity: 1 !important;
+}
+
+/* Dim non-selected segments when one is selected */
+.donut-wrapper.has-selection .donut-segment:not(.active) {
+  opacity: 0.35;
+  stroke-width: 16;
 }
 
 .donut-center-info {
@@ -791,8 +801,32 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  pointer-events: none;
-  max-width: 95px;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  border-radius: 50%;
+  width: 92px;
+  height: 92px;
+  transition: var(--transition);
+  outline: none;
+}
+
+.donut-center-info:hover,
+.donut-center-info:focus-visible {
+  background: rgba(241, 245, 249, 0.85);
+}
+
+.donut-center-hint {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--primary);
+  margin-top: 1px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.donut-wrapper.has-selection .donut-center-hint {
+  opacity: 1;
 }
 
 .donut-center-label {
@@ -837,4 +871,47 @@ body {
 
 .breakdown-item:hover {
   background: var(--bg-subtle);
+}
+
+
+/* Option 3: Backup Toolbar Styles */
+.backup-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.backup-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.btn-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-tool:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-tool:active {
+  transform: scale(0.97);
 }

@@ -176,9 +176,10 @@
                 <circle class="donut-bg-ring" cx="80" cy="80" r="58" />
                 <g id="donut-segments-group"></g>
               </svg>
-              <div class="donut-center-info" id="donut-center-info">
+              <div class="donut-center-info" id="donut-center-info" role="button" tabindex="0" title="Tap to deselect and show total">
                 <span class="donut-center-label" id="donut-center-label">Total</span>
                 <span class="donut-center-val" id="donut-center-val">$ 0.00</span>
+                <span class="donut-center-hint" id="donut-center-hint">Tap to reset</span>
               </div>
             </div>
             <div id="category-breakdown-list" class="breakdown-list">
@@ -205,6 +206,24 @@
                 <option value="Other">Other</option>
               </select>
               <button type="button" id="clear-all-btn" class="btn-danger-text" title="Clear all records">Clear All</button>
+            </div>
+          </div>
+          <!-- Option 3: Backup & Export Toolbar -->
+          <div class="backup-toolbar">
+            <div class="backup-btn-group">
+              <button type="button" id="export-csv-btn" class="btn-tool" title="Download expenses as CSV spreadsheet">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+              </button>
+              <button type="button" id="export-json-btn" class="btn-tool" title="Download complete backup file">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Backup
+              </button>
+              <button type="button" id="import-btn" class="btn-tool" title="Import backup or CSV file">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Import
+              </button>
+              <input type="file" id="import-file-input" accept=".json,.csv" style="display:none">
             </div>
           </div>
           <div id="transaction-list" class="transaction-list" role="feed" aria-busy="false">
