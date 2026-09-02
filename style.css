@@ -915,3 +915,23 @@ body {
 .btn-tool:active {
   transform: scale(0.97);
 }
+
+
+/* Option 4: Edit Button Styles */
+.btn-edit {
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.btn-edit:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+}

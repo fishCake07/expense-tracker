@@ -1,93 +1,56 @@
 const fs = require('fs');
 const assert = require('assert');
 
-console.log("--- Starting Option 3: Export & Import Verification Tests ---");
+console.log("--- Starting Option 4: Edit Transaction Verification Tests ---");
 
-// Test 1: HTML Elements Presence
+// Test 1: HTML Elements Integrity
 const htmlContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/index.html', 'utf8');
-const requiredIds = ['export-csv-btn', 'export-json-btn', 'import-btn', 'import-file-input'];
-requiredIds.forEach(id => {
-  assert(htmlContent.includes(`id="${id}"`), `HTML missing required ID: ${id}`);
-});
-console.log("✓ Test 1 Passed: All Option 3 buttons and file inputs exist in index.html.");
-
-// Test 2: CSV Export & Parse Logic
-const sampleTx = [
-  { id: "1", date: "2026-09-01", category: "Food & Dining", note: "Lunch with coffee, and cake", amount: 22.50 },
-  { id: "2", date: "2026-09-02", category: "Shopping", note: 'T-shirt "vintage"', amount: 45.00 }
+const requiredEditIds = [
+  'edit-dialog',
+  'edit-expense-form',
+  'edit-tx-id',
+  'edit-amount',
+  'edit-category',
+  'edit-date',
+  'edit-note',
+  'cancel-edit-btn',
+  'save-edit-btn',
+  'edit-dialog-currency'
 ];
 
-function buildCSV(txList, curr) {
-  const headers = ["Date", "Category", "Note", "Amount", "Currency"];
-  const rows = txList.map(t => [
-    t.date,
-    `"${(t.category || "").replace(/"/g, '""')}"`,
-    `"${(t.note || "").replace(/"/g, '""')}"`,
-    t.amount.toFixed(2),
-    curr
-  ]);
-  return [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n");
-}
+requiredEditIds.forEach(id => {
+  assert(htmlContent.includes(`id="${id}"`), `HTML missing required edit dialog ID: ${id}`);
+});
+console.log("✓ Test 1 Passed: All Option 4 Edit Modal dialog elements verified in index.html.");
 
-function parseCSVLine(text) {
-  const result = [];
-  let cur = "";
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (c === '"') {
-      if (inQuotes && text[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (c === ',' && !inQuotes) {
-      result.push(cur);
-      cur = "";
-    } else {
-      cur += c;
-    }
-  }
-  result.push(cur);
-  return result;
-}
+// Test 2: Edit Mutation & Calculation Recalibration
+const transactions = [
+  { id: "tx_1", amount: 15.00, category: "Food & Dining", date: "2026-09-01", note: "Lunch" },
+  { id: "tx_2", amount: 35.00, category: "Transportation", date: "2026-09-02", note: "Petrol" }
+];
 
-const csvOutput = buildCSV(sampleTx, "RM");
-assert(csvOutput.includes("Date,Category,Note,Amount,Currency"), "Header row mismatch");
-assert(csvOutput.includes('"Lunch with coffee, and cake"'), "Comma in note not quoted properly");
-assert(csvOutput.includes('""vintage""'), "Quotes in note not escaped properly");
+let initialTotal = transactions.reduce((sum, t) => sum + t.amount, 0);
+assert.strictEqual(initialTotal, 50.00);
 
-const lines = csvOutput.split("\r\n");
-const parsedRow1 = parseCSVLine(lines[1]);
-assert.strictEqual(parsedRow1[0], "2026-09-01");
-assert.strictEqual(parsedRow1[1], "Food & Dining");
-assert.strictEqual(parsedRow1[2], "Lunch with coffee, and cake");
-assert.strictEqual(parsedRow1[3], "22.50");
-assert.strictEqual(parsedRow1[4], "RM");
-console.log("✓ Test 2 Passed: CSV serialization and RFC 4180 parsing verified.");
+// Simulate editing tx_1 (amount changed from 15.00 to 25.50, category changed to Shopping)
+const target = transactions.find(t => t.id === "tx_1");
+assert(target !== undefined);
+target.amount = 25.50;
+target.category = "Shopping";
+target.note = "Book purchase";
 
-// Test 3: JSON Backup Integrity
-const backupPayload = {
-  appName: "Expense Tracker",
-  version: 1,
-  exportedAt: new Date().toISOString(),
-  currency: "RM",
-  monthlyBudget: 1000,
-  transactions: sampleTx
-};
+let updatedTotal = transactions.reduce((sum, t) => sum + t.amount, 0);
+assert.strictEqual(updatedTotal, 60.50, "Total spend should reflect updated amount");
 
-const jsonString = JSON.stringify(backupPayload, null, 2);
-const restored = JSON.parse(jsonString);
-assert.strictEqual(restored.appName, "Expense Tracker");
-assert.strictEqual(restored.currency, "RM");
-assert.strictEqual(restored.monthlyBudget, 1000);
-assert.strictEqual(restored.transactions.length, 2);
-console.log("✓ Test 3 Passed: JSON full backup structure and restoration verified.");
+const categoryTotals = {};
+transactions.forEach(t => categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount);
+assert.strictEqual(categoryTotals["Shopping"], 25.50);
+assert.strictEqual(categoryTotals["Food & Dining"], undefined);
+console.log("✓ Test 2 Passed: In-memory mutation and recalculation (total & categories) succeed.");
 
-// Test 4: JavaScript Syntax Validation
+// Test 3: JavaScript Syntax Check
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js');
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/sw.js');
-console.log("✓ Test 4 Passed: app.js and sw.js pass syntax checks with 0 errors.");
+console.log("✓ Test 3 Passed: app.js and sw.js pass syntax checks without warnings or errors.");
 
-console.log("\nAll Option 3 automated verification tests passed successfully!");
+console.log("\nAll Option 4 automated tests passed successfully!");

@@ -80,6 +80,15 @@ const dom = {
   exportJsonBtn: $("export-json-btn"),
   importBtn: $("import-btn"),
   importFileInput: $("import-file-input"),
+  editDialog: $("edit-dialog"),
+  editForm: $("edit-expense-form"),
+  editTxId: $("edit-tx-id"),
+  editAmount: $("edit-amount"),
+  editCategory: $("edit-category"),
+  editDate: $("edit-date"),
+  editNote: $("edit-note"),
+  editCurrency: $("edit-dialog-currency"),
+  cancelEditBtn: $("cancel-edit-btn"),
   toast: $("toast")
 };
 
@@ -196,6 +205,10 @@ function bindEvents() {
   dom.exportJsonBtn.addEventListener("click", exportToJSON);
   dom.importBtn.addEventListener("click", () => dom.importFileInput.click());
   dom.importFileInput.addEventListener("change", handleFileImport);
+
+  // Option 4: Edit Dialog Listeners
+  dom.cancelEditBtn.addEventListener("click", () => dom.editDialog.close());
+  dom.editForm.addEventListener("submit", handleSaveEdit);
 }
 
 function promptBudget() {
@@ -242,6 +255,67 @@ function handleAddExpense(e) {
 }
 
 // Delete Expense
+
+// Option 4: Edit Transaction Functions
+function openEditModal(id) {
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return;
+
+  dom.editTxId.value = tx.id;
+  dom.editAmount.value = tx.amount;
+  dom.editCategory.value = tx.category;
+  dom.editDate.value = tx.date;
+  dom.editNote.value = tx.note === tx.category ? "" : tx.note;
+  dom.editCurrency.textContent = state.currency;
+
+  $("edit-amount-error").textContent = "";
+  $("edit-category-error").textContent = "";
+  $("edit-date-error").textContent = "";
+
+  dom.editDialog?.showModal ? dom.editDialog.showModal() : promptEditFallback(tx);
+}
+
+function promptEditFallback(tx) {
+  const newAmt = prompt("New amount:", tx.amount);
+  if (newAmt === null) return;
+  const amt = parseFloat(newAmt);
+  if (!isNaN(amt) && amt > 0) {
+    tx.amount = Number(amt.toFixed(2));
+    saveStorage();
+    render();
+    showToast("Expense updated!");
+  }
+}
+
+function handleSaveEdit(e) {
+  e.preventDefault();
+  const id = dom.editTxId.value;
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return dom.editDialog.close();
+
+  const amt = parseFloat(dom.editAmount.value);
+  const cat = dom.editCategory.value;
+  const dt = dom.editDate.value;
+  const nt = dom.editNote.value.trim();
+
+  let hasErr = false;
+  $("edit-amount-error").textContent = (!amt || amt <= 0) ? "Enter an amount greater than 0." : "";
+  $("edit-category-error").textContent = !cat ? "Select a category." : "";
+  $("edit-date-error").textContent = !dt ? "Choose a date." : "";
+
+  if (!amt || amt <= 0 || !cat || !dt) return;
+
+  tx.amount = Number(amt.toFixed(2));
+  tx.category = cat;
+  tx.date = dt;
+  tx.note = nt || cat;
+
+  saveStorage();
+  render();
+  dom.editDialog.close();
+  showToast("Expense updated successfully!");
+}
+
 function deleteExpense(id) {
   const idx = state.transactions.findIndex(t => t.id === id);
   if (idx === -1) return;
@@ -494,6 +568,12 @@ function renderTransactionList() {
       </div>
       <div class="tx-right">
         <span class="tx-amount">-${formatCurrency(tx.amount)}</span>
+        <button type="button" class="btn-edit" title="Edit expense" onclick="openEditModal('${tx.id}')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </button>
         <button type="button" class="btn-delete" title="Delete expense" onclick="deleteExpense('${tx.id}')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
