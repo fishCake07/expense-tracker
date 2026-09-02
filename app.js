@@ -902,8 +902,19 @@ function escapeHtml(s) {
 
 function registerSW() {
   if ("serviceWorker" in navigator) {
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").catch(() => {});
+      navigator.serviceWorker.register("./sw.js").then((reg) => {
+        // Check for updates on every app launch
+        reg.update().catch(() => {});
+      }).catch(() => {});
     });
   }
 }
