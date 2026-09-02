@@ -61,7 +61,6 @@
         </button>
       </div>
 
-      <!-- Budget Progress Bar -->
       <div class="budget-progress-wrapper">
         <div class="budget-bar-bg">
           <div class="budget-bar-fill" id="budget-bar-fill" style="width: 0%"></div>
@@ -164,13 +163,26 @@
 
       <!-- Right Column: Breakdown & History -->
       <section class="dashboard-side">
-        <!-- Category Breakdown Card -->
+        <!-- Category Breakdown Card with Visual Donut Chart (Option 2) -->
         <div class="card breakdown-card">
           <div class="card-header">
             <h2>Spending by Category</h2>
+            <span class="chart-tip" id="chart-tip">Tap segment to inspect</span>
           </div>
-          <div id="category-breakdown-list" class="breakdown-list">
-            <p class="empty-state">No categorized expenses recorded yet.</p>
+          <div class="chart-layout" id="chart-layout">
+            <div class="donut-wrapper" id="donut-wrapper">
+              <svg id="spending-donut" viewBox="0 0 160 160" width="160" height="160" role="img" aria-label="Visual Spending Donut Chart">
+                <circle class="donut-bg-ring" cx="80" cy="80" r="58" />
+                <g id="donut-segments-group"></g>
+              </svg>
+              <div class="donut-center-info" id="donut-center-info">
+                <span class="donut-center-label" id="donut-center-label">Total</span>
+                <span class="donut-center-val" id="donut-center-val">$ 0.00</span>
+              </div>
+            </div>
+            <div id="category-breakdown-list" class="breakdown-list">
+              <p class="empty-state">No categorized expenses recorded yet.</p>
+            </div>
           </div>
         </div>
 
@@ -194,9 +206,7 @@
               <button type="button" id="clear-all-btn" class="btn-danger-text" title="Clear all records">Clear All</button>
             </div>
           </div>
-          <div id="transaction-list" class="transaction-list" role="feed" aria-busy="false">
-            <!-- Dynamically populated -->
-          </div>
+          <div id="transaction-list" class="transaction-list" role="feed" aria-busy="false"></div>
         </div>
       </section>
     </main>
