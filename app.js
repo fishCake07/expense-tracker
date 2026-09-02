@@ -27,7 +27,11 @@ const state = {
   currency: "$",
   monthlyBudget: 0,
   filterCategory: "ALL",
-  selectedCategory: null
+  selectedCategory: null,
+  periodFilter: "ALL",
+  searchQuery: "",
+  customStartDate: "",
+  customEndDate: ""
 };
 
 const STORAGE_KEYS = {
@@ -74,6 +78,12 @@ const dom = {
   breakdownList: $("category-breakdown-list"),
   txList: $("transaction-list"),
   filterCategory: $("filter-category"),
+  filterPeriod: $("filter-period"),
+  searchInput: $("search-input"),
+  clearSearchBtn: $("clear-search-btn"),
+  customDateInputs: $("custom-date-inputs"),
+  customStartDate: $("custom-start-date"),
+  customEndDate: $("custom-end-date"),
   clearAllBtn: $("clear-all-btn"),
   loadSampleBtn: $("load-sample-btn"),
   exportCsvBtn: $("export-csv-btn"),
@@ -161,6 +171,36 @@ function bindEvents() {
 
   dom.filterCategory.addEventListener("change", (e) => {
     e.target.value === "ALL" ? deselectCategory() : selectCategory(e.target.value);
+  });
+
+  // Option 5: Search & Period Listeners
+  dom.searchInput.addEventListener("input", (e) => {
+    state.searchQuery = e.target.value.trim().toLowerCase();
+    dom.clearSearchBtn.style.display = state.searchQuery ? "block" : "none";
+    renderTransactionList();
+  });
+
+  dom.clearSearchBtn.addEventListener("click", () => {
+    dom.searchInput.value = "";
+    state.searchQuery = "";
+    dom.clearSearchBtn.style.display = "none";
+    renderTransactionList();
+  });
+
+  dom.filterPeriod.addEventListener("change", (e) => {
+    state.periodFilter = e.target.value;
+    dom.customDateInputs.style.display = state.periodFilter === "CUSTOM" ? "flex" : "none";
+    render();
+  });
+
+  dom.customStartDate.addEventListener("change", (e) => {
+    state.customStartDate = e.target.value;
+    if (state.periodFilter === "CUSTOM") render();
+  });
+
+  dom.customEndDate.addEventListener("change", (e) => {
+    state.customEndDate = e.target.value;
+    if (state.periodFilter === "CUSTOM") render();
   });
 
   dom.clearAllBtn.addEventListener("click", () => {
@@ -543,14 +583,58 @@ function renderBreakdown() {
 }
 
 // Transaction List Render
+
+// Option 5: Multi-Criteria Filter Logic
+function getFilteredTransactions() {
+  const now = new Date();
+  const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  
+  // Last month calculation
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastYm = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
+
+  return state.transactions.filter(t => {
+    // 1. Period Filter
+    if (state.periodFilter === "THIS_MONTH" && (!t.date || !t.date.startsWith(currentYm))) {
+      return false;
+    }
+    if (state.periodFilter === "LAST_MONTH" && (!t.date || !t.date.startsWith(lastYm))) {
+      return false;
+    }
+    if (state.periodFilter === "CUSTOM") {
+      if (state.customStartDate && t.date < state.customStartDate) return false;
+      if (state.customEndDate && t.date > state.customEndDate) return false;
+    }
+
+    // 2. Category Filter
+    if (state.filterCategory !== "ALL" && t.category !== state.filterCategory) {
+      return false;
+    }
+
+    // 3. Keyword Search Query
+    if (state.searchQuery) {
+      const matchNote = (t.note || "").toLowerCase().includes(state.searchQuery);
+      const matchCat = (t.category || "").toLowerCase().includes(state.searchQuery);
+      const matchAmt = t.amount.toString().includes(state.searchQuery);
+      if (!matchNote && !matchCat && !matchAmt) return false;
+    }
+
+    return true;
+  });
+}
+
 function renderTransactionList() {
-  let list = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt - a.createdAt);
-  if (state.filterCategory !== "ALL") {
-    list = list.filter(t => t.category === state.filterCategory);
-  }
+  const filtered = getFilteredTransactions();
+  let list = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt - a.createdAt);
 
   if (!list.length) {
-    dom.txList.innerHTML = `<div class="empty-state"><p>${state.transactions.length ? "No expenses match the selected category." : "No expenses recorded yet. Fill out the form to add your first expense!"}</p></div>`;
+    const hasActiveFilters = state.filterCategory !== "ALL" || state.periodFilter !== "ALL" || state.searchQuery;
+    dom.txList.innerHTML = `
+      <div class="empty-state">
+        <p>${hasActiveFilters ? "No expenses match your search and filter criteria." : "No expenses recorded yet. Fill out the form to add your first expense!"}</p>
+        ${hasActiveFilters ? '<button type="button" class="btn-text" onclick="resetAllFilters()" style="margin-top:0.4rem;">Reset Filters</button>' : ''}
+      </div>
+    `;
     return;
   }
 
@@ -770,6 +854,17 @@ function loadSampleData() {
   saveStorage();
   render();
   showToast("Sample expenses & RM 1,000 budget loaded!");
+}
+
+
+function resetAllFilters() {
+  state.searchQuery = "";
+  dom.searchInput.value = "";
+  dom.clearSearchBtn.style.display = "none";
+  state.periodFilter = "ALL";
+  dom.filterPeriod.value = "ALL";
+  dom.customDateInputs.style.display = "none";
+  deselectCategory();
 }
 
 function escapeHtml(s) {

@@ -193,6 +193,13 @@
           <div class="card-header">
             <h2>Transaction History</h2>
             <div class="history-actions">
+              <label for="filter-period" class="sr-only">Filter by Period</label>
+              <select id="filter-period" class="select-filter" aria-label="Filter transactions by period">
+                <option value="ALL">All Time</option>
+                <option value="THIS_MONTH">This Month</option>
+                <option value="LAST_MONTH">Last Month</option>
+                <option value="CUSTOM">Custom Dates</option>
+              </select>
               <label for="filter-category" class="sr-only">Filter by Category</label>
               <select id="filter-category" class="select-filter" aria-label="Filter transactions by category">
                 <option value="ALL">All Categories</option>
@@ -206,6 +213,19 @@
                 <option value="Other">Other</option>
               </select>
               <button type="button" id="clear-all-btn" class="btn-danger-text" title="Clear all records">Clear All</button>
+            </div>
+          </div>
+          <!-- Option 5: Search & Date Range Filter Bar -->
+          <div class="filter-controls-row">
+            <div class="search-input-wrapper">
+              <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search-input" placeholder="Search note, category..." aria-label="Search expenses">
+              <button type="button" id="clear-search-btn" class="btn-clear-search" style="display:none;" title="Clear search">✕</button>
+            </div>
+            <div id="custom-date-inputs" class="custom-date-row" style="display:none;">
+              <input type="date" id="custom-start-date" aria-label="Start date">
+              <span>to</span>
+              <input type="date" id="custom-end-date" aria-label="End date">
             </div>
           </div>
           <!-- Option 3: Backup & Export Toolbar -->
