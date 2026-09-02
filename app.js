@@ -1,5 +1,5 @@
-// Category Color & Icon Maps
-const EXPENSE_CATEGORIES = [
+// Category Presets
+const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Food & Dining", icon: "🍔", color: "#f97316" },
   { name: "Transportation", icon: "🚗", color: "#3b82f6" },
   { name: "Shopping", icon: "🛍️", color: "#ec4899" },
@@ -11,7 +11,7 @@ const EXPENSE_CATEGORIES = [
   { name: "Other", icon: "📦", color: "#64748b" }
 ];
 
-const INCOME_CATEGORIES = [
+const DEFAULT_INCOME_CATEGORIES = [
   { name: "Salary & Wages", icon: "💼", color: "#10b981" },
   { name: "Freelance & Projects", icon: "💻", color: "#06b6d4" },
   { name: "Investments & Dividends", icon: "📈", color: "#3b82f6" },
@@ -20,28 +20,30 @@ const INCOME_CATEGORIES = [
   { name: "Other Income", icon: "💵", color: "#64748b" }
 ];
 
-const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
-const CATEGORY_COLORS = Object.fromEntries(ALL_CATEGORIES.map(c => [c.name, c.color]));
-const CATEGORY_ICONS = Object.fromEntries(ALL_CATEGORIES.map(c => [c.name, c.icon]));
-
 // Application State
 const state = {
   transactions: [],
-  currency: "$",
+  subscriptions: [],
+  customCategories: [],
+  currency: "RM",
+  theme: "auto",
+  activeTab: "dashboard",
   filterCategory: "ALL",
   selectedCategory: null,
-  periodFilter: "THIS_MONTH", // Default to Current Month to prevent Wealth Illusion
+  periodFilter: "THIS_MONTH",
   searchQuery: "",
   customStartDate: "",
   customEndDate: "",
   currentFormType: "expense",
-  subscriptions: []
+  analysisGranularity: "month"
 };
 
 const STORAGE_KEYS = {
   tx: "expense_tracker_transactions_v1",
   currency: "expense_tracker_currency_v1",
-  subs: "expense_tracker_subscriptions_v1"
+  subs: "expense_tracker_subscriptions_v1",
+  customCats: "expense_tracker_custom_categories_v1",
+  theme: "expense_tracker_theme_v1"
 };
 
 // DOM Cache
@@ -56,7 +58,7 @@ const dom = {
   note: $("note"),
   currencySelect: $("currency-select"),
   currencyDisplay: $("currency-display"),
-  // Hero Two-Tone Spendable Bar
+  // Hero Two-Tone Bar
   spendableMonthLabel: $("spendable-month-label"),
   heroSpendableVal: $("hero-spendable-val"),
   heroSpendableTag: $("hero-spendable-tag"),
@@ -84,33 +86,7 @@ const dom = {
   donutVal: $("donut-center-val"),
   donutHint: $("donut-center-hint"),
   breakdownList: $("category-breakdown-list"),
-  // History & Filters
-  txList: $("transaction-list"),
-  filterCategory: $("filter-category"),
-  filterPeriod: $("filter-period"),
-  searchInput: $("search-input"),
-  clearSearchBtn: $("clear-search-btn"),
-  customDateInputs: $("custom-date-inputs"),
-  customStartDate: $("custom-start-date"),
-  customEndDate: $("custom-end-date"),
-  clearAllBtn: $("clear-all-btn"),
-  loadSampleBtn: $("load-sample-btn"),
-  exportCsvBtn: $("export-csv-btn"),
-  exportJsonBtn: $("export-json-btn"),
-  importBtn: $("import-btn"),
-  importFileInput: $("import-file-input"),
-  // Edit Dialog
-  editDialog: $("edit-dialog"),
-  editForm: $("edit-expense-form"),
-  editTxId: $("edit-tx-id"),
-  editType: $("edit-type"),
-  editAmount: $("edit-amount"),
-  editCategory: $("edit-category"),
-  editDate: $("edit-date"),
-  editNote: $("edit-note"),
-  editCurrency: $("edit-dialog-currency"),
-  cancelEditBtn: $("cancel-edit-btn"),
-  // Option 6B: Subscriptions DOM
+  // Subscriptions
   subsTotalCommitment: $("subs-total-commitment"),
   subscriptionsList: $("subscriptions-list"),
   addSubBtn: $("add-sub-btn"),
@@ -122,14 +98,77 @@ const dom = {
   subBillingDay: $("sub-billing-day"),
   subDialogCurrency: $("sub-dialog-currency"),
   cancelSubBtn: $("cancel-sub-btn"),
+  // History & Filters
+  txList: $("transaction-list"),
+  filterCategory: $("filter-category"),
+  filterPeriod: $("filter-period"),
+  searchInput: $("search-input"),
+  clearSearchBtn: $("clear-search-btn"),
+  customDateInputs: $("custom-date-inputs"),
+  customStartDate: $("custom-start-date"),
+  customEndDate: $("custom-end-date"),
+  clearAllBtn: $("clear-all-btn"),
+  loadSampleBtn: $("load-sample-btn"),
+  // Edit Dialog
+  editDialog: $("edit-dialog"),
+  editForm: $("edit-expense-form"),
+  editTxId: $("edit-tx-id"),
+  editType: $("edit-type"),
+  editAmount: $("edit-amount"),
+  editCategory: $("edit-category"),
+  editDate: $("edit-date"),
+  editNote: $("edit-note"),
+  editCurrency: $("edit-dialog-currency"),
+  cancelEditBtn: $("cancel-edit-btn"),
+  // Custom Category Creator Dialog
+  catCreatorDialog: $("category-creator-dialog"),
+  catCreatorForm: $("category-creator-form"),
+  customCatName: $("custom-cat-name"),
+  customCatType: $("custom-cat-type"),
+  customCatEmoji: $("custom-cat-emoji"),
+  customCatColor: $("custom-cat-color"),
+  cancelCatCreatorBtn: $("cancel-cat-creator-btn"),
+  openCatModalBtn: $("open-cat-modal-btn"),
+  customCategoriesList: $("custom-categories-list"),
+  // Analysis Elements
+  analysisTotalSpend: $("analysis-total-spend"),
+  analysisTotalIncome: $("analysis-total-income"),
+  analysisComparisonStat: $("analysis-comparison-stat"),
+  analysisBarChart: $("analysis-bar-chart"),
+  analysisInsightText: $("analysis-insight-text"),
+  // Settings Elements
+  settingsExportCsv: $("settings-export-csv"),
+  settingsExportJson: $("settings-export-json"),
+  settingsImportBtn: $("settings-import-btn"),
+  settingsFileInput: $("settings-file-input"),
   toast: $("toast")
 };
 
-// Initialize
+// Category Lookup Helpers
+function getAllCategories() {
+  const expense = [...DEFAULT_EXPENSE_CATEGORIES, ...state.customCategories.filter(c => c.type === "expense")];
+  const income = [...DEFAULT_INCOME_CATEGORIES, ...state.customCategories.filter(c => c.type === "income")];
+  return { expense, income, all: [...expense, ...income] };
+}
+
+function getCategoryColor(name) {
+  const found = getAllCategories().all.find(c => c.name === name);
+  return found ? found.color : "#64748b";
+}
+
+function getCategoryIcon(name) {
+  const found = getAllCategories().all.find(c => c.name === name);
+  return found ? found.icon : "🏷️";
+}
+
+// Initialize Application
 function init() {
   loadStorage();
+  initTheme();
   setDefaultDate();
   populateCategorySelects();
+  populateFilterCategories();
+  dom.currencySelect.value = state.currency;
   dom.filterPeriod.value = state.periodFilter;
   bindEvents();
   render();
@@ -142,23 +181,19 @@ function setDefaultDate() {
   dom.date.max = today;
 }
 
-function populateCategorySelects(isIncome = false, targetEl = dom.category) {
-  const list = isIncome ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-  targetEl.innerHTML = `<option value="" disabled selected>Select category</option>` +
-    list.map(c => `<option value="${c.name}">${c.icon} ${c.name}</option>`).join("");
-}
-
+// Local Storage
 function loadStorage() {
   try {
     const tx = localStorage.getItem(STORAGE_KEYS.tx);
     if (tx) state.transactions = JSON.parse(tx);
     const curr = localStorage.getItem(STORAGE_KEYS.currency);
-    if (curr) {
-      state.currency = curr;
-      dom.currencySelect.value = curr;
-    }
+    if (curr) state.currency = curr;
     const subs = localStorage.getItem(STORAGE_KEYS.subs);
     if (subs) state.subscriptions = JSON.parse(subs);
+    const cats = localStorage.getItem(STORAGE_KEYS.customCats);
+    if (cats) state.customCategories = JSON.parse(cats);
+    const th = localStorage.getItem(STORAGE_KEYS.theme);
+    if (th) state.theme = th;
   } catch (e) {
     state.transactions = [];
   }
@@ -169,6 +204,8 @@ function saveStorage() {
     localStorage.setItem(STORAGE_KEYS.tx, JSON.stringify(state.transactions));
     localStorage.setItem(STORAGE_KEYS.currency, state.currency);
     localStorage.setItem(STORAGE_KEYS.subs, JSON.stringify(state.subscriptions));
+    localStorage.setItem(STORAGE_KEYS.customCats, JSON.stringify(state.customCategories));
+    localStorage.setItem(STORAGE_KEYS.theme, state.theme);
   } catch (e) {}
 }
 
@@ -189,10 +226,86 @@ function showToast(msg) {
   toastTimer = setTimeout(() => dom.toast.classList.remove("show"), 2600);
 }
 
+// Theme Handling (Option 7)
+function initTheme() {
+  applyTheme(state.theme);
+  document.querySelectorAll(".theme-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.theme === state.theme);
+  });
+}
+
+function applyTheme(theme) {
+  state.theme = theme;
+  saveStorage();
+  if (theme === "auto") {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
+  } else {
+    document.documentElement.setAttribute("data-theme", theme);
+  }
+}
+
+// Navigation Tabs Router
+function switchTab(tabName) {
+  state.activeTab = tabName;
+  document.querySelectorAll(".app-view").forEach(v => v.classList.remove("active"));
+  const targetView = $(`view-${tabName}`);
+  if (targetView) targetView.classList.add("active");
+
+  // Update button states
+  document.querySelectorAll(".nav-tab-btn, .mobile-nav-btn").forEach(b => {
+    b.classList.toggle("active", b.dataset.tab === tabName);
+  });
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  if (tabName === "analysis") renderAnalysis();
+  if (tabName === "settings") renderSettings();
+}
+
+// Category Dropdown Population (Includes Option 7C "Custom Category➕")
+function populateCategorySelects(isIncome = (state.currentFormType === "income"), targetEl = dom.category) {
+  const cats = getAllCategories();
+  const list = isIncome ? cats.income : cats.expense;
+
+  let optionsHtml = `<option value="" disabled selected>Select category</option>`;
+  optionsHtml += list.map(c => `<option value="${c.name}">${c.icon} ${c.name}</option>`).join("");
+  optionsHtml += `<option value="__ADD_CUSTOM__" style="color:var(--primary); font-weight:700;">➕ Custom Category...</option>`;
+
+  targetEl.innerHTML = optionsHtml;
+}
+
+function populateFilterCategories() {
+  const cats = getAllCategories();
+  dom.filterCategory.innerHTML = `<option value="ALL">All Categories</option>` +
+    cats.all.map(c => `<option value="${c.name}">${c.icon} ${c.name}</option>`).join("");
+}
+
 // Event Bindings
 function bindEvents() {
+  // Navigation Tabs (Desktop & Mobile)
+  document.querySelectorAll(".nav-tab-btn, .mobile-nav-btn").forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+
+  // Type Toggle Tabs
   dom.tabExpense.addEventListener("click", () => setFormType("expense"));
   dom.tabIncome.addEventListener("click", () => setFormType("income"));
+
+  // Category select intercept for "Custom Category..."
+  dom.category.addEventListener("change", (e) => {
+    if (e.target.value === "__ADD_CUSTOM__") {
+      openCategoryCreatorModal(state.currentFormType);
+      dom.category.value = "";
+    }
+  });
+
+  dom.editCategory.addEventListener("change", (e) => {
+    if (e.target.value === "__ADD_CUSTOM__") {
+      openCategoryCreatorModal(dom.editType.value);
+      dom.editCategory.value = "";
+    }
+  });
 
   dom.form.addEventListener("submit", handleAddTransaction);
 
@@ -256,12 +369,6 @@ function bindEvents() {
     if (state.selectedCategory) deselectCategory();
   });
 
-  // Export & Import Listeners
-  dom.exportCsvBtn.addEventListener("click", exportToCSV);
-  dom.exportJsonBtn.addEventListener("click", exportToJSON);
-  dom.importBtn.addEventListener("click", () => dom.importFileInput.click());
-  dom.importFileInput.addEventListener("change", handleFileImport);
-
   // Edit Dialog Listeners
   dom.cancelEditBtn.addEventListener("click", () => dom.editDialog.close());
   dom.editForm.addEventListener("submit", handleSaveEdit);
@@ -269,8 +376,9 @@ function bindEvents() {
     populateCategorySelects(e.target.value === "income", dom.editCategory);
   });
 
-  // Option 6B: Subscriptions Listeners
+  // Subscriptions Listeners
   dom.addSubBtn.addEventListener("click", () => {
+    populateCategorySelects(false, dom.subCategory);
     dom.subName.value = "";
     dom.subAmount.value = "";
     dom.subBillingDay.value = "";
@@ -280,6 +388,53 @@ function bindEvents() {
 
   dom.cancelSubBtn.addEventListener("click", () => dom.subDialog.close());
   dom.subForm.addEventListener("submit", handleAddSubscription);
+
+  // Custom Category Creator Dialog Listeners (Option 7C)
+  dom.openCatModalBtn.addEventListener("click", () => openCategoryCreatorModal("expense"));
+  dom.cancelCatCreatorBtn.addEventListener("click", () => dom.catCreatorDialog.close());
+  dom.catCreatorForm.addEventListener("submit", handleSaveCustomCategory);
+
+  document.querySelectorAll(".emoji-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".emoji-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      dom.customCatEmoji.value = btn.dataset.emoji;
+    });
+  });
+
+  document.querySelectorAll(".color-swatch-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".color-swatch-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      dom.customCatColor.value = btn.dataset.color;
+    });
+  });
+
+  // Analysis Granularity Switcher (Option 7B)
+  document.querySelectorAll(".gran-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".gran-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.analysisGranularity = btn.dataset.gran;
+      renderAnalysis();
+    });
+  });
+
+  // Theme Buttons (Option 7)
+  document.querySelectorAll(".theme-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".theme-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      applyTheme(btn.dataset.theme);
+      showToast(`Theme changed to ${btn.dataset.theme}`);
+    });
+  });
+
+  // Settings Data Actions (Option 3 Integration)
+  dom.settingsExportCsv.addEventListener("click", exportToCSV);
+  dom.settingsExportJson.addEventListener("click", exportToJSON);
+  dom.settingsImportBtn.addEventListener("click", () => dom.settingsFileInput.click());
+  dom.settingsFileInput.addEventListener("change", handleFileImport);
 }
 
 function setFormType(type) {
@@ -298,7 +453,65 @@ function setFormType(type) {
   }
 }
 
-// Add Transaction (Expense or Income)
+// Option 7C: Custom Category Creator Functions
+function openCategoryCreatorModal(defaultType = "expense") {
+  dom.customCatName.value = "";
+  dom.customCatType.value = defaultType;
+  dom.catCreatorDialog?.showModal ? dom.catCreatorDialog.showModal() : promptCatFallback();
+}
+
+function promptCatFallback() {
+  const name = prompt("New category name:");
+  if (!name) return;
+  saveCustomCategoryObject(name, "🏷️", "#6366f1", state.currentFormType);
+}
+
+function handleSaveCustomCategory(e) {
+  e.preventDefault();
+  const name = dom.customCatName.value.trim();
+  const type = dom.customCatType.value;
+  const icon = dom.customCatEmoji.value || "🏷️";
+  const color = dom.customCatColor.value || "#6366f1";
+
+  if (!name) return showToast("Please enter a category name.");
+
+  // Check duplicate
+  const all = getAllCategories().all;
+  if (all.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+    return showToast("Category already exists.");
+  }
+
+  saveCustomCategoryObject(name, icon, color, type);
+  dom.catCreatorDialog.close();
+}
+
+function saveCustomCategoryObject(name, icon, color, type) {
+  const newCat = { id: "cat_" + Date.now(), name, icon, color, type };
+  state.customCategories.push(newCat);
+  saveStorage();
+  populateCategorySelects();
+  populateFilterCategories();
+
+  // Auto-select in form
+  dom.category.value = name;
+  renderSettings();
+  render();
+  showToast(`Created category "${icon} ${name}"!`);
+}
+
+function deleteCustomCategory(id) {
+  const idx = state.customCategories.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  const deleted = state.customCategories.splice(idx, 1)[0];
+  saveStorage();
+  populateCategorySelects();
+  populateFilterCategories();
+  renderSettings();
+  render();
+  showToast(`Deleted category "${deleted.name}"`);
+}
+
+// Add Transaction
 function handleAddTransaction(e) {
   e.preventDefault();
   const amt = parseFloat(dom.amount.value);
@@ -310,7 +523,7 @@ function handleAddTransaction(e) {
   $("category-error").textContent = !cat ? "Please select a category." : "";
   $("date-error").textContent = !dt ? "Please choose a date." : "";
 
-  if (!amt || amt <= 0 || !cat || !dt) return;
+  if (!amt || amt <= 0 || !cat || !dt || cat === "__ADD_CUSTOM__") return;
 
   state.transactions.unshift({
     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
@@ -380,7 +593,7 @@ function handleSaveEdit(e) {
   const nt = dom.editNote.value.trim();
   const type = dom.editType.value;
 
-  if (!amt || amt <= 0 || !cat || !dt) return;
+  if (!amt || amt <= 0 || !cat || !dt || cat === "__ADD_CUSTOM__") return;
 
   tx.type = type;
   tx.amount = Number(amt.toFixed(2));
@@ -394,8 +607,16 @@ function handleSaveEdit(e) {
   showToast("Transaction updated!");
 }
 
+function deleteExpense(id) {
+  const idx = state.transactions.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  const deleted = state.transactions.splice(idx, 1)[0];
+  saveStorage();
+  render();
+  showToast(`Deleted "${deleted.note}"`);
+}
 
-// Option 6B: Subscription Handler Functions
+// Subscriptions
 function handleAddSubscription(e) {
   e.preventDefault();
   const name = dom.subName.value.trim();
@@ -407,16 +628,15 @@ function handleAddSubscription(e) {
     return showToast("Please enter valid subscription details.");
   }
 
-  const newSub = {
+  state.subscriptions.push({
     id: "sub_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     name,
     amount: Number(amount.toFixed(2)),
     category,
     billingDay,
     createdAt: Date.now()
-  };
+  });
 
-  state.subscriptions.push(newSub);
   saveStorage();
   renderSubscriptions();
   dom.subDialog.close();
@@ -477,26 +697,21 @@ function renderSubscriptions() {
   dom.subsTotalCommitment.textContent = `Fixed Commitments: ${formatCurrency(totalMonthly)} / month`;
 
   if (!state.subscriptions.length) {
-    dom.subscriptionsList.innerHTML = `<p class="empty-state">No recurring subscriptions added yet. Click "+ Add Bill" to track fixed monthly commitments.</p>`;
+    dom.subscriptionsList.innerHTML = `<p class="empty-state">No recurring subscriptions added yet. Click "+ Add Bill" to track fixed commitments.</p>`;
     return;
   }
 
   const today = new Date();
   const currentDay = today.getDate();
-
-  // Sort by billing day
   const sorted = [...state.subscriptions].sort((a, b) => a.billingDay - b.billingDay);
 
   dom.subscriptionsList.innerHTML = sorted.map(sub => {
-    const icon = CATEGORY_ICONS[sub.category] || "⚡";
+    const icon = getCategoryIcon(sub.category);
     const diff = sub.billingDay - currentDay;
 
     let dueBadge = "";
-    if (diff === 0) {
-      dueBadge = `<span class="badge-due-today">🔔 Due Today</span>`;
-    } else if (diff > 0 && diff <= 5) {
-      dueBadge = `<span class="badge-due-soon">⚠️ Due in ${diff}d</span>`;
-    }
+    if (diff === 0) dueBadge = `<span class="badge-due-today">🔔 Due Today</span>`;
+    else if (diff > 0 && diff <= 5) dueBadge = `<span class="badge-due-soon">⚠️ Due in ${diff}d</span>`;
 
     return `
       <div class="sub-item" data-id="${sub.id}">
@@ -512,9 +727,7 @@ function renderSubscriptions() {
         </div>
         <div class="sub-right">
           <span class="sub-amount">${formatCurrency(sub.amount)}</span>
-          <button type="button" class="btn-log-now" title="Log this bill now as paid" onclick="logSubscriptionNow('${sub.id}')">
-            ⚡ Log
-          </button>
+          <button type="button" class="btn-log-now" title="Log this bill now as paid" onclick="logSubscriptionNow('${sub.id}')">⚡ Log</button>
           <button type="button" class="btn-delete" title="Delete subscription" onclick="deleteSubscription('${sub.id}')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
@@ -524,15 +737,6 @@ function renderSubscriptions() {
       </div>
     `;
   }).join("");
-}
-
-function deleteExpense(id) {
-  const idx = state.transactions.findIndex(t => t.id === id);
-  if (idx === -1) return;
-  const deleted = state.transactions.splice(idx, 1)[0];
-  saveStorage();
-  render();
-  showToast(`Deleted "${deleted.note}"`);
 }
 
 // Multi-Criteria Filter Logic
@@ -581,9 +785,7 @@ function renderHeroSpendableGaugeAndMetrics() {
 
   dom.spendableMonthLabel.textContent = `Spendable Cash Flow (${monthName})`;
 
-  // Strictly scoped to the current month to prevent Wealth Illusion
   const currentMonthTx = state.transactions.filter(t => t.date && t.date.startsWith(ym));
-
   const monthlyIncomes = currentMonthTx.filter(t => t.type === "income");
   const monthlyExpenses = currentMonthTx.filter(t => (t.type || "expense") === "expense");
 
@@ -599,21 +801,18 @@ function renderHeroSpendableGaugeAndMetrics() {
 
   // Spendable Pool = Month Income - Month Savings
   const spendablePool = Math.max(0, monthIncomeAmt - monthSavedAmt);
-  // Spendable Balance = Spendable Pool - Living Expenses
   const spendableBalance = spendablePool - monthLivingAmt;
 
-  // 1. Update Values
   dom.heroSpendableVal.textContent = formatCurrency(spendableBalance);
   dom.heroSpentVal.textContent = formatCurrency(monthLivingAmt);
   dom.heroPoolVal.textContent = formatCurrency(spendablePool);
 
-  // 2. Render Two-Tone Visual Gauge
+  // Two-Tone Visual Gauge
   if (spendablePool > 0) {
     dom.twoToneTrack.className = "two-tone-track";
     const spentPercent = (monthLivingAmt / spendablePool) * 100;
 
     if (monthLivingAmt > spendablePool) {
-      // Over budget / Deficit
       dom.twoToneTrack.classList.add("overspend");
       dom.twoToneSpentFill.style.width = "100%";
       dom.heroSpendableVal.className = "spendable-balance-val deficit";
@@ -621,7 +820,7 @@ function renderHeroSpendableGaugeAndMetrics() {
       dom.heroSpendableTag.textContent = "Deficit";
       dom.gaugeSpentText.textContent = `🔴 ${spentPercent.toFixed(0)}% Spent`;
       dom.gaugeAvailableText.textContent = `⚠️ Over budget by ${formatCurrency(monthLivingAmt - spendablePool)}`;
-      dom.heroFooterText.textContent = `⚠️ You have exceeded your monthly spendable pool! Currently dipping into savings by ${formatCurrency(monthLivingAmt - spendablePool)}.`;
+      dom.heroFooterText.textContent = `⚠️ You have exceeded your spendable pool! Currently dipping into savings by ${formatCurrency(monthLivingAmt - spendablePool)}.`;
     } else {
       dom.twoToneSpentFill.style.width = `${spentPercent.toFixed(1)}%`;
       dom.heroSpendableVal.className = "spendable-balance-val";
@@ -645,13 +844,13 @@ function renderHeroSpendableGaugeAndMetrics() {
     dom.heroFooterText.textContent = "Tip: Log your monthly salary and savings to establish your safe spendable pool for this month.";
   }
 
-  // 3. Update Monthly Stat Cards Below
+  // Monthly Stat Cards Below
   dom.totalIncome.textContent = formatCurrency(monthIncomeAmt);
   dom.incomeCount.textContent = `${monthlyIncomes.length} ${monthlyIncomes.length === 1 ? "earning" : "earnings"} this month`;
 
   dom.totalSaved.textContent = formatCurrency(monthSavedAmt);
   dom.savingsSub.textContent = monthIncomeAmt > 0
-    ? `${((monthSavedAmt / monthIncomeAmt) * 100).toFixed(0)}% of salary saved`
+    ? `${((monthSavedAmt / monthIncomeAmt) * 100).toFixed(0)}% of month salary`
     : "0% of salary saved";
 
   dom.totalSpend.textContent = formatCurrency(monthLivingAmt);
@@ -664,7 +863,7 @@ function renderHeroSpendableGaugeAndMetrics() {
     const catTotals = {};
     monthLivingTx.forEach(t => catTotals[t.category] = (catTotals[t.category] || 0) + t.amount);
     const top = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
-    dom.topCategory.textContent = `${CATEGORY_ICONS[top[0]] || "🏷️"} ${top[0]}`;
+    dom.topCategory.textContent = `${getCategoryIcon(top[0])} ${top[0]}`;
     dom.topCategoryAmt.textContent = `${formatCurrency(top[1])} total`;
   }
 }
@@ -722,7 +921,7 @@ function renderBreakdown() {
       const len = p * c;
       const off = -acc * c;
       const isSel = state.selectedCategory === cat;
-      const color = CATEGORY_COLORS[cat] || "#64748b";
+      const color = getCategoryColor(cat);
 
       segHtml += `
         <circle 
@@ -779,7 +978,7 @@ function renderBreakdown() {
   let listHtml = "";
   sorted.forEach(([cat, amt]) => {
     const pct = ((amt / total) * 100).toFixed(1);
-    const color = CATEGORY_COLORS[cat] || "#4f46e5";
+    const color = getCategoryColor(cat);
     const isSel = state.selectedCategory === cat;
 
     listHtml += `
@@ -787,7 +986,7 @@ function renderBreakdown() {
         <div class="breakdown-header">
           <span class="breakdown-header-title">
             <span class="category-dot" style="background-color:${color};"></span>
-            ${CATEGORY_ICONS[cat] || "🏷️"} ${cat}
+            ${getCategoryIcon(cat)} ${cat}
           </span>
           <span>${formatCurrency(amt)} <span style="color:var(--text-muted); font-size:0.8rem">(${pct}%)</span></span>
         </div>
@@ -804,7 +1003,7 @@ function renderBreakdown() {
   });
 }
 
-// Transaction List Render (Filtered)
+// Transaction List Render
 function renderTransactionList() {
   const filtered = getFilteredTransactions();
   let list = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt - a.createdAt);
@@ -822,7 +1021,7 @@ function renderTransactionList() {
 
   dom.txList.innerHTML = list.map(tx => {
     const isIncome = tx.type === "income";
-    const icon = CATEGORY_ICONS[tx.category] || (isIncome ? "💵" : "🏷️");
+    const icon = getCategoryIcon(tx.category);
     const sign = isIncome ? "+" : "-";
     const amountClass = isIncome ? "tx-amount income" : "tx-amount expense";
 
@@ -860,7 +1059,148 @@ function renderTransactionList() {
   }).join("");
 }
 
-// Export & Import Handlers
+// Option 7B: Analysis Page Engine (Bar Chart & Trend Comparisons)
+function renderAnalysis() {
+  const gran = state.analysisGranularity; // "month", "day", "year"
+  const now = new Date();
+
+  let buckets = [];
+  // 1. Prepare Intervals
+  if (gran === "month") {
+    // Last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleString(undefined, { month: "short" });
+      buckets.push({ key: ym, label, expenses: 0, income: 0, savings: 0 });
+    }
+  } else if (gran === "day") {
+    // Days in current month (up to 31)
+    const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayStr = String(d).padStart(2, "0");
+      const fullDate = `${currentYm}-${dayStr}`;
+      buckets.push({ key: fullDate, label: `${d}`, expenses: 0, income: 0, savings: 0 });
+    }
+  } else if (gran === "year") {
+    // Last 3 years
+    for (let i = 2; i >= 0; i--) {
+      const yr = String(now.getFullYear() - i);
+      buckets.push({ key: yr, label: yr, expenses: 0, income: 0, savings: 0 });
+    }
+  }
+
+  // 2. Aggregate Data
+  state.transactions.forEach(t => {
+    if (!t.date) return;
+    buckets.forEach(b => {
+      if (t.date.startsWith(b.key)) {
+        if (t.type === "income") {
+          b.income += t.amount;
+        } else if (t.category === "Savings & Investments") {
+          b.savings += t.amount;
+        } else {
+          b.expenses += t.amount;
+        }
+      }
+    });
+  });
+
+  // 3. Render Totals in Header
+  const totalExp = buckets.reduce((s, b) => s + b.expenses, 0);
+  const totalInc = buckets.reduce((s, b) => s + b.income, 0);
+  dom.analysisTotalSpend.textContent = formatCurrency(totalExp);
+  dom.analysisTotalIncome.textContent = formatCurrency(totalInc);
+
+  // Comparison stat vs previous period
+  if (buckets.length >= 2) {
+    const currentBucket = buckets[buckets.length - 1];
+    const prevBucket = buckets[buckets.length - 2];
+    if (prevBucket.expenses > 0) {
+      const diffPct = (((currentBucket.expenses - prevBucket.expenses) / prevBucket.expenses) * 100).toFixed(0);
+      if (diffPct < 0) {
+        dom.analysisComparisonStat.innerHTML = `<span class="text-success">📉 ${Math.abs(diffPct)}% lower</span>`;
+        dom.analysisInsightText.textContent = `Great progress! You spent ${Math.abs(diffPct)}% less in ${currentBucket.label} compared to ${prevBucket.label}.`;
+      } else {
+        dom.analysisComparisonStat.innerHTML = `<span class="text-danger">📈 +${diffPct}% higher</span>`;
+        dom.analysisInsightText.textContent = `Spending in ${currentBucket.label} is ${diffPct}% higher than in ${prevBucket.label}. Keep an eye on non-essential categories.`;
+      }
+    } else {
+      dom.analysisComparisonStat.textContent = "—";
+      dom.analysisInsightText.textContent = "Log more expenses across consecutive periods to generate detailed comparative insights.";
+    }
+  }
+
+  // 4. Render SVG Bar Chart
+  const svg = dom.analysisBarChart;
+  const maxVal = Math.max(1, ...buckets.map(b => Math.max(b.expenses, b.income, b.savings)));
+  const chartHeight = 150;
+  const chartWidth = 540;
+  const paddingLeft = 40;
+  const paddingBottom = 30;
+  const usableWidth = chartWidth - paddingLeft - 20;
+  const usableHeight = chartHeight;
+
+  const colWidth = usableWidth / buckets.length;
+  const barWidth = Math.max(4, Math.min(18, colWidth / 3.5));
+
+  let svgContent = `
+    <line x1="${paddingLeft}" y1="${chartHeight}" x2="${chartWidth - 10}" y2="${chartHeight}" stroke="var(--border-color)" stroke-width="1.5" />
+    <line x1="${paddingLeft}" y1="${chartHeight / 2}" x2="${chartWidth - 10}" y2="${chartHeight / 2}" stroke="var(--border-color)" stroke-width="1" stroke-dasharray="4" opacity="0.6" />
+    <text x="${paddingLeft - 8}" y="${chartHeight}" font-size="10" fill="var(--text-muted)" text-anchor="end">0</text>
+    <text x="${paddingLeft - 8}" y="${chartHeight / 2 + 4}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(maxVal / 2).toFixed(0)}</text>
+    <text x="${paddingLeft - 8}" y="12" font-size="10" fill="var(--text-muted)" text-anchor="end">${maxVal.toFixed(0)}</text>
+  `;
+
+  buckets.forEach((b, i) => {
+    const xBase = paddingLeft + (i * colWidth) + (colWidth / 2);
+    const expH = (b.expenses / maxVal) * usableHeight;
+    const incH = (b.income / maxVal) * usableHeight;
+    const savH = (b.savings / maxVal) * usableHeight;
+
+    // Bars
+    svgContent += `
+      <g class="chart-col-group">
+        <!-- Expenses Bar (Red) -->
+        <rect x="${xBase - barWidth * 1.6}" y="${chartHeight - expH}" width="${barWidth}" height="${expH}" fill="#ef4444" rx="2" />
+        <!-- Income Bar (Green) -->
+        <rect x="${xBase - barWidth * 0.5}" y="${chartHeight - incH}" width="${barWidth}" height="${incH}" fill="#10b981" rx="2" />
+        <!-- Savings Bar (Emerald) -->
+        <rect x="${xBase + barWidth * 0.6}" y="${chartHeight - savH}" width="${barWidth}" height="${savH}" fill="#059669" rx="2" />
+        <!-- Label -->
+        <text x="${xBase}" y="${chartHeight + 18}" font-size="${gran === 'day' ? 9 : 11}" font-weight="600" fill="var(--text-muted)" text-anchor="middle">${b.label}</text>
+      </g>
+    `;
+  });
+
+  svg.innerHTML = svgContent;
+}
+
+// Option 7C & Settings Render
+function renderSettings() {
+  const listEl = dom.customCategoriesList;
+  if (!state.customCategories.length) {
+    listEl.innerHTML = `<p class="empty-state">No custom categories created yet. Click "+ Add Category" to personalize.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = state.customCategories.map(cat => `
+    <div class="custom-cat-item">
+      <span>
+        <span class="category-dot" style="background-color:${cat.color};"></span>
+        ${cat.icon} ${escapeHtml(cat.name)} <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(${cat.type})</span>
+      </span>
+      <button type="button" class="btn-delete" title="Delete custom category" onclick="deleteCustomCategory('${cat.id}')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+        </svg>
+      </button>
+    </div>
+  `).join("");
+}
+
+// Backup & Export Handlers
 function exportToCSV() {
   if (!state.transactions.length) return showToast("No transactions to export.");
 
@@ -883,11 +1223,12 @@ function exportToCSV() {
 function exportToJSON() {
   const backupData = {
     appName: "Expense Tracker",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     currency: state.currency,
     transactions: state.transactions,
-    subscriptions: state.subscriptions
+    subscriptions: state.subscriptions,
+    customCategories: state.customCategories
   };
 
   const jsonStr = JSON.stringify(backupData, null, 2);
@@ -918,17 +1259,13 @@ function handleFileImport(e) {
   reader.onload = (evt) => {
     try {
       const content = evt.target.result;
-      if (isJson) {
-        importJSONData(content);
-      } else if (isCsv) {
-        importCSVData(content);
-      } else {
-        showToast("Unsupported file format. Use .json or .csv.");
-      }
+      if (isJson) importJSONData(content);
+      else if (isCsv) importCSVData(content);
+      else showToast("Unsupported file format. Use .json or .csv.");
     } catch (err) {
       showToast("Failed to parse imported file.");
     } finally {
-      dom.importFileInput.value = "";
+      if (dom.settingsFileInput) dom.settingsFileInput.value = "";
     }
   };
 
@@ -953,9 +1290,12 @@ function importJSONData(jsonStr) {
     state.transactions = validTx;
     if (parsed.currency) state.currency = parsed.currency;
     if (Array.isArray(parsed.subscriptions)) state.subscriptions = parsed.subscriptions;
+    if (Array.isArray(parsed.customCategories)) state.customCategories = parsed.customCategories;
   }
 
   saveStorage();
+  populateCategorySelects();
+  populateFilterCategories();
   render();
   showToast(`Successfully imported ${validTx.length} transactions!`);
 }
@@ -1036,7 +1376,7 @@ function resetAllFilters() {
   deselectCategory();
 }
 
-// Sample Data Loader (Current Month Demonstration)
+// Sample Data Loader
 function loadSampleData() {
   const today = new Date();
   const d = (daysAgo) => {
@@ -1056,24 +1396,23 @@ function loadSampleData() {
 
   state.transactions = [...samples, ...state.transactions];
 
-  // Sample Subscriptions
   if (!state.subscriptions.length) {
     state.subscriptions = [
       { id: "sub_1", name: "Mobile Postpaid Plan", amount: 45.00, category: "Bills & Utilities", billingDay: 15, createdAt: Date.now() },
-      { id: "sub_2", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, createdAt: Date.now() },
-      { id: "sub_3", name: "Cloud Storage Backup", amount: 11.90, category: "Entertainment", billingDay: today.getDate() + 2, createdAt: Date.now() }
+      { id: "sub_2", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, createdAt: Date.now() }
     ];
   }
 
   saveStorage();
   render();
-  showToast("Loaded: Salary, savings, expenses & recurring bills!");
+  showToast("Loaded salary, savings, expenses & bills!");
 }
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c] || c));
 }
 
+// Register Service Worker with Auto-Reload on Update
 function registerSW() {
   if ("serviceWorker" in navigator) {
     let refreshing = false;
@@ -1086,7 +1425,6 @@ function registerSW() {
 
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./sw.js").then((reg) => {
-        // Check for updates on every app launch
         reg.update().catch(() => {});
       }).catch(() => {});
     });
