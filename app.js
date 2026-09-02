@@ -6,6 +6,7 @@ const EXPENSE_CATEGORIES = [
   { name: "Entertainment", icon: "🎬", color: "#8b5cf6" },
   { name: "Bills & Utilities", icon: "⚡", color: "#eab308" },
   { name: "Health & Medical", icon: "💊", color: "#10b981" },
+  { name: "Savings & Investments", icon: "💰", color: "#10b981" },
   { name: "Education", icon: "📚", color: "#06b6d4" },
   { name: "Other", icon: "📦", color: "#64748b" }
 ];
@@ -68,8 +69,10 @@ const dom = {
   budgetCurrency: $("budget-dialog-currency"),
   editBudgetBtn: $("edit-budget-btn"),
   cancelBudgetBtn: $("cancel-budget-btn"),
-  netBalance: $("net-balance"),
-  netBalanceSub: $("net-balance-sub"),
+  spendableBalance: $("spendable-balance"),
+  spendableSub: $("spendable-sub"),
+  totalSaved: $("total-saved"),
+  savingsSub: $("savings-sub"),
   totalIncome: $("total-income"),
   incomeCount: $("income-count"),
   totalSpend: $("total-spend"),
@@ -483,41 +486,45 @@ function renderBudget() {
   dom.budgetPercentage.textContent = `${pct.toFixed(0)}% spent`;
 }
 
-// Option 6: Render Cash Flow & Net Balance Metrics
+// Render Spendable Balance & Savings Metrics
 function renderMetrics() {
-  const expenses = state.transactions.filter(t => (t.type || "expense") === "expense");
   const incomes = state.transactions.filter(t => t.type === "income");
+  const expenses = state.transactions.filter(t => (t.type || "expense") === "expense");
 
-  const totalExpenseAmt = expenses.reduce((s, t) => s + t.amount, 0);
   const totalIncomeAmt = incomes.reduce((s, t) => s + t.amount, 0);
-  const netBalanceAmt = totalIncomeAmt - totalExpenseAmt;
 
-  dom.totalSpend.textContent = formatCurrency(totalExpenseAmt);
-  dom.txCount.textContent = `${expenses.length} ${expenses.length === 1 ? "expense" : "expenses"} logged`;
+  // Savings deposits (explicitly allocated to bank savings / investments)
+  const savingsTx = state.transactions.filter(t => t.category === "Savings & Investments");
+  const totalSavedAmt = savingsTx.reduce((s, t) => s + t.amount, 0);
+
+  // Living expenses (all expenses excluding savings deposits)
+  const livingExpensesTx = expenses.filter(t => t.category !== "Savings & Investments");
+  const livingExpensesAmt = livingExpensesTx.reduce((s, t) => s + t.amount, 0);
+
+  // Spendable Balance = (Income - Savings) - Living Expenses
+  const spendableBalance = (totalIncomeAmt - totalSavedAmt) - livingExpensesAmt;
 
   dom.totalIncome.textContent = formatCurrency(totalIncomeAmt);
   dom.incomeCount.textContent = `${incomes.length} ${incomes.length === 1 ? "earning" : "earnings"} logged`;
 
-  dom.netBalance.textContent = formatCurrency(netBalanceAmt);
-  if (netBalanceAmt >= 0) {
-    dom.netBalance.className = "metric-value positive";
-    dom.netBalanceSub.textContent = "Positive cash flow (savings)";
+  dom.totalSaved.textContent = formatCurrency(totalSavedAmt);
+  dom.savingsSub.textContent = totalIncomeAmt > 0
+    ? `${((totalSavedAmt / totalIncomeAmt) * 100).toFixed(0)}% of salary saved`
+    : "Locked in bank savings";
+
+  dom.totalSpend.textContent = formatCurrency(livingExpensesAmt);
+  dom.txCount.textContent = `${livingExpensesTx.length} living expenses`;
+
+  dom.spendableBalance.textContent = formatCurrency(spendableBalance);
+  if (spendableBalance >= 0) {
+    dom.spendableBalance.className = "metric-value";
+    dom.spendableSub.textContent = totalSavedAmt > 0
+      ? `Safe to spend (after ${formatCurrency(totalSavedAmt)} saved)`
+      : (totalIncomeAmt > 0 ? "Spendable income available" : "Ready for salary / income");
   } else {
-    dom.netBalance.className = "metric-value negative";
-    dom.netBalanceSub.textContent = "Deficit (spending exceeds income)";
+    dom.spendableBalance.className = "metric-value deficit";
+    dom.spendableSub.textContent = `⚠️ Over budget! Dipping into savings by ${formatCurrency(Math.abs(spendableBalance))}`;
   }
-
-  if (!expenses.length) {
-    dom.topCategory.textContent = "—";
-    dom.topCategoryAmt.textContent = "No expenses yet";
-    return;
-  }
-
-  const totals = {};
-  expenses.forEach(t => totals[t.category] = (totals[t.category] || 0) + t.amount);
-  const top = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
-  dom.topCategory.textContent = `${CATEGORY_ICONS[top[0]] || "🏷️"} ${top[0]}`;
-  dom.topCategoryAmt.textContent = `${formatCurrency(top[1])} total`;
 }
 
 // Donut Select / Deselect Logic
@@ -900,11 +907,11 @@ function loadSampleData() {
 
   const samples = [
     { id: "tx_s0", type: "income", amount: 3500.00, category: "Salary & Wages", date: d(0), note: "Monthly employment salary", createdAt: Date.now() - 1000 },
+    { id: "tx_s_save", type: "expense", amount: 700.00, category: "Savings & Investments", date: d(0), note: "Bank deposit (20% of salary)", createdAt: Date.now() - 2000 },
     { id: "tx_s1", type: "expense", amount: 14.50, category: "Food & Dining", date: d(0), note: "Chicken Rice & Iced Tea lunch", createdAt: Date.now() - 3600000 },
     { id: "tx_s2", type: "expense", amount: 28.00, category: "Transportation", date: d(1), note: "Petrol refill", createdAt: Date.now() - 86400000 },
     { id: "tx_s3", type: "expense", amount: 65.00, category: "Shopping", date: d(2), note: "Running socks and shorts", createdAt: Date.now() - 172800000 },
-    { id: "tx_s4", type: "expense", amount: 45.00, category: "Bills & Utilities", date: d(3), note: "Monthly mobile data plan", createdAt: Date.now() - 259200000 },
-    { id: "tx_s5", type: "income", amount: 250.00, category: "Freelance & Projects", date: d(4), note: "Website design consulting", createdAt: Date.now() - 345600000 }
+    { id: "tx_s4", type: "expense", amount: 45.00, category: "Bills & Utilities", date: d(3), note: "Monthly mobile data plan", createdAt: Date.now() - 259200000 }
   ];
 
   state.transactions = [...samples, ...state.transactions];
