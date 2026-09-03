@@ -35,6 +35,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
           Dashboard
         </button>
+        <button type="button" class="nav-tab-btn" data-tab="loans">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+          Loans
+        </button>
         <button type="button" class="nav-tab-btn" data-tab="analysis">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           Analysis
@@ -280,6 +284,47 @@
       </main>
     </div>
 
+    <!-- ================= PAGE 4: LOANS & INSTALLMENTS ================= -->
+    <div id="view-loans" class="app-view">
+      <!-- Portfolio Overview & DSR Health -->
+      <section class="card loan-portfolio-card">
+        <div class="card-header">
+          <div>
+            <h2>Loans & Financing</h2>
+            <p class="dialog-sub">Track long-term installments, DSR health, and early payoff savings.</p>
+          </div>
+          <button type="button" id="open-add-loan-btn" class="btn-primary-sm">
+            ➕ Add Loan
+          </button>
+        </div>
+
+        <div class="loan-stats-grid">
+          <div class="loan-stat-box">
+            <span class="stat-mini-label">Total Outstanding Debt</span>
+            <span class="loan-stat-value text-danger" id="total-loan-debt">RM 0.00</span>
+            <span class="stat-mini-sub" id="total-loan-count">0 active loans</span>
+          </div>
+          <div class="loan-stat-box">
+            <span class="stat-mini-label">Monthly Commitments</span>
+            <span class="loan-stat-value" id="total-loan-monthly">RM 0.00 / mo</span>
+            <span class="stat-mini-sub" id="loan-monthly-sub">Auto-linked to bills</span>
+          </div>
+          <div class="loan-stat-box">
+            <span class="stat-mini-label">Debt Service Ratio (DSR)</span>
+            <span class="loan-stat-value" id="loan-dsr-badge">0.0%</span>
+            <span class="stat-mini-sub" id="loan-dsr-status">Healthy (&lt; 40%)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Active Loans List -->
+      <section class="loans-container" id="loans-list-container">
+        <div id="loans-list" class="loans-list">
+          <p class="empty-state">No loans or installments added yet. Click "+ Add Loan" to start tracking.</p>
+        </div>
+      </section>
+    </div>
+
     <!-- ================= PAGE 2: ANALYSIS ================= -->
     <div id="view-analysis" class="app-view">
       <section class="card analysis-hero-card">
@@ -416,27 +461,54 @@
       </div>
     </div>
 
-    <!-- Mobile Fixed Bottom Navigation Bar (Polished Native Feel) -->
-    <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
-      <button type="button" class="mobile-nav-btn active" data-tab="dashboard">
-        <span class="nav-btn-inner">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-          <span>Dashboard</span>
-        </span>
-      </button>
-      <button type="button" class="mobile-nav-btn" data-tab="analysis">
-        <span class="nav-btn-inner">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          <span>Analysis</span>
-        </span>
-      </button>
-      <button type="button" class="mobile-nav-btn" data-tab="settings">
-        <span class="nav-btn-inner">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <span>Settings</span>
-        </span>
-      </button>
-    </nav>
+    <!-- Movable Floating Navigation Menu Button (Draggable & Long-Pressable) -->
+    <div id="movable-menu-btn" class="movable-menu-fab" role="button" tabindex="0" title="Tap to open menu, drag to move" aria-label="Open navigation menu">
+      <div class="fab-inner-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2"/>
+          <line x1="2" x2="22" y1="10" y2="10"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Frosted Glass Dynamic Navigation Hub (2x2 Grid) -->
+    <div id="nav-hub-backdrop" class="nav-hub-backdrop" style="display:none;">
+      <div class="nav-hub-panel" id="nav-hub-panel">
+        <div class="nav-hub-header">
+          <span>NAVIGATION</span>
+          <button type="button" id="close-nav-hub-btn" class="btn-clear-search">✕</button>
+        </div>
+        <div class="nav-hub-grid">
+          <button type="button" class="hub-item-card active" data-tab="dashboard">
+            <div class="hub-icon-box" style="background:#eef2ff; color:#4f46e5;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+            </div>
+            <span class="hub-item-title">Dashboard</span>
+          </button>
+
+          <button type="button" class="hub-item-card" data-tab="loans">
+            <div class="hub-icon-box" style="background:#ecfdf5; color:#059669;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+            </div>
+            <span class="hub-item-title">Loans</span>
+          </button>
+
+          <button type="button" class="hub-item-card" data-tab="analysis">
+            <div class="hub-icon-box" style="background:#fef3c7; color:#d97706;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <span class="hub-item-title">Analysis</span>
+          </button>
+
+          <button type="button" class="hub-item-card" data-tab="settings">
+            <div class="hub-icon-box" style="background:#f1f5f9; color:#475569;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <span class="hub-item-title">Settings</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Dialog: Add Subscription Modal -->
     <dialog id="sub-dialog" class="custom-dialog">
@@ -611,6 +683,99 @@
           <button type="submit" id="save-cat-creator-btn" class="btn-primary-sm">Create Category</button>
         </div>
       </form>
+    </dialog>
+
+    <!-- Add Loan / Financing Modal -->
+    <dialog id="loan-dialog" class="custom-dialog">
+      <form method="dialog" id="loan-form">
+        <h3>Add Loan / Financing</h3>
+        <p class="dialog-sub">Supports car loans (EIR/Flat), housing mortgages (SBR), PTPTN & 0% IPP.</p>
+
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="loan-type-select">Financing Mechanism *</label>
+          <select id="loan-type-select" required>
+            <option value="CAR_EIR">🚗 Car Loan — 2026 Reform (Reducing Balance EIR)</option>
+            <option value="CAR_FLAT">🚗 Car Loan — Pre-2026 (Flat Rate & Rule of 78)</option>
+            <option value="HOME_SBR">🏠 Home Mortgage (SBR + Spread Monthly Rest)</option>
+            <option value="PTPTN">🎓 Study Loan (PTPTN 1% Ujrah)</option>
+            <option value="IPP_0">📱 0% Credit Card Installment (EPP / BNPL)</option>
+            <option value="PERSONAL">💼 Personal / Other Loan</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="loan-name">Loan / Asset Name *</label>
+          <input type="text" id="loan-name" placeholder="e.g. Perodua Bezza Loan" required maxlength="50">
+        </div>
+
+        <div class="form-group">
+          <label for="loan-bank">Bank / Financing Provider</label>
+          <input type="text" id="loan-bank" placeholder="e.g. Public Bank, Maybank, CIMB" maxlength="40">
+        </div>
+
+        <div class="form-group">
+          <label for="loan-principal">Financed Amount (Principal) *</label>
+          <div class="input-prefix-wrapper">
+            <span class="currency-prefix" id="loan-currency-display">RM</span>
+            <input type="number" id="loan-principal" step="100" min="100" placeholder="e.g. 38000" required inputmode="decimal">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="loan-rate" id="loan-rate-label">Interest Rate (% p.a.) *</label>
+          <input type="number" id="loan-rate" step="0.01" min="0" max="30" placeholder="e.g. 3.20" required inputmode="decimal">
+        </div>
+
+        <div class="form-group">
+          <label for="loan-tenure">Tenure (Months) *</label>
+          <input type="number" id="loan-tenure" min="1" max="420" placeholder="e.g. 84 (7 years) or 360 (30 years)" required inputmode="numeric">
+        </div>
+
+        <!-- Live Calculation Preview in Modal -->
+        <div class="loan-calc-preview-box" id="loan-calc-preview">
+          <div class="preview-row">
+            <span>Est. Monthly Installment:</span>
+            <strong id="preview-installment">RM 0.00 / mo</strong>
+          </div>
+          <div class="preview-row">
+            <span>Est. Total Interest:</span>
+            <strong id="preview-interest" class="text-danger">RM 0.00</strong>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="cancel-loan-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="save-loan-btn" class="btn-primary-sm">Save Loan</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Prepayment & Early Settlement Simulator Modal -->
+    <dialog id="simulator-dialog" class="custom-dialog">
+      <div class="receipt-dialog-header">
+        <h3 id="sim-loan-title">Prepayment Simulator</h3>
+        <button type="button" id="close-sim-btn" class="btn-circle-close">✕</button>
+      </div>
+      <p class="dialog-sub" id="sim-loan-desc">Simulate paying extra each month to calculate interest and time saved.</p>
+      
+      <div class="sim-content-box" style="margin: 1rem 0;">
+        <label for="sim-extra-payment">Extra Monthly Payment (RM)</label>
+        <div class="input-prefix-wrapper" style="margin-top: 0.35rem;">
+          <span class="currency-prefix">RM</span>
+          <input type="number" id="sim-extra-payment" step="50" min="0" value="100" inputmode="decimal">
+        </div>
+
+        <div class="sim-results-grid" style="margin-top: 1rem;">
+          <div class="sim-result-card">
+            <span class="stat-mini-label">⏱️ Time Shaved Off</span>
+            <strong id="sim-time-saved">Calculating...</strong>
+          </div>
+          <div class="sim-result-card">
+            <span class="stat-mini-label">💰 Interest Saved</span>
+            <strong id="sim-interest-saved" class="text-success">Calculating...</strong>
+          </div>
+        </div>
+      </div>
     </dialog>
 
     <!-- Full Receipt / Photo View Modal -->

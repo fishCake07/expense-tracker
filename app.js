@@ -4,6 +4,7 @@ const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Transportation", icon: "🚗", color: "#3b82f6" },
   { name: "Shopping", icon: "🛍️", color: "#ec4899" },
   { name: "Entertainment", icon: "🎬", color: "#8b5cf6" },
+  { name: "Groceries", icon: "🛒", color: "#84cc16" },
   { name: "Bills & Utilities", icon: "⚡", color: "#eab308" },
   { name: "Health & Medical", icon: "💊", color: "#10b981" },
   { name: "Savings & Investments", icon: "💰", color: "#059669" },
@@ -37,6 +38,7 @@ const state = {
   currentFormType: "expense",
   analysisGranularity: "month",
   autoSweepSurplus: false,
+  loans: [],
   attachedReceipt: null,
   editAttachedReceipt: null
 };
@@ -47,13 +49,45 @@ const STORAGE_KEYS = {
   subs: "expense_tracker_subscriptions_v1",
   customCats: "expense_tracker_custom_categories_v1",
   theme: "expense_tracker_theme_v1",
-  autoSweep: "expense_tracker_auto_sweep_v1"
+  autoSweep: "expense_tracker_auto_sweep_v1",
+  loans: "expense_tracker_loans_v1",
+  fabPos: "expense_tracker_fab_pos_v1"
 };
 
 // DOM Cache
 const $ = (id) => document.getElementById(id);
 const dom = {
   form: $("expense-form"),
+  // Movable FAB & Frosted Glass Hub
+  movableMenuBtn: $("movable-menu-btn"),
+  navHubBackdrop: $("nav-hub-backdrop"),
+  closeNavHubBtn: $("close-nav-hub-btn"),
+  // Loans View DOM
+  totalLoanDebt: $("total-loan-debt"),
+  totalLoanMonthly: $("total-loan-monthly"),
+  totalLoanCount: $("total-loan-count"),
+  loanDsrBadge: $("loan-dsr-badge"),
+  loanDsrStatus: $("loan-dsr-status"),
+  loansList: $("loans-list"),
+  openAddLoanBtn: $("open-add-loan-btn"),
+  loanDialog: $("loan-dialog"),
+  loanForm: $("loan-form"),
+  loanTypeSelect: $("loan-type-select"),
+  loanName: $("loan-name"),
+  loanBank: $("loan-bank"),
+  loanPrincipal: $("loan-principal"),
+  loanRate: $("loan-rate"),
+  loanRateLabel: $("loan-rate-label"),
+  loanTenure: $("loan-tenure"),
+  previewInstallment: $("preview-installment"),
+  previewInterest: $("preview-interest"),
+  cancelLoanBtn: $("cancel-loan-btn"),
+  simulatorDialog: $("simulator-dialog"),
+  closeSimBtn: $("close-sim-btn"),
+  simLoanTitle: $("sim-loan-title"),
+  simExtraPayment: $("sim-extra-payment"),
+  simTimeSaved: $("sim-time-saved"),
+  simInterestSaved: $("sim-interest-saved"),
   tabExpense: $("tab-expense"),
   tabIncome: $("tab-income"),
   amount: $("amount"),
@@ -209,6 +243,7 @@ function init() {
   render();
   registerSW();
   initSwipeGestures();
+  initMovableMenuFAB();
 }
 
 // Local Timezone Helpers (Guarantees rollover at 00:00 local time)
@@ -273,6 +308,8 @@ function loadStorage() {
     if (th) state.theme = th;
     const swp = localStorage.getItem(STORAGE_KEYS.autoSweep);
     if (swp !== null) state.autoSweepSurplus = (swp === "true");
+    const ln = localStorage.getItem(STORAGE_KEYS.loans);
+    if (ln) state.loans = JSON.parse(ln);
   } catch (e) {
     state.transactions = [];
   }
@@ -286,6 +323,7 @@ function saveStorage() {
     localStorage.setItem(STORAGE_KEYS.customCats, JSON.stringify(state.customCategories));
     localStorage.setItem(STORAGE_KEYS.theme, state.theme);
     localStorage.setItem(STORAGE_KEYS.autoSweep, state.autoSweepSurplus ? "true" : "false");
+    localStorage.setItem(STORAGE_KEYS.loans, JSON.stringify(state.loans));
   } catch (e) {}
 }
 
@@ -386,7 +424,7 @@ function applyTheme(theme) {
 }
 
 // Navigation Tabs Router (Direction-Aware Slide & Haptic)
-const TAB_ORDER = ["dashboard", "analysis", "settings"];
+const TAB_ORDER = ["dashboard", "loans", "analysis", "settings"];
 
 function switchTab(tabName, direction = null) {
   if (state.activeTab === tabName) return;
@@ -423,11 +461,124 @@ function switchTab(tabName, direction = null) {
     try { navigator.vibrate(12); } catch (e) {}
   }
 
+  if (tabName === "loans") renderLoans();
   if (tabName === "analysis") renderAnalysis();
   if (tabName === "settings") renderSettings();
 }
 
 // Touch Swipe Gesture Handler (Dashboard <-> Analysis <-> Settings)
+
+// Movable Floating Action Button & Frosted Glass Hub
+function initMovableMenuFAB() {
+  const fab = dom.movableMenuBtn;
+  if (!fab) return;
+
+  // Restore saved position
+  try {
+    const savedPos = localStorage.getItem(STORAGE_KEYS.fabPos);
+    if (savedPos) {
+      const { left, top } = JSON.parse(savedPos);
+      if (left && top && left < window.innerWidth && top < window.innerHeight) {
+        fab.style.left = `${left}px`;
+        fab.style.top = `${top}px`;
+        fab.style.bottom = "auto";
+      }
+    }
+  } catch (e) {}
+
+  let isDragging = false;
+  let startX = 0, startY = 0;
+  let initialLeft = 0, initialTop = 0;
+  let hasMoved = false;
+
+  const onPointerDown = (e) => {
+    isDragging = true;
+    hasMoved = false;
+    startX = e.clientX || (e.touches && e.touches[0].clientX);
+    startY = e.clientY || (e.touches && e.touches[0].clientY);
+
+    const rect = fab.getBoundingClientRect();
+    initialLeft = rect.left;
+    initialTop = rect.top;
+
+    fab.setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMove = (e) => {
+    if (!isDragging) return;
+    const curX = e.clientX || (e.touches && e.touches[0].clientX);
+    const curY = e.clientY || (e.touches && e.touches[0].clientY);
+    const dx = curX - startX;
+    const dy = curY - startY;
+
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+      hasMoved = true;
+    }
+
+    if (hasMoved) {
+      const newLeft = Math.max(10, Math.min(window.innerWidth - 62, initialLeft + dx));
+      const newTop = Math.max(50, Math.min(window.innerHeight - 70, initialTop + dy));
+
+      fab.style.left = `${newLeft}px`;
+      fab.style.top = `${newTop}px`;
+      fab.style.bottom = "auto";
+    }
+  };
+
+  const onPointerUp = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+
+    if (hasMoved) {
+      // Save position
+      const rect = fab.getBoundingClientRect();
+      localStorage.setItem(STORAGE_KEYS.fabPos, JSON.stringify({ left: rect.left, top: rect.top }));
+    } else {
+      // Tap without drag -> Open Frosted Glass Hub
+      openNavHub();
+    }
+  };
+
+  fab.addEventListener("pointerdown", onPointerDown);
+  fab.addEventListener("pointermove", onPointerMove);
+  fab.addEventListener("pointerup", onPointerUp);
+  fab.addEventListener("pointercancel", onPointerUp);
+
+  // Hub Close Listeners
+  if (dom.closeNavHubBtn) {
+    dom.closeNavHubBtn.addEventListener("click", closeNavHub);
+  }
+
+  if (dom.navHubBackdrop) {
+    dom.navHubBackdrop.addEventListener("click", (e) => {
+      if (e.target === dom.navHubBackdrop) closeNavHub();
+    });
+  }
+
+  // Hub Item Click Listeners
+  document.querySelectorAll(".hub-item-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const tab = card.dataset.tab;
+      document.querySelectorAll(".hub-item-card").forEach(c => c.classList.remove("active"));
+      card.classList.add("active");
+      closeNavHub();
+      switchTab(tab);
+    });
+  });
+}
+
+function openNavHub() {
+  if (!dom.navHubBackdrop) return;
+  document.querySelectorAll(".hub-item-card").forEach(c => {
+    c.classList.toggle("active", c.dataset.tab === state.activeTab);
+  });
+  dom.navHubBackdrop.style.display = "flex";
+}
+
+function closeNavHub() {
+  if (dom.navHubBackdrop) dom.navHubBackdrop.style.display = "none";
+}
+
 function initSwipeGestures() {
   let touchStartX = 0;
   let touchStartY = 0;
@@ -529,6 +680,29 @@ function bindEvents() {
   dom.filterCategory.addEventListener("change", (e) => {
     e.target.value === "ALL" ? deselectCategory() : selectCategory(e.target.value);
   });
+
+  // Loans Modal & Simulator Event Listeners
+  if (dom.openAddLoanBtn) {
+    dom.openAddLoanBtn.addEventListener("click", () => {
+      dom.loanName.value = "";
+      dom.loanBank.value = "";
+      dom.loanPrincipal.value = "";
+      dom.loanRate.value = "3.50";
+      dom.loanTenure.value = "84";
+      updateLoanLivePreview();
+      dom.loanDialog?.showModal ? dom.loanDialog.showModal() : alert("Add loan modal");
+    });
+  }
+
+  if (dom.cancelLoanBtn) dom.cancelLoanBtn.addEventListener("click", () => dom.loanDialog.close());
+  if (dom.loanForm) dom.loanForm.addEventListener("submit", handleSaveNewLoan);
+  if (dom.closeSimBtn) dom.closeSimBtn.addEventListener("click", () => dom.simulatorDialog.close());
+
+  if (dom.loanPrincipal) dom.loanPrincipal.addEventListener("input", updateLoanLivePreview);
+  if (dom.loanRate) dom.loanRate.addEventListener("input", updateLoanLivePreview);
+  if (dom.loanTenure) dom.loanTenure.addEventListener("input", updateLoanLivePreview);
+  if (dom.loanTypeSelect) dom.loanTypeSelect.addEventListener("change", updateLoanLivePreview);
+  if (dom.simExtraPayment) dom.simExtraPayment.addEventListener("input", calculateSimResults);
 
   dom.clearAllBtn.addEventListener("click", () => {
     if (!state.transactions.length) return showToast("No records to clear.");
@@ -1393,6 +1567,272 @@ function toggleCategory(cat) {
 }
 
 // Upgraded Donut Chart Engine (Period-Synced & Interactive Category Tiles)
+
+// Malaysian Loans & Installments Engine (June 2026 Reform & BNM SBR Guidelines)
+function calculateLoanSpecs(principal, annualRate, tenureMonths, type) {
+  let monthly = 0;
+  let totalInterest = 0;
+
+  if (type === "CAR_FLAT") {
+    // Legacy Car Loan: Flat Rate
+    const years = tenureMonths / 12;
+    totalInterest = principal * (annualRate / 100) * years;
+    monthly = (principal + totalInterest) / tenureMonths;
+  } else if (type === "PTPTN") {
+    // PTPTN Ujrah 1% p.a.
+    const years = tenureMonths / 12;
+    totalInterest = principal * 0.01 * years;
+    monthly = (principal + totalInterest) / tenureMonths;
+  } else if (type === "IPP_0") {
+    // 0% Credit Card IPP
+    totalInterest = 0;
+    monthly = principal / tenureMonths;
+  } else {
+    // Reducing Balance Monthly Rest (New 2026 Car Loan Reform, SBR Home Mortgage, Personal)
+    const r = (annualRate / 100) / 12;
+    const n = tenureMonths;
+    if (r === 0) {
+      monthly = principal / n;
+      totalInterest = 0;
+    } else {
+      monthly = principal * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+      totalInterest = (monthly * n) - principal;
+    }
+  }
+
+  return {
+    monthly: Number(monthly.toFixed(2)),
+    totalInterest: Number(totalInterest.toFixed(2)),
+    totalRepayable: Number((principal + totalInterest).toFixed(2))
+  };
+}
+
+let activeSimLoan = null;
+
+function renderLoans() {
+  const currentYm = getLocalDateString().substring(0, 7);
+  const salaryIncomes = state.transactions.filter(t => t.date && t.date.startsWith(currentYm) && t.type === "income");
+  const monthIncomeAmt = salaryIncomes.reduce((s, t) => s + t.amount, 0) || 3500; // default 3500 baseline
+
+  let totalDebt = 0;
+  let totalMonthly = 0;
+
+  state.loans.forEach(ln => {
+    totalDebt += (ln.remainingPrincipal || ln.principal);
+    totalMonthly += ln.monthlyInstallment;
+  });
+
+  if (dom.totalLoanDebt) dom.totalLoanDebt.textContent = formatCurrency(totalDebt);
+  if (dom.totalLoanMonthly) dom.totalLoanMonthly.textContent = `${formatCurrency(totalMonthly)} / mo`;
+  if (dom.totalLoanCount) dom.totalLoanCount.textContent = `${state.loans.length} active commitments`;
+
+  // Calculate Debt Service Ratio (DSR)
+  const dsr = ((totalMonthly / monthIncomeAmt) * 100).toFixed(1);
+  if (dom.loanDsrBadge) dom.loanDsrBadge.textContent = `${dsr}%`;
+
+  if (dom.loanDsrStatus) {
+    if (dsr < 40) {
+      dom.loanDsrStatus.className = "stat-mini-sub badge-dsr-healthy";
+      dom.loanDsrStatus.textContent = "Healthy (< 40% DSR)";
+    } else if (dsr <= 60) {
+      dom.loanDsrStatus.className = "stat-mini-sub badge-dsr-moderate";
+      dom.loanDsrStatus.textContent = "Moderate (40-60% DSR)";
+    } else {
+      dom.loanDsrStatus.className = "stat-mini-sub badge-dsr-high";
+      dom.loanDsrStatus.textContent = "High Risk (> 60% DSR)";
+    }
+  }
+
+  // Render Loans Cards List
+  if (!state.loans.length) {
+    dom.loansList.innerHTML = `<p class="empty-state">No active loans or installments. Click "+ Add Loan" to track car, housing, or PTPTN financing.</p>`;
+    return;
+  }
+
+  dom.loansList.innerHTML = state.loans.map(ln => {
+    const orig = ln.originalPrincipal || ln.principal;
+    const rem = ln.remainingPrincipal || ln.principal;
+    const paid = Math.max(0, orig - rem);
+    const pctPaid = orig > 0 ? ((paid / orig) * 100).toFixed(1) : 0;
+
+    let icon = "🏦";
+    let typeDesc = "Financing";
+    if (ln.type === "CAR_EIR") { icon = "🚗"; typeDesc = "Car Loan (2026 EIR Reform)"; }
+    else if (ln.type === "CAR_FLAT") { icon = "🚗"; typeDesc = "Car Loan (Pre-2026 Flat Rate)"; }
+    else if (ln.type === "HOME_SBR") { icon = "🏠"; typeDesc = "Home Mortgage (SBR + Spread)"; }
+    else if (ln.type === "PTPTN") { icon = "🎓"; typeDesc = "PTPTN Study Loan (1% Ujrah)"; }
+    else if (ln.type === "IPP_0") { icon = "📱"; typeDesc = "0% Credit Card Installment"; }
+
+    return `
+      <div class="loan-card-item" data-id="${ln.id}">
+        <div class="loan-card-header">
+          <div class="loan-title-group">
+            <div class="loan-type-icon" style="background:var(--bg-subtle);">${icon}</div>
+            <div>
+              <div class="loan-name-text">${escapeHtml(ln.name)}</div>
+              <div class="loan-bank-badge">${escapeHtml(ln.bank || "Malaysian Bank")} • ${typeDesc}</div>
+            </div>
+          </div>
+          <button type="button" class="btn-delete" title="Delete loan" onclick="deleteLoan('${ln.id}')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </button>
+        </div>
+
+        <div>
+          <div class="loan-progress-legend">
+            <span>${pctPaid}% Paid Off (${formatCurrency(paid)} repaid)</span>
+            <span>${formatCurrency(rem)} left</span>
+          </div>
+          <div class="loan-progress-track" style="margin-top: 4px;">
+            <div class="loan-progress-fill" style="width: ${pctPaid}%;"></div>
+          </div>
+        </div>
+
+        <div class="loan-metrics-grid">
+          <div class="loan-metric-cell">
+            <span class="stat-mini-label">Monthly Installment</span>
+            <strong>${formatCurrency(ln.monthlyInstallment)}</strong>
+          </div>
+          <div class="loan-metric-cell">
+            <span class="stat-mini-label">Remaining Tenure</span>
+            <strong>${ln.remainingMonths} of ${ln.tenureMonths} mos</strong>
+          </div>
+          <div class="loan-metric-cell">
+            <span class="stat-mini-label">Rate (% p.a.)</span>
+            <strong>${ln.rate.toFixed(2)}%</strong>
+          </div>
+          <div class="loan-metric-cell">
+            <span class="stat-mini-label">Total Interest Paid</span>
+            <strong class="text-danger">${formatCurrency(ln.totalInterest)}</strong>
+          </div>
+        </div>
+
+        <div class="loan-card-actions">
+          <button type="button" class="btn-outline-sm" onclick="openLoanSimulator('${ln.id}')">
+            ⚡ Prepayment Simulator
+          </button>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">Auto-reduces when bill is debited</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function deleteLoan(id) {
+  const idx = state.loans.findIndex(l => l.id === id);
+  if (idx === -1) return;
+  const deleted = state.loans.splice(idx, 1)[0];
+  saveStorage();
+  renderLoans();
+  showToast(`Removed loan "${deleted.name}"`);
+}
+
+function updateLoanLivePreview() {
+  const principal = parseFloat(dom.loanPrincipal?.value) || 0;
+  const rate = parseFloat(dom.loanRate?.value) || 0;
+  const tenure = parseInt(dom.loanTenure?.value, 10) || 0;
+  const type = dom.loanTypeSelect?.value || "CAR_EIR";
+
+  if (principal > 0 && tenure > 0) {
+    const specs = calculateLoanSpecs(principal, rate, tenure, type);
+    if (dom.previewInstallment) dom.previewInstallment.textContent = `${formatCurrency(specs.monthly)} / mo`;
+    if (dom.previewInterest) dom.previewInterest.textContent = formatCurrency(specs.totalInterest);
+  } else {
+    if (dom.previewInstallment) dom.previewInstallment.textContent = "RM 0.00 / mo";
+    if (dom.previewInterest) dom.previewInterest.textContent = "RM 0.00";
+  }
+}
+
+function handleSaveNewLoan(e) {
+  e.preventDefault();
+  const name = dom.loanName.value.trim();
+  const bank = dom.loanBank.value.trim();
+  const type = dom.loanTypeSelect.value;
+  const principal = parseFloat(dom.loanPrincipal.value);
+  const rate = parseFloat(dom.loanRate.value) || 0;
+  const tenureMonths = parseInt(dom.loanTenure.value, 10);
+
+  if (!name || isNaN(principal) || principal <= 0 || isNaN(tenureMonths) || tenureMonths <= 0) {
+    return showToast("Please enter valid loan details.");
+  }
+
+  const specs = calculateLoanSpecs(principal, rate, tenureMonths, type);
+
+  const newLoan = {
+    id: "loan_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+    name,
+    bank: bank || "Bank Financing",
+    type,
+    originalPrincipal: principal,
+    remainingPrincipal: principal,
+    rate,
+    tenureMonths,
+    remainingMonths: tenureMonths,
+    monthlyInstallment: specs.monthly,
+    totalInterest: specs.totalInterest,
+    createdAt: Date.now()
+  };
+
+  state.loans.push(newLoan);
+  saveStorage();
+  renderLoans();
+  dom.loanDialog.close();
+  showToast(`Added loan "${name}"!`);
+}
+
+function openLoanSimulator(loanId) {
+  const loan = state.loans.find(l => l.id === loanId);
+  if (!loan) return;
+  activeSimLoan = loan;
+
+  dom.simLoanTitle.textContent = `${loan.name} Prepayment`;
+  dom.simExtraPayment.value = 100;
+  calculateSimResults();
+
+  dom.simulatorDialog?.showModal ? dom.simulatorDialog.showModal() : prompt("Extra payment simulator available in dialog");
+}
+
+function calculateSimResults() {
+  if (!activeSimLoan) return;
+  const extra = parseFloat(dom.simExtraPayment.value) || 0;
+  const baseMonthly = activeSimLoan.monthlyInstallment;
+  const remPrincipal = activeSimLoan.remainingPrincipal || activeSimLoan.originalPrincipal;
+  const remMonths = activeSimLoan.remainingMonths;
+  const rate = activeSimLoan.rate;
+
+  if (extra <= 0) {
+    dom.simTimeSaved.textContent = "0 months";
+    dom.simInterestSaved.textContent = formatCurrency(0);
+    return;
+  }
+
+  // Calculate new accelerated tenure with extra payment
+  const newMonthly = baseMonthly + extra;
+  const r = (rate / 100) / 12;
+
+  if (r > 0) {
+    // Amortization payoff duration: n = -ln(1 - (P*r/M)) / ln(1+r)
+    const pTimesR = remPrincipal * r;
+    if (newMonthly > pTimesR) {
+      const newTenure = Math.ceil(-Math.log(1 - (pTimesR / newMonthly)) / Math.log(1 + r));
+      const monthsSaved = Math.max(0, remMonths - newTenure);
+      const yearsSaved = (monthsSaved / 12).toFixed(1);
+
+      const originalTotalInterest = (baseMonthly * remMonths) - remPrincipal;
+      const newTotalInterest = Math.max(0, (newMonthly * newTenure) - remPrincipal);
+      const interestSaved = Math.max(0, originalTotalInterest - newTotalInterest);
+
+      dom.simTimeSaved.textContent = `${monthsSaved} mos (${yearsSaved} yrs)`;
+      dom.simInterestSaved.textContent = formatCurrency(interestSaved);
+    }
+  } else {
+    const newTenure = Math.ceil(remPrincipal / newMonthly);
+    const monthsSaved = Math.max(0, remMonths - newTenure);
+    dom.simTimeSaved.textContent = `${monthsSaved} mos`;
+    dom.simInterestSaved.textContent = formatCurrency(0);
+  }
+}
+
 function renderBreakdown() {
   const now = new Date();
   const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -2193,7 +2633,7 @@ function loadSampleData() {
         id: "tx_sim_" + (idCount++),
         type: "expense",
         amount: 142.00,
-        category: "Food & Dining",
+        category: "Groceries",
         wallet: "Credit Card",
         date: dateStr,
         note: "Lotus's Supermarket groceries",
@@ -2264,6 +2704,24 @@ function loadSampleData() {
   // Populate active subscriptions list for Malaysian worker
   const today = new Date();
   const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  // Sample Active Loans: Perodua Bezza Hire Purchase (Started Jan 2026, 8 months repaid)
+  state.loans = [
+    {
+      id: "loan_bezza",
+      name: "Perodua Bezza 1.3X (Hire Purchase)",
+      bank: "Public Bank",
+      type: "CAR_EIR",
+      originalPrincipal: 38000.00,
+      remainingPrincipal: 34160.00,
+      rate: 3.20,
+      tenureMonths: 84, // 7 years
+      remainingMonths: 76,
+      monthlyInstallment: 480.00,
+      totalInterest: 4320.00,
+      createdAt: Date.now()
+    }
+  ];
 
   state.subscriptions = [
     { id: "sub_rent", name: "Room Rental", amount: 550.00, category: "Bills & Utilities", billingDay: 1, wallet: "Bank Account", autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
