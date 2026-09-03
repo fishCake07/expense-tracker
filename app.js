@@ -561,13 +561,23 @@ function bindEvents() {
   dom.settingsImportBtn.addEventListener("click", () => dom.settingsFileInput.click());
   dom.settingsFileInput.addEventListener("change", handleFileImport);
 
-  // Auto-Sweep Month-End Surplus Toggle
+  // Auto-Sweep Month-End Surplus Toggle (With Instant Accrued Amount Feedback)
   if (dom.toggleSurplusSweep) {
     dom.toggleSurplusSweep.addEventListener("change", (e) => {
       state.autoSweepSurplus = e.target.checked;
       saveStorage();
       renderHeroSpendableGaugeAndMetrics();
-      showToast(state.autoSweepSurplus ? "Auto-sweep surplus enabled" : "Auto-sweep surplus disabled");
+
+      if (state.autoSweepSurplus) {
+        const { totalPastSurplus } = calculatePastMonthsSurplus();
+        if (totalPastSurplus > 0) {
+          showToast(`Auto-sweep enabled: ${formatCurrency(totalPastSurplus)} past surplus added to Total Saved 💰`);
+        } else {
+          showToast("Auto-sweep enabled: unspent month-end cash will accrue into Total Saved 💰");
+        }
+      } else {
+        showToast("Auto-sweep disabled: past surplus excluded from Total Saved");
+      }
     });
   }
 }
