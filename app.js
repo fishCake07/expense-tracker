@@ -135,6 +135,10 @@ const dom = {
   cancelCatCreatorBtn: $("cancel-cat-creator-btn"),
   openCatModalBtn: $("open-cat-modal-btn"),
   customCategoriesList: $("custom-categories-list"),
+  // Wallet DOM
+  selectedWalletInput: $("selected-wallet"),
+  editWallet: $("edit-wallet"),
+  walletStatsGrid: $("wallet-stats-grid"),
   // Analysis Elements
   analysisTotalSpend: $("analysis-total-spend"),
   analysisTotalIncome: $("analysis-total-income"),
@@ -262,6 +266,16 @@ function saveStorage() {
     localStorage.setItem(STORAGE_KEYS.theme, state.theme);
     localStorage.setItem(STORAGE_KEYS.autoSweep, state.autoSweepSurplus ? "true" : "false");
   } catch (e) {}
+}
+
+
+// Wallet Helpers (Queue Item 1)
+function getWalletIcon(wallet) {
+  if (!wallet) return "🏦";
+  if (wallet.includes("Card")) return "💳";
+  if (wallet.includes("E-Wallet")) return "📱";
+  if (wallet.includes("Cash")) return "💵";
+  return "🏦";
 }
 
 const formatCurrency = (amt) => `${state.currency} ${(Number(amt) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -545,6 +559,15 @@ function bindEvents() {
     });
   });
 
+  // Wallet Pill Selection (Queue Item 1)
+  document.querySelectorAll(".wallet-pill-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".wallet-pill-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      if (dom.selectedWalletInput) dom.selectedWalletInput.value = btn.dataset.wallet;
+    });
+  });
+
   // Theme Buttons (Option 7)
   document.querySelectorAll(".theme-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -670,11 +693,13 @@ function handleAddTransaction(e) {
 
   if (!amt || amt <= 0 || !cat || !dt || cat === "__ADD_CUSTOM__") return;
 
+  const chosenWallet = dom.selectedWalletInput ? dom.selectedWalletInput.value : "Bank Account";
   state.transactions.unshift({
     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     type: state.currentFormType,
     amount: Number(amt.toFixed(2)),
     category: cat,
+    wallet: chosenWallet,
     date: dt,
     note: nt || cat,
     createdAt: Date.now()
@@ -704,6 +729,7 @@ function openEditModal(id) {
   dom.editAmount.value = tx.amount;
   dom.editCategory.value = tx.category;
   dom.editDate.value = tx.date;
+  if (dom.editWallet) dom.editWallet.value = tx.wallet || "Bank Account";
   dom.editNote.value = tx.note === tx.category ? "" : tx.note;
   dom.editCurrency.textContent = state.currency;
 
@@ -743,6 +769,7 @@ function handleSaveEdit(e) {
   tx.type = type;
   tx.amount = Number(amt.toFixed(2));
   tx.category = cat;
+  tx.wallet = dom.editWallet ? dom.editWallet.value : (tx.wallet || "Bank Account");
   tx.date = dt;
   tx.note = nt || cat;
 
@@ -971,8 +998,9 @@ function getFilteredTransactions() {
     if (state.searchQuery) {
       const matchNote = (t.note || "").toLowerCase().includes(state.searchQuery);
       const matchCat = (t.category || "").toLowerCase().includes(state.searchQuery);
+      const matchWallet = (t.wallet || "").toLowerCase().includes(state.searchQuery);
       const matchAmt = t.amount.toString().includes(state.searchQuery);
-      if (!matchNote && !matchCat && !matchAmt) return false;
+      if (!matchNote && !matchCat && !matchWallet && !matchAmt) return false;
     }
 
     return true;
@@ -1403,6 +1431,8 @@ function renderTransactionList() {
             </span>
             <div class="tx-meta">
               <span>${formatDate(tx.date)}</span>
+              <span>•</span>
+              <span class="tx-badge-wallet">${getWalletIcon(tx.wallet)} ${escapeHtml(tx.wallet || "Bank Account")}</span>
               ${tx.note && tx.note !== tx.category ? `<span>•</span><span class="tx-note" title="${escapeHtml(tx.note)}">${escapeHtml(tx.note)}</span>` : ""}
             </div>
           </div>
@@ -1542,6 +1572,48 @@ function renderAnalysis() {
   });
 
   svg.innerHTML = svgContent;
+
+  // Render Spending by Wallet Breakdown (Queue Item 1)
+  renderWalletBreakdown(buckets);
+}
+
+function renderWalletBreakdown(buckets) {
+  if (!dom.walletStatsGrid) return;
+
+  const activeKeys = new Set(buckets.map(b => b.key));
+  const periodExpenses = state.transactions.filter(t => {
+    if ((t.type || "expense") !== "expense") return false;
+    if (!t.date) return false;
+    return buckets.some(b => t.date.startsWith(b.key));
+  });
+
+  const totalExp = periodExpenses.reduce((s, t) => s + t.amount, 0);
+
+  const walletTotals = {
+    "Bank Account": 0,
+    "Credit Card": 0,
+    "E-Wallet": 0,
+    "Cash": 0
+  };
+
+  periodExpenses.forEach(t => {
+    const w = t.wallet || "Bank Account";
+    walletTotals[w] = (walletTotals[w] || 0) + t.amount;
+  });
+
+  dom.walletStatsGrid.innerHTML = Object.entries(walletTotals).map(([wallet, amount]) => {
+    const pct = totalExp > 0 ? ((amount / totalExp) * 100).toFixed(0) : 0;
+    const icon = getWalletIcon(wallet);
+    return `
+      <div class="wallet-stat-card">
+        <div class="wallet-stat-header">
+          <span>${icon} ${wallet}</span>
+          <span class="wallet-stat-pct">${pct}%</span>
+        </div>
+        <div class="wallet-stat-amount">${formatCurrency(amount)}</div>
+      </div>
+    `;
+  }).join("");
 }
 
 // Option 7C & Settings Render
@@ -1574,11 +1646,12 @@ function renderSettings() {
 function exportToCSV() {
   if (!state.transactions.length) return showToast("No transactions to export.");
 
-  const headers = ["Date", "Type", "Category", "Note", "Amount", "Currency"];
+  const headers = ["Date", "Type", "Category", "Wallet", "Note", "Amount", "Currency"];
   const rows = state.transactions.map(t => [
     t.date,
     t.type || "expense",
     `"${(t.category || "").replace(/"/g, '""')}"`,
+    `"${(t.wallet || "Bank Account").replace(/"/g, '""')}"`,
     `"${(t.note || "").replace(/"/g, '""')}"`,
     t.amount.toFixed(2),
     state.currency

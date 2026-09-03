@@ -150,6 +150,18 @@
               <span class="error-msg" id="category-error"></span>
             </div>
 
+            <!-- Option 8 (Queue Item 1): Wallet / Payment Source Selector -->
+            <div class="form-group">
+              <label>Account / Paid From</label>
+              <div class="wallet-pill-group" id="wallet-pill-group">
+                <button type="button" class="wallet-pill-btn active" data-wallet="Bank Account">🏦 Bank</button>
+                <button type="button" class="wallet-pill-btn" data-wallet="Credit Card">💳 Card</button>
+                <button type="button" class="wallet-pill-btn" data-wallet="E-Wallet">📱 E-Wallet</button>
+                <button type="button" class="wallet-pill-btn" data-wallet="Cash">💵 Cash</button>
+              </div>
+              <input type="hidden" id="selected-wallet" value="Bank Account">
+            </div>
+
             <div class="form-group">
               <label for="date">Date *</label>
               <input type="date" id="date" required>
@@ -294,6 +306,12 @@
             <span class="legend-item"><span class="legend-pill" style="background:#10b981;"></span> Income</span>
             <span class="legend-item"><span class="legend-pill" style="background:#059669;"></span> Savings</span>
           </div>
+        </div>
+
+        <!-- Option 8 (Queue Item 1): Spending by Account / Wallet Breakdown -->
+        <div class="analysis-wallet-breakdown" id="analysis-wallet-breakdown" style="margin-top: 1.25rem;">
+          <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.65rem;">Spending by Account / Wallet</h3>
+          <div class="wallet-stats-grid" id="wallet-stats-grid"></div>
         </div>
 
         <!-- Insights Callout -->
@@ -470,6 +488,16 @@
           <label for="edit-category">Category *</label>
           <select id="edit-category" required></select>
           <span class="error-msg" id="edit-category-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-wallet">Account / Wallet</label>
+          <select id="edit-wallet">
+            <option value="Bank Account">🏦 Bank Account</option>
+            <option value="Credit Card">💳 Credit Card</option>
+            <option value="E-Wallet">📱 E-Wallet</option>
+            <option value="Cash">💵 Cash</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="edit-date">Date *</label>

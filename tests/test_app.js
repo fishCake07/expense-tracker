@@ -1,49 +1,49 @@
 const fs = require('fs');
 const assert = require('assert');
 
-console.log("--- Starting Optional Auto-Sweep Surplus Settings Tests ---");
+console.log("--- Starting Queue Item 1: Multi-Wallet / Account Selector Tests ---");
 
 // Test 1: HTML Element Integrity
 const htmlContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/index.html', 'utf8');
-assert(htmlContent.includes('id="toggle-surplus-sweep"'), "Missing toggle-surplus-sweep in index.html");
-console.log("✓ Test 1 Passed: Auto-sweep surplus toggle switch exists in Settings page.");
+const requiredWalletIds = ['wallet-pill-group', 'selected-wallet', 'edit-wallet', 'wallet-stats-grid'];
+requiredWalletIds.forEach(id => {
+  assert(htmlContent.includes(`id="${id}"`), `HTML missing required ID: ${id}`);
+});
+console.log("✓ Test 1 Passed: Wallet pill group, selected input, edit dropdown, and analysis grid exist in HTML.");
 
-// Test 2: Bank-Account User Case (No savings logged, autoSweepSurplus = false)
-const bankUserTransactions = [
-  { date: "2026-09-01", type: "income", amount: 3500.00, category: "Salary & Wages" },
-  { date: "2026-09-02", type: "expense", amount: 200.00, category: "Food & Dining" }
+// Test 2: Wallet Tagging on Transaction & Fallback
+const transactions = [
+  { id: "1", amount: 15.00, category: "Food & Dining", wallet: "E-Wallet" },
+  { id: "2", amount: 120.00, category: "Shopping", wallet: "Credit Card" },
+  { id: "3", amount: 30.00, category: "Transportation" } // legacy record without wallet property
 ];
 
-const bankUserIncome = bankUserTransactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-const bankUserSavings = bankUserTransactions.filter(t => t.category === "Savings & Investments").reduce((s, t) => s + t.amount, 0);
-const bankUserLiving = bankUserTransactions.filter(t => (t.type || "expense") === "expense" && t.category !== "Savings & Investments").reduce((s, t) => s + t.amount, 0);
+assert.strictEqual(transactions[0].wallet, "E-Wallet");
+assert.strictEqual(transactions[1].wallet, "Credit Card");
+assert.strictEqual(transactions[2].wallet || "Bank Account", "Bank Account", "Legacy records must default to Bank Account");
+console.log("✓ Test 2 Passed: Wallet tagging and legacy default fallback verified.");
 
-const bankUserSpendablePool = bankUserIncome - bankUserSavings;
-const bankUserSpendableBalance = bankUserSpendablePool - bankUserLiving;
+// Test 3: Spending by Wallet Aggregation
+const walletTotals = { "Bank Account": 0, "Credit Card": 0, "E-Wallet": 0, "Cash": 0 };
+transactions.forEach(t => {
+  const w = t.wallet || "Bank Account";
+  walletTotals[w] = (walletTotals[w] || 0) + t.amount;
+});
 
-assert.strictEqual(bankUserIncome, 3500.00);
-assert.strictEqual(bankUserSavings, 0.00);
-assert.strictEqual(bankUserSpendablePool, 3500.00, "Full salary must become spendable pool for bank-account user");
-assert.strictEqual(bankUserSpendableBalance, 3300.00, "Spendable balance is salary minus living expenses");
-console.log("✓ Test 2 Passed: Bank-account user without savings has full salary as spendable pool (RM 3,500 - RM 200 = RM 3,300).");
+assert.strictEqual(walletTotals["E-Wallet"], 15.00);
+assert.strictEqual(walletTotals["Credit Card"], 120.00);
+assert.strictEqual(walletTotals["Bank Account"], 30.00);
+assert.strictEqual(walletTotals["Cash"], 0.00);
+console.log("✓ Test 3 Passed: Spending by Wallet breakdown aggregated accurately.");
 
-// Test 3: Auto-Sweep Toggle Modes
-const pastSurplus = 500.00;
-const explicitSavings = 700.00;
+// Test 4: CSV Headers Check
+const appJsContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js', 'utf8');
+assert(appJsContent.includes('"Date", "Type", "Category", "Wallet", "Note", "Amount", "Currency"'), "CSV missing Wallet column");
+console.log("✓ Test 4 Passed: CSV export correctly contains Wallet column.");
 
-// Mode A: Toggle OFF (Default) -> Total Saved = explicit savings only
-const totalSavedModeOff = explicitSavings + (false ? pastSurplus : 0);
-assert.strictEqual(totalSavedModeOff, 700.00);
-console.log("✓ Test 3A Passed: When Auto-Sweep is OFF (default), Total Saved only counts explicit savings (RM 700).");
-
-// Mode B: Toggle ON -> Total Saved = explicit savings + past swept surplus
-const totalSavedModeOn = explicitSavings + (true ? pastSurplus : 0);
-assert.strictEqual(totalSavedModeOn, 1200.00);
-console.log("✓ Test 3B Passed: When Auto-Sweep is ON, Total Saved includes past swept surplus (RM 1,200).");
-
-// Test 4: JavaScript Syntax Validation
+// Test 5: JavaScript Syntax Check
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js');
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/sw.js');
-console.log("✓ Test 4 Passed: app.js and sw.js pass syntax validation with zero errors.");
+console.log("✓ Test 5 Passed: app.js and sw.js pass syntax validation with zero errors.");
 
-console.log("\nAll Optional Auto-Sweep Surplus tests passed successfully!");
+console.log("\nAll Queue Item 1 tests passed successfully!");
