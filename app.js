@@ -875,13 +875,16 @@ function renderSubscriptions() {
     const icon = getCategoryIcon(sub.category);
     const diff = sub.billingDay - currentDay;
 
-    let dueBadge = "";
-    if (diff === 0) dueBadge = `<span class="badge-due-today">🔔 Due Today</span>`;
-    else if (diff > 0 && diff <= 5) dueBadge = `<span class="badge-due-soon">⚠️ Due in ${diff}d</span>`;
-
     const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
     const isDebited = sub.lastLoggedMonth === currentYm;
     const monthShort = today.toLocaleString(undefined, { month: "short" });
+
+    // Clean badge logic: If already debited, NEVER show Due Today or Due Soon warnings
+    let dueBadge = "";
+    if (!isDebited) {
+      if (diff === 0) dueBadge = `<span class="badge-due-today">🔔 Due Today</span>`;
+      else if (diff > 0 && diff <= 5) dueBadge = `<span class="badge-due-soon">⚠️ Due in ${diff}d</span>`;
+    }
 
     let actionButtonOrBadge = "";
     if (isDebited) {
@@ -1024,14 +1027,31 @@ function renderHeroSpendableGaugeAndMetrics() {
     dom.heroFooterText.textContent = "Tip: Log your monthly salary and savings to establish your safe spendable pool for this month.";
   }
 
-  // Monthly Stat Cards Below
+  // Monthly Stat Cards Below & Net True Savings
   dom.totalIncome.textContent = formatCurrency(monthIncomeAmt);
   dom.incomeCount.textContent = `${monthlyIncomes.length} ${monthlyIncomes.length === 1 ? "earning" : "earnings"} this month`;
 
-  dom.totalSaved.textContent = formatCurrency(monthSavedAmt);
-  dom.savingsSub.textContent = monthIncomeAmt > 0
-    ? `${((monthSavedAmt / monthIncomeAmt) * 100).toFixed(0)}% of month salary`
-    : "0% of salary saved";
+  // Net True Savings: Accrues all-time savings, but deducts any current-month spendable deficit
+  const allTimeSavings = state.transactions
+    .filter(t => t.category === "Savings & Investments")
+    .reduce((s, t) => s + t.amount, 0);
+
+  if (spendableBalance < 0) {
+    const deficit = Math.abs(spendableBalance);
+    const netTrueSavings = Math.max(0, allTimeSavings - deficit);
+    dom.totalSaved.textContent = formatCurrency(netTrueSavings);
+    dom.totalSaved.className = "metric-value deficit";
+    dom.savingsSub.className = "metric-sub deficit";
+    dom.savingsSub.textContent = `⚠️ Reduced by ${formatCurrency(deficit)} deficit`;
+  } else {
+    dom.totalSaved.textContent = formatCurrency(allTimeSavings);
+    dom.totalSaved.className = "metric-value";
+    dom.savingsSub.className = "metric-sub";
+    const monthPct = monthIncomeAmt > 0 ? ((monthSavedAmt / monthIncomeAmt) * 100).toFixed(0) : 0;
+    dom.savingsSub.textContent = monthSavedAmt > 0
+      ? `+${formatCurrency(monthSavedAmt)} this month (${monthPct}%)`
+      : "Accumulated savings";
+  }
 
   dom.totalSpend.textContent = formatCurrency(monthLivingAmt);
   dom.txCount.textContent = `${monthLivingTx.length} ${monthLivingTx.length === 1 ? "expense" : "expenses"} this month`;

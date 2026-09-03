@@ -2162,3 +2162,87 @@ body {
   border-radius: 999px;
   transition: width 0.4s ease;
 }
+
+
+/* Subscriptions List Alignment & Truncation Fixes */
+.sub-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sub-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sub-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.sub-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.sub-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.badge-due-soon,
+.badge-due-today {
+  white-space: nowrap !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.2;
+}
+
+.sub-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: 0.4rem;
+}
+
+.sub-amount {
+  font-size: 0.88rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.savings-card .metric-value.deficit {
+  color: #f87171 !important;
+}
+
+.savings-card .metric-sub.deficit {
+  color: #ef4444 !important;
+  font-weight: 600;
+}
