@@ -1992,48 +1992,292 @@ function resetAllFilters() {
   deselectCategory();
 }
 
-// Sample Data Loader
+// Malaysian Working Professional (打工族) Real-Life Simulation (Jan 1 to Sep 3, 2026)
 function loadSampleData() {
-  const today = new Date();
-  const d = (daysAgo) => {
-    const dt = new Date(today);
-    dt.setDate(today.getDate() - daysAgo);
-    return dt.toISOString().split("T")[0];
+  const receipts = {
+    dining: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500" style="background:#fff;font-family:monospace;padding:20px;">
+        <text x="200" y="40" text-anchor="middle" font-size="18" font-weight="bold">KOPITIAM &amp; CAFE</text>
+        <text x="200" y="65" text-anchor="middle" font-size="12" fill="#666">IPOH, PERAK • TAX INVOICE</text>
+        <line x1="20" y1="80" x2="380" y2="80" stroke="#ccc" stroke-dasharray="4"/>
+        <text x="30" y="120" font-size="14">1x Hainanese Chicken Rice</text><text x="370" y="120" text-anchor="end" font-size="14">RM 12.50</text>
+        <text x="30" y="150" font-size="14">1x Kopi C Ping (Iced)</text><text x="370" y="150" text-anchor="end" font-size="14">RM 3.50</text>
+        <text x="30" y="180" font-size="14">1x Kaya Butter Toast (2pcs)</text><text x="370" y="180" text-anchor="end" font-size="14">RM 4.80</text>
+        <text x="30" y="210" font-size="14">1x Signature Cake Slice</text><text x="370" y="210" text-anchor="end" font-size="14">RM 14.20</text>
+        <line x1="20" y1="240" x2="380" y2="240" stroke="#ccc" stroke-dasharray="4"/>
+        <text x="30" y="275" font-size="16" font-weight="bold">TOTAL PAID (TNG QR)</text><text x="370" y="275" text-anchor="end" font-size="16" font-weight="bold">RM 35.00</text>
+        <text x="200" y="340" text-anchor="middle" font-size="12" fill="#888">THANK YOU FOR YOUR PATRONAGE</text>
+      </svg>
+    `),
+    fuel: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="400" height="460" viewBox="0 0 400 460" style="background:#fff;font-family:monospace;padding:20px;">
+        <text x="200" y="40" text-anchor="middle" font-size="18" font-weight="bold">PETRONAS / SHELL</text>
+        <text x="200" y="65" text-anchor="middle" font-size="12" fill="#666">PUMP #04 • OFFICIAL RECEIPT</text>
+        <line x1="20" y1="80" x2="380" y2="80" stroke="#ccc" stroke-dasharray="4"/>
+        <text x="30" y="125" font-size="14">RON95 FUEL (PUMP 4)</text>
+        <text x="30" y="155" font-size="13" fill="#555">22.20 LITRES @ RM 2.05/L</text><text x="370" y="155" text-anchor="end" font-size="15" font-weight="bold">RM 45.50</text>
+        <line x1="20" y1="190" x2="380" y2="190" stroke="#ccc" stroke-dasharray="4"/>
+        <text x="30" y="230" font-size="16" font-weight="bold">PAID VIA VISA CARD</text><text x="370" y="230" text-anchor="end" font-size="16" font-weight="bold">RM 45.50</text>
+        <text x="200" y="300" text-anchor="middle" font-size="12" fill="#888">PETRONAS MESRA POINTS EARNED: 45</text>
+      </svg>
+    `),
+    groceries: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="400" height="520" viewBox="0 0 400 520" style="background:#fff;font-family:monospace;padding:20px;">
+        <text x="200" y="40" text-anchor="middle" font-size="18" font-weight="bold">LOTUS'S MALAYSIA</text>
+        <text x="200" y="65" text-anchor="middle" font-size="12" fill="#666">STORE #108 • HYPERMARKET</text>
+        <line x1="20" y1="80" x2="380" y2="80" stroke="#ccc" stroke-dasharray="4"/>
+        <text x="30" y="115" font-size="14">Eggs Grade A 30s</text><text x="370" y="115" text-anchor="end" font-size="14">RM 13.50</text>
+        <text x="30" y="145" font-size="14">Cooking Oil 5kg</text><text x="370" y="145" text-anchor="end" font-size="14">RM 34.70</text>
+        <text x="30" y="175" font-size="14">Jasmine Fragrant Rice 5kg</text><text x="370" y="175" text-anchor="end" font-size="14">RM 38.00</text>
+        <text x="30" y="205" font-size="14">Fresh Chicken Breast 1kg</text><text x="370" y="205" text-anchor="end" font-size="14">RM 18.50</text>
+        <text x="30" y="235" font-size="14">Milk &amp; Greek Yogurt</text><text x="370" y="235" text-anchor="end" font-size="14">RM 17.80</text>
+        <text x="30" y="265" font-size="14">Vegetables &amp; Fruits</text><text x="370" y="265" text-anchor="end" font-size="14">RM 19.50</text>
+        <line x1="20" y1="290" x2="380" y2="290" stroke="#ccc" stroke-dasharray="4"/>
+        <text x="30" y="325" font-size="16" font-weight="bold">TOTAL AMOUNT</text><text x="370" y="325" text-anchor="end" font-size="16" font-weight="bold">RM 142.00</text>
+        <text x="200" y="390" text-anchor="middle" font-size="12" fill="#888">THANK YOU • PLEASE COME AGAIN</text>
+      </svg>
+    `)
   };
 
-  const now = new Date();
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevYm = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
-
-  const samples = [
-    // Current Month (September)
-    { id: "tx_s0", type: "income", amount: 3500.00, category: "Salary & Wages", date: d(0), note: "Monthly employment salary", createdAt: Date.now() - 1000 },
-    { id: "tx_s_save", type: "expense", amount: 700.00, category: "Savings & Investments", date: d(0), note: "Bank deposit (20% of salary)", createdAt: Date.now() - 2000 },
-    { id: "tx_s1", type: "expense", amount: 14.50, category: "Food & Dining", date: d(0), note: "Chicken Rice & Iced Tea lunch", createdAt: Date.now() - 3600000 },
-    { id: "tx_s2", type: "expense", amount: 28.00, category: "Transportation", date: d(1), note: "Petrol refill", createdAt: Date.now() - 86400000 },
-    // Previous Month (August) - Demonstrates Month-End Surplus Sweep (Salary 3500 - Savings 700 - Living 1045 = RM 1755 swept surplus)
-    { id: "tx_aug_inc", type: "income", amount: 3500.00, category: "Salary & Wages", date: `${prevYm}-01`, note: "August employment salary", createdAt: Date.now() - 2500000000 },
-    { id: "tx_aug_save", type: "expense", amount: 700.00, category: "Savings & Investments", date: `${prevYm}-02`, note: "August bank deposit", createdAt: Date.now() - 2400000000 },
-    { id: "tx_aug_food", type: "expense", amount: 800.00, category: "Food & Dining", date: `${prevYm}-06`, note: "August groceries & dining", createdAt: Date.now() - 2300000000 },
-    { id: "tx_aug_trans", type: "expense", amount: 200.00, category: "Transportation", date: `${prevYm}-13`, note: "August train & fuel", createdAt: Date.now() - 2200000000 },
-    { id: "tx_aug_bills", type: "expense", amount: 45.00, category: "Bills & Utilities", date: `${prevYm}-31`, note: "August mobile plan", createdAt: Date.now() - 2100000000 }
+  const breakfasts = [
+    { note: "Mamak Roti Canai (2pcs) & Teh Tarik", amt: 5.50, cat: "Food & Dining", wallet: "E-Wallet" },
+    { note: "Kopitiam Kaya Butter Toast & Kopi C", amt: 6.80, cat: "Food & Dining", wallet: "Cash" },
+    { note: "Nasi Lemak Bungkus & Teh O Ais", amt: 6.00, cat: "Food & Dining", wallet: "E-Wallet" },
+    { note: "Dim Sum & Siew Mai breakfast", amt: 12.50, cat: "Food & Dining", wallet: "E-Wallet", hasReceipt: true },
+    { note: "Chee Cheong Fun with sweet sauce", amt: 6.50, cat: "Food & Dining", wallet: "Cash" }
   ];
 
-  state.transactions = [...samples, ...state.transactions];
+  const lunches = [
+    { note: "Economy Rice (杂饭 2 veg 1 meat)", amt: 11.00, cat: "Food & Dining", wallet: "E-Wallet" },
+    { note: "Hainanese Chicken Rice & Iced Barley", amt: 12.50, cat: "Food & Dining", wallet: "E-Wallet" },
+    { note: "Ipoh Shredded Chicken Hor Fun", amt: 10.50, cat: "Food & Dining", wallet: "Cash" },
+    { note: "Dry Chili Pan Mee with poached egg", amt: 11.50, cat: "Food & Dining", wallet: "E-Wallet" },
+    { note: "Mamak Nasi Kandar (Ayam Goreng)", amt: 13.00, cat: "Food & Dining", wallet: "E-Wallet" }
+  ];
 
-  if (!state.subscriptions.length) {
-    const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-    state.subscriptions = [
-      { id: "sub_0", name: "Spotify Premium", amount: 15.90, category: "Entertainment", billingDay: 2, autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
-      { id: "sub_1", name: "Mobile Postpaid Plan", amount: 45.00, category: "Bills & Utilities", billingDay: 15, autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() },
-      { id: "sub_2", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() }
-    ];
+  const dinners = [
+    { note: "Food court Char Kway Teow with cockles", amt: 11.50, cat: "Food & Dining", wallet: "Cash" },
+    { note: "Tom Yam Fried Rice & Lemon Tea", amt: 13.50, cat: "Food & Dining", wallet: "E-Wallet" },
+    { note: "Claypot Chicken Rice dinner", amt: 14.00, cat: "Food & Dining", wallet: "Cash" },
+    { note: "Weekend Cafe Dinner & Cake treat", amt: 35.00, cat: "Food & Dining", wallet: "Credit Card", hasReceipt: true },
+    { note: "Texas Chicken Combo Dinner", amt: 24.50, cat: "Food & Dining", wallet: "E-Wallet" }
+  ];
+
+  const simulatedTransactions = [];
+  const start = new Date(2026, 0, 1); // Jan 1, 2026
+  const end = new Date(2026, 8, 3);   // Sep 3, 2026
+
+  let cur = new Date(start);
+  let idCount = 1;
+
+  while (cur <= end) {
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, "0");
+    const d = String(cur.getDate()).padStart(2, "0");
+    const dateStr = `${y}-${m}-${d}`;
+    const dayOfMonth = cur.getDate();
+    const dayOfWeek = cur.getDay();
+
+    // 1. Monthly Employment Salary on Day 1
+    if (dayOfMonth === 1) {
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "income",
+        amount: 3500.00,
+        category: "Salary & Wages",
+        wallet: "Bank Account",
+        date: dateStr,
+        note: `Employment Salary (${cur.toLocaleString(undefined, { month: "short" })})`,
+        createdAt: cur.getTime() + 1000
+      });
+
+      // Room Rental on Day 1
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "expense",
+        amount: 550.00,
+        category: "Bills & Utilities",
+        wallet: "Bank Account",
+        date: dateStr,
+        note: `Room Rental (${cur.toLocaleString(undefined, { month: "short" })})`,
+        createdAt: cur.getTime() + 2000
+      });
+    }
+
+    // 2. Monthly Savings Deposit on Day 2
+    if (dayOfMonth === 2) {
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "expense",
+        amount: 600.00,
+        category: "Savings & Investments",
+        wallet: "Bank Account",
+        date: dateStr,
+        note: "Bank Savings Deposit (Pay yourself first)",
+        createdAt: cur.getTime() + 3000
+      });
+
+      // Spotify Subscription on Day 2
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "expense",
+        amount: 15.90,
+        category: "Entertainment",
+        wallet: "Credit Card",
+        date: dateStr,
+        note: "Spotify Premium (Auto-debited)",
+        createdAt: cur.getTime() + 4000
+      });
+    }
+
+    // 3. Monthly Car Loan Installment on Day 5
+    if (dayOfMonth === 5) {
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "expense",
+        amount: 480.00,
+        category: "Bills & Utilities",
+        wallet: "Bank Account",
+        date: dateStr,
+        note: "Car Loan Installment (Hire Purchase)",
+        createdAt: cur.getTime() + 5000
+      });
+    }
+
+    // 4. CelcomDigi Postpaid Bill on Day 15
+    if (dayOfMonth === 15) {
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "expense",
+        amount: 45.00,
+        category: "Bills & Utilities",
+        wallet: "E-Wallet",
+        date: dateStr,
+        note: "CelcomDigi Postpaid Bill",
+        createdAt: cur.getTime() + 6000
+      });
+    }
+
+    // 5. Home Fibre Internet on Day 22
+    if (dayOfMonth === 22) {
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "expense",
+        amount: 89.00,
+        category: "Bills & Utilities",
+        wallet: "Bank Account",
+        date: dateStr,
+        note: "Home Fibre Internet 100Mbps",
+        createdAt: cur.getTime() + 7000
+      });
+    }
+
+    // 6. Weekly Shell Petrol RON95 refill on Mondays
+    if (dayOfWeek === 1) {
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "expense",
+        amount: 45.50,
+        category: "Transportation",
+        wallet: "Credit Card",
+        date: dateStr,
+        note: "Shell RON95 Petrol refill",
+        receiptImage: receipts.fuel,
+        createdAt: cur.getTime() + 8000
+      });
+    }
+
+    // 7. Bi-weekly Hypermarket Groceries at Lotus's
+    if (dayOfMonth === 10 || dayOfMonth === 24) {
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "expense",
+        amount: 142.00,
+        category: "Food & Dining",
+        wallet: "Credit Card",
+        date: dateStr,
+        note: "Lotus's Supermarket groceries",
+        receiptImage: receipts.groceries,
+        createdAt: cur.getTime() + 9000
+      });
+    }
+
+    // 8. Occasional Touch 'n Go Toll Reload
+    if (dayOfMonth === 12 || dayOfMonth === 26) {
+      simulatedTransactions.push({
+        id: "tx_sim_" + (idCount++),
+        type: "expense",
+        amount: 30.00,
+        category: "Transportation",
+        wallet: "E-Wallet",
+        date: dateStr,
+        note: "Touch 'n Go eWallet toll reload",
+        createdAt: cur.getTime() + 9500
+      });
+    }
+
+    // 9. Everyday 3 Meals (Breakfast, Lunch, Dinner)
+    const bf = breakfasts[(dayOfMonth + 1) % breakfasts.length];
+    simulatedTransactions.push({
+      id: "tx_sim_" + (idCount++),
+      type: "expense",
+      amount: bf.amt,
+      category: bf.cat,
+      wallet: bf.wallet,
+      date: dateStr,
+      note: bf.note,
+      receiptImage: bf.hasReceipt ? receipts.dining : null,
+      createdAt: cur.getTime() + 10000
+    });
+
+    const ln = lunches[(dayOfMonth + 2) % lunches.length];
+    simulatedTransactions.push({
+      id: "tx_sim_" + (idCount++),
+      type: "expense",
+      amount: ln.amt,
+      category: ln.cat,
+      wallet: ln.wallet,
+      date: dateStr,
+      note: ln.note,
+      createdAt: cur.getTime() + 15000
+    });
+
+    const dn = dinners[(dayOfMonth + 3) % dinners.length];
+    simulatedTransactions.push({
+      id: "tx_sim_" + (idCount++),
+      type: "expense",
+      amount: dn.amt,
+      category: dn.cat,
+      wallet: dn.wallet,
+      date: dateStr,
+      note: dn.note,
+      receiptImage: dn.hasReceipt ? receipts.dining : null,
+      createdAt: cur.getTime() + 20000
+    });
+
+    cur.setDate(cur.getDate() + 1);
   }
+
+  // Replace transactions array
+  state.transactions = simulatedTransactions.reverse();
+
+  // Populate active subscriptions list for Malaysian worker
+  const today = new Date();
+  const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  state.subscriptions = [
+    { id: "sub_rent", name: "Room Rental", amount: 550.00, category: "Bills & Utilities", billingDay: 1, wallet: "Bank Account", autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
+    { id: "sub_spotify", name: "Spotify Premium", amount: 15.90, category: "Entertainment", billingDay: 2, wallet: "Credit Card", autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
+    { id: "sub_car", name: "Car Loan Installment", amount: 480.00, category: "Bills & Utilities", billingDay: 5, wallet: "Bank Account", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() },
+    { id: "sub_mobile", name: "CelcomDigi Postpaid", amount: 45.00, category: "Bills & Utilities", billingDay: 15, wallet: "E-Wallet", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() },
+    { id: "sub_wifi", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, wallet: "Bank Account", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() }
+  ];
 
   saveStorage();
   render();
-  showToast("Loaded salary, savings, expenses & bills!");
+  showToast("Loaded Malaysian workhorse daily routine (Jan 1 – Sep 3, 2026)!");
 }
+
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c] || c));
