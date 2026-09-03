@@ -173,6 +173,7 @@ function init() {
   bindEvents();
   render();
   registerSW();
+  initSwipeGestures();
 }
 
 function setDefaultDate() {
@@ -245,22 +246,92 @@ function applyTheme(theme) {
   }
 }
 
-// Navigation Tabs Router
-function switchTab(tabName) {
-  state.activeTab = tabName;
-  document.querySelectorAll(".app-view").forEach(v => v.classList.remove("active"));
-  const targetView = $(`view-${tabName}`);
-  if (targetView) targetView.classList.add("active");
+// Navigation Tabs Router (Direction-Aware Slide & Haptic)
+const TAB_ORDER = ["dashboard", "analysis", "settings"];
 
-  // Update button states
+function switchTab(tabName, direction = null) {
+  if (state.activeTab === tabName) return;
+
+  const prevIdx = TAB_ORDER.indexOf(state.activeTab);
+  const nextIdx = TAB_ORDER.indexOf(tabName);
+  const effectiveDirection = direction || (nextIdx > prevIdx ? "forward" : "backward");
+
+  state.activeTab = tabName;
+
+  document.querySelectorAll(".app-view").forEach(v => {
+    v.classList.remove("active", "slide-from-right", "slide-from-left");
+  });
+
+  const targetView = $(`view-${tabName}`);
+  if (targetView) {
+    targetView.classList.add("active");
+    if (effectiveDirection === "forward") {
+      targetView.classList.add("slide-from-right");
+    } else if (effectiveDirection === "backward") {
+      targetView.classList.add("slide-from-left");
+    }
+  }
+
+  // Update nav buttons
   document.querySelectorAll(".nav-tab-btn, .mobile-nav-btn").forEach(b => {
     b.classList.toggle("active", b.dataset.tab === tabName);
   });
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 
+  // Light haptic feedback if supported on mobile
+  if (typeof navigator.vibrate === "function") {
+    try { navigator.vibrate(12); } catch (e) {}
+  }
+
   if (tabName === "analysis") renderAnalysis();
   if (tabName === "settings") renderSettings();
+}
+
+// Touch Swipe Gesture Handler (Dashboard <-> Analysis <-> Settings)
+function initSwipeGestures() {
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+  let isIgnoredTarget = false;
+
+  document.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    touchStartX = t.clientX;
+    touchStartY = t.clientY;
+    touchStartTime = Date.now();
+
+    // Ignore touches starting inside inputs, charts with horizontal scroll, or open dialogs
+    const target = e.target;
+    isIgnoredTarget = !!target.closest("input, select, textarea, .chart-scroll-container, dialog[open], .emoji-btn, .color-swatch-btn");
+  }, { passive: true });
+
+  document.addEventListener("touchend", (e) => {
+    if (isIgnoredTarget || e.changedTouches.length !== 1) return;
+
+    const t = e.changedTouches[0];
+    const diffX = t.clientX - touchStartX;
+    const diffY = t.clientY - touchStartY;
+    const timeTaken = Date.now() - touchStartTime;
+
+    // Conditions: at least 50px distance, quick swipe (< 500ms), and predominantly horizontal (|dx| > 1.8 * |dy|)
+    if (Math.abs(diffX) >= 50 && Math.abs(diffX) > Math.abs(diffY) * 1.8 && timeTaken <= 500) {
+      const currentIdx = TAB_ORDER.indexOf(state.activeTab);
+
+      if (diffX < 0) {
+        // Swiped Left (Finger moved right to left) -> Next tab
+        if (currentIdx < TAB_ORDER.length - 1) {
+          switchTab(TAB_ORDER[currentIdx + 1], "forward");
+        }
+      } else {
+        // Swiped Right (Finger moved left to right) -> Previous tab
+        if (currentIdx > 0) {
+          switchTab(TAB_ORDER[currentIdx - 1], "backward");
+        }
+      }
+    }
+  }, { passive: true });
 }
 
 // Category Dropdown Population (Includes Option 7C "Custom Category➕")

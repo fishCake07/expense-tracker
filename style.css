@@ -59,7 +59,10 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  padding: 1.25rem 1rem 5.5rem 1rem;
+  padding-top: max(0.85rem, env(safe-area-inset-top, 0px)); /* Respect iOS notch & status bar */
+  padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); /* Clearance for mobile nav */
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
@@ -112,6 +115,24 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideFromRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideFromLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.app-view.slide-from-right {
+  animation: slideFromRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.app-view.slide-from-left {
+  animation: slideFromLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Header & Desktop Nav */
@@ -209,21 +230,23 @@ body {
   cursor: pointer;
 }
 
-/* Mobile Fixed Bottom Nav */
+/* Mobile Fixed Bottom Nav (Polished Native iOS/Android Design) */
 .mobile-bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 60px;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-around;
   z-index: 1000;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  padding-top: 6px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -3px 14px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(12px);
 }
 
 @media (min-width: 768px) {
@@ -236,24 +259,48 @@ body {
 }
 
 .mobile-nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: var(--transition);
+}
+
+.nav-btn-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  flex: 1;
-  height: 100%;
-  transition: color 0.15s ease;
+  padding: 0.3rem 1.1rem;
+  border-radius: 16px;
+  transition: background-color 0.2s ease, transform 0.15s ease, color 0.2s ease;
 }
 
-.mobile-nav-btn.active {
+.nav-btn-inner svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nav-btn-inner span {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.mobile-nav-btn.active .nav-btn-inner {
+  background: var(--primary-light);
   color: var(--primary);
+}
+
+.mobile-nav-btn.active .nav-btn-inner svg {
+  transform: scale(1.08);
 }
 
 /* Cards & Layout */
@@ -1451,7 +1498,7 @@ body {
   .app-header {
     padding: 0.55rem 0.75rem !important;
     border-radius: var(--radius-md) !important;
-    top: 0.25rem !important;
+    top: max(0.4rem, env(safe-area-inset-top, 0px)) !important;
     width: 100% !important;
   }
 
