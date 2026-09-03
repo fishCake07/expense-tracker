@@ -341,7 +341,7 @@ function viewReceiptModal(txId) {
   if (!tx || !tx.receiptImage) return;
 
   dom.receiptModalImg.src = tx.receiptImage;
-  dom.receiptModalTitle.textContent = `${tx.category} Receipt`;
+  dom.receiptModalTitle.textContent = `${tx.category} Photo / Receipt`;
   dom.receiptModalDetails.textContent = `${formatDate(tx.date)} • ${formatCurrency(tx.amount)} • ${tx.note}`;
   dom.downloadReceiptLink.href = tx.receiptImage;
   dom.downloadReceiptLink.download = `receipt_${tx.date}_${tx.category.replace(/\s+/g, "_")}.jpg`;
@@ -712,6 +712,20 @@ function bindEvents() {
 
   if (dom.closeReceiptModalBtn) {
     dom.closeReceiptModalBtn.addEventListener("click", () => dom.receiptModal.close());
+
+  // Click outside modal card on backdrop to exit
+  if (dom.receiptModal) {
+    dom.receiptModal.addEventListener("click", (e) => {
+      const rect = dom.receiptModal.getBoundingClientRect();
+      const isInDialog = (
+        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+      );
+      if (!isInDialog) {
+        dom.receiptModal.close();
+      }
+    });
+  }
   }
 
   // Auto-Sweep Month-End Surplus Toggle (With Instant Accrued Amount Feedback)
@@ -1584,7 +1598,14 @@ function renderTransactionList() {
               <span>${formatDate(tx.date)}</span>
               <span>•</span>
               <span class="tx-badge-wallet">${getWalletIcon(tx.wallet)} ${escapeHtml(tx.wallet || "Bank Account")}</span>
-              ${tx.receiptImage ? `<button type="button" class="btn-receipt-badge" title="View receipt" onclick="viewReceiptModal('${tx.id}')">📷 Receipt</button>` : ""}
+              ${tx.receiptImage ? `
+                <button type="button" class="btn-photo-icon" title="View photo / receipt" onclick="viewReceiptModal('${tx.id}')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                  </svg>
+                </button>
+              ` : ""}
               ${tx.note && tx.note !== tx.category ? `<span>•</span><span class="tx-note" title="${escapeHtml(tx.note)}">${escapeHtml(tx.note)}</span>` : ""}
             </div>
           </div>

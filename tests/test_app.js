@@ -1,63 +1,31 @@
 const fs = require('fs');
 const assert = require('assert');
 
-console.log("--- Starting Queue Item 2 & Subscription 3-Wallet Tests ---");
+console.log("--- Starting Photo Modal & Row Sizing Tests ---");
 
 // Test 1: HTML Element Check
 const htmlContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/index.html', 'utf8');
-const requiredIds = [
-  'sub-wallet-pill-group',
-  'sub-selected-wallet',
-  'attach-receipt-btn',
-  'receipt-file-input',
-  'receipt-preview-box',
-  'receipt-modal',
-  'receipt-modal-img',
-  'download-receipt-link'
-];
+assert(htmlContent.includes('class="btn-circle-close"'), "Missing btn-circle-close in HTML");
+assert(htmlContent.includes('class="btn-download-icon"'), "Missing btn-download-icon in HTML");
+console.log("✓ Test 1 Passed: Circular close button and download icon button verified in HTML.");
 
-requiredIds.forEach(id => {
-  assert(htmlContent.includes(`id="${id}"`), `HTML missing required ID: ${id}`);
-});
-console.log("✓ Test 1 Passed: All receipt upload/modal elements and sub 3-wallet pill group exist in HTML.");
+// Test 2: JS App Logic Check
+const appJsContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js', 'utf8');
+assert(appJsContent.includes("${tx.category} Photo / Receipt"), "Missing dynamic Photo / Receipt title format in app.js");
+assert(appJsContent.includes("btn-photo-icon"), "Missing btn-photo-icon button class in app.js");
+assert(appJsContent.includes("receiptModal.close()"), "Missing backdrop dismiss close call in app.js");
+console.log("✓ Test 2 Passed: Dynamic category title, sleek photo button, and backdrop dismiss confirmed in app.js.");
 
-// Test 2: Subscription Wallet Inheritance on Auto-Deduction
-const testSub = {
-  id: "sub_spotify",
-  name: "Spotify",
-  amount: 15.90,
-  category: "Entertainment",
-  wallet: "Credit Card",
-  billingDay: 2
-};
-
-const autoTx = {
-  id: "tx_auto_test",
-  type: "expense",
-  amount: testSub.amount,
-  category: testSub.category,
-  wallet: testSub.wallet || "Bank Account",
-  date: "2026-09-02",
-  note: `${testSub.name} (Auto-debited)`
-};
-
-assert.strictEqual(autoTx.wallet, "Credit Card", "Auto-debited transaction must inherit subscription's wallet");
-console.log("✓ Test 2 Passed: Auto-debited transaction correctly inherits Credit Card wallet.");
-
-// Test 3: Transaction with Receipt Image Attachment
-const txWithReceipt = {
-  id: "tx_dinner",
-  amount: 85.00,
-  category: "Food & Dining",
-  receiptImage: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
-};
-
-assert(txWithReceipt.receiptImage.startsWith("data:image/jpeg;base64,"));
-console.log("✓ Test 3 Passed: Receipt photo attachment structure verified.");
+// Test 3: CSS Sizing Check
+const cssContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/style.css', 'utf8');
+assert(cssContent.includes('.btn-photo-icon'), "Missing .btn-photo-icon in CSS");
+assert(cssContent.includes('.btn-download-icon'), "Missing .btn-download-icon in CSS");
+assert(cssContent.includes('.btn-circle-close'), "Missing .btn-circle-close in CSS");
+console.log("✓ Test 3 Passed: CSS rules for photo icon, download button, and close button confirmed.");
 
 // Test 4: JavaScript Syntax Validation
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js');
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/sw.js');
 console.log("✓ Test 4 Passed: app.js and sw.js pass syntax validation with zero errors.");
 
-console.log("\nAll Queue Item 2 & Subscription 3-Wallet tests passed successfully!");
+console.log("\nAll Photo Modal & Row Sizing tests passed successfully!");

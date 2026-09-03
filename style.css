@@ -1835,14 +1835,15 @@ body {
   }
 
   .transaction-list {
-    gap: 0.45rem !important;
+    gap: 0.65rem !important; /* Generous breathing space between rows */
     width: 100% !important;
-    max-height: 400px !important;
+    max-height: 440px !important;
   }
 
   .transaction-item {
-    padding: 0.55rem 0.65rem !important;
+    padding: 0.85rem 0.95rem !important; /* 20%+ larger row padding for comfortable touch */
     width: 100% !important;
+    border-radius: var(--radius-md) !important;
   }
 
   .tx-icon-badge {
@@ -2465,24 +2466,80 @@ body {
   padding: 0;
 }
 
-.btn-receipt-badge {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-color);
+/* Sleek Compact Photo Icon Button (In Transaction Rows) */
+.btn-photo-icon {
+  width: 26px;
+  height: 26px;
+  background: var(--primary-light);
+  border: 1px solid rgba(79, 70, 229, 0.25);
   color: var(--primary);
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 0.12rem 0.35rem;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
   transition: var(--transition);
+  flex-shrink: 0;
+  padding: 0;
 }
 
-.btn-receipt-badge:hover {
-  background: var(--primary-light);
-  border-color: var(--primary);
+.btn-photo-icon:hover {
+  background: var(--primary);
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
+.btn-photo-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Prominent Circular Modal Close Button */
+.btn-circle-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-circle-close:hover {
+  background: var(--danger-light);
+  color: var(--danger);
+  border-color: var(--danger);
+  transform: rotate(90deg);
+}
+
+/* Beautiful Download Icon Button */
+.btn-download-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-download-icon:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
 }
 
 /* Receipt Modal Styles */

@@ -613,19 +613,28 @@
       </form>
     </dialog>
 
-    <!-- Queue Item 2: Full Receipt View Modal -->
+    <!-- Full Receipt / Photo View Modal -->
     <dialog id="receipt-modal" class="custom-dialog receipt-dialog">
       <div class="receipt-dialog-header">
-        <h3 id="receipt-modal-title">Receipt Photo</h3>
-        <button type="button" id="close-receipt-modal-btn" class="btn-clear-search">✕</button>
+        <h3 id="receipt-modal-title">Photo / Receipt</h3>
+        <button type="button" id="close-receipt-modal-btn" class="btn-circle-close" title="Close preview" aria-label="Close preview">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
       <div class="receipt-img-container">
-        <img id="receipt-modal-img" src="" alt="Full Receipt View">
+        <img id="receipt-modal-img" src="" alt="Full Photo Preview">
       </div>
       <div class="receipt-modal-footer">
         <span id="receipt-modal-details" class="receipt-details-text"></span>
-        <a id="download-receipt-link" class="btn-outline-sm" href="" download="receipt.jpg">
-          📥 Download Image
+        <a id="download-receipt-link" class="btn-download-icon" href="" download="photo.jpg" title="Download image" aria-label="Download image">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
         </a>
       </div>
     </dialog>
