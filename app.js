@@ -166,6 +166,8 @@ function init() {
   loadStorage();
   initTheme();
   setDefaultDate();
+  scheduleMidnightRollover();
+  initDateLifecycleListeners();
   populateCategorySelects();
   populateFilterCategories();
   dom.currencySelect.value = state.currency;
@@ -176,10 +178,47 @@ function init() {
   initSwipeGestures();
 }
 
+// Local Timezone Helpers (Guarantees rollover at 00:00 local time)
+function getLocalDateString(dateObj = new Date()) {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function setDefaultDate() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   dom.date.value = today;
   dom.date.max = today;
+}
+
+// Midnight Alarm: Automatically triggers rollover at 00:00:01 local time
+function scheduleMidnightRollover() {
+  const now = new Date();
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  const msUntilMidnight = Math.max(1000, tomorrow.getTime() - now.getTime());
+
+  setTimeout(() => {
+    setDefaultDate();
+    renderHeroSpendableGaugeAndMetrics();
+    renderSubscriptions();
+    scheduleMidnightRollover();
+  }, msUntilMidnight);
+}
+
+// Phone Resume Listeners: Checks for new day whenever phone is unlocked or app reopened
+function initDateLifecycleListeners() {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      setDefaultDate();
+      renderHeroSpendableGaugeAndMetrics();
+      renderSubscriptions();
+    }
+  });
+  window.addEventListener("focus", () => {
+    setDefaultDate();
+    renderHeroSpendableGaugeAndMetrics();
+  });
 }
 
 // Local Storage
@@ -747,7 +786,7 @@ function logSubscriptionNow(id) {
   const sub = state.subscriptions.find(s => s.id === id);
   if (!sub) return;
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   state.transactions.unshift({
     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     type: "expense",
@@ -1286,7 +1325,7 @@ function exportToCSV() {
   ]);
 
   const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n");
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   downloadBlob(new Blob([csvContent], { type: "text/csv;charset=utf-8;" }), `expenses_${today}.csv`);
   showToast(`Exported ${state.transactions.length} transactions to CSV!`);
 }
@@ -1303,7 +1342,7 @@ function exportToJSON() {
   };
 
   const jsonStr = JSON.stringify(backupData, null, 2);
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   downloadBlob(new Blob([jsonStr], { type: "application/json;charset=utf-8;" }), `expense_tracker_backup_${today}.json`);
   showToast("Full backup file downloaded!");
 }
