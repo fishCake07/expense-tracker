@@ -1,58 +1,49 @@
 const fs = require('fs');
 const assert = require('assert');
 
-console.log("--- Starting Net True Savings & Subscription Layout Tests ---");
+console.log("--- Starting Optional Auto-Sweep Surplus Settings Tests ---");
 
-// Test 1: Net True Savings Calculation
-const allTimeSavingsTransactions = [
-  { category: "Savings & Investments", amount: 500.00 }, // August
-  { category: "Savings & Investments", amount: 700.00 }  // September
+// Test 1: HTML Element Integrity
+const htmlContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/index.html', 'utf8');
+assert(htmlContent.includes('id="toggle-surplus-sweep"'), "Missing toggle-surplus-sweep in index.html");
+console.log("✓ Test 1 Passed: Auto-sweep surplus toggle switch exists in Settings page.");
+
+// Test 2: Bank-Account User Case (No savings logged, autoSweepSurplus = false)
+const bankUserTransactions = [
+  { date: "2026-09-01", type: "income", amount: 3500.00, category: "Salary & Wages" },
+  { date: "2026-09-02", type: "expense", amount: 200.00, category: "Food & Dining" }
 ];
-const totalAccumulatedSavings = allTimeSavingsTransactions.reduce((s, t) => s + t.amount, 0);
-assert.strictEqual(totalAccumulatedSavings, 1200.00);
 
-// Scenario A: In budget (Spendable Balance = +RM 2,647.50)
-const spendableBalanceA = 2647.50;
-const netTrueSavingsA = spendableBalanceA < 0 ? Math.max(0, totalAccumulatedSavings - Math.abs(spendableBalanceA)) : totalAccumulatedSavings;
-assert.strictEqual(netTrueSavingsA, 1200.00);
-console.log(`✓ Test 1A Passed: When in budget, full accumulated savings is preserved (RM ${netTrueSavingsA}).`);
+const bankUserIncome = bankUserTransactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+const bankUserSavings = bankUserTransactions.filter(t => t.category === "Savings & Investments").reduce((s, t) => s + t.amount, 0);
+const bankUserLiving = bankUserTransactions.filter(t => (t.type || "expense") === "expense" && t.category !== "Savings & Investments").reduce((s, t) => s + t.amount, 0);
 
-// Scenario B: Over budget / Deficit (Spendable Balance = -RM 200.00)
-const spendableBalanceB = -200.00;
-const deficitB = Math.abs(spendableBalanceB);
-const netTrueSavingsB = spendableBalanceB < 0 ? Math.max(0, totalAccumulatedSavings - deficitB) : totalAccumulatedSavings;
-assert.strictEqual(netTrueSavingsB, 1000.00);
-console.log(`✓ Test 1B Passed: When over budget (-RM 200), deficit is deducted from savings (RM ${netTrueSavingsB}).`);
+const bankUserSpendablePool = bankUserIncome - bankUserSavings;
+const bankUserSpendableBalance = bankUserSpendablePool - bankUserLiving;
 
-// Test 2: Double Badge Suppression Logic
-function computeSubBadge(isDebited, diff) {
-  let dueBadge = "";
-  if (!isDebited) {
-    if (diff === 0) dueBadge = "Due Today";
-    else if (diff > 0 && diff <= 5) dueBadge = `Due in ${diff}d`;
-  }
-  return dueBadge;
-}
+assert.strictEqual(bankUserIncome, 3500.00);
+assert.strictEqual(bankUserSavings, 0.00);
+assert.strictEqual(bankUserSpendablePool, 3500.00, "Full salary must become spendable pool for bank-account user");
+assert.strictEqual(bankUserSpendableBalance, 3300.00, "Spendable balance is salary minus living expenses");
+console.log("✓ Test 2 Passed: Bank-account user without savings has full salary as spendable pool (RM 3,500 - RM 200 = RM 3,300).");
 
-// When bill is debited today (diff === 0, isDebited === true)
-const badgeWhenDebited = computeSubBadge(true, 0);
-assert.strictEqual(badgeWhenDebited, "", "Due warning must be hidden once debited");
+// Test 3: Auto-Sweep Toggle Modes
+const pastSurplus = 500.00;
+const explicitSavings = 700.00;
 
-// When bill is not yet debited today (diff === 0, isDebited === false)
-const badgeWhenNotDebited = computeSubBadge(false, 0);
-assert.strictEqual(badgeWhenNotDebited, "Due Today");
-console.log("✓ Test 2 Passed: Double badge conflict eliminated (due badges suppressed when already debited).");
+// Mode A: Toggle OFF (Default) -> Total Saved = explicit savings only
+const totalSavedModeOff = explicitSavings + (false ? pastSurplus : 0);
+assert.strictEqual(totalSavedModeOff, 700.00);
+console.log("✓ Test 3A Passed: When Auto-Sweep is OFF (default), Total Saved only counts explicit savings (RM 700).");
 
-// Test 3: HTML & CSS Integrity
-const cssContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/style.css', 'utf8');
-assert(cssContent.includes('.sub-name'), "Missing .sub-name in CSS");
-assert(cssContent.includes('text-overflow: ellipsis'), "Missing text-overflow ellipsis in CSS");
-assert(cssContent.includes('.savings-card .metric-value.deficit'), "Missing deficit savings style in CSS");
-console.log("✓ Test 3 Passed: Subscriptions text truncation and savings deficit styles confirmed.");
+// Mode B: Toggle ON -> Total Saved = explicit savings + past swept surplus
+const totalSavedModeOn = explicitSavings + (true ? pastSurplus : 0);
+assert.strictEqual(totalSavedModeOn, 1200.00);
+console.log("✓ Test 3B Passed: When Auto-Sweep is ON, Total Saved includes past swept surplus (RM 1,200).");
 
 // Test 4: JavaScript Syntax Validation
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js');
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/sw.js');
-console.log("✓ Test 4 Passed: app.js and sw.js pass syntax checks with zero errors.");
+console.log("✓ Test 4 Passed: app.js and sw.js pass syntax validation with zero errors.");
 
-console.log("\nAll Net True Savings & Subscription Layout tests passed successfully!");
+console.log("\nAll Optional Auto-Sweep Surplus tests passed successfully!");

@@ -35,7 +35,8 @@ const state = {
   customStartDate: "",
   customEndDate: "",
   currentFormType: "expense",
-  analysisGranularity: "month"
+  analysisGranularity: "month",
+  autoSweepSurplus: false // Defaults to OFF as requested (cash stays in bank)
 };
 
 const STORAGE_KEYS = {
@@ -43,7 +44,8 @@ const STORAGE_KEYS = {
   currency: "expense_tracker_currency_v1",
   subs: "expense_tracker_subscriptions_v1",
   customCats: "expense_tracker_custom_categories_v1",
-  theme: "expense_tracker_theme_v1"
+  theme: "expense_tracker_theme_v1",
+  autoSweep: "expense_tracker_auto_sweep_v1"
 };
 
 // DOM Cache
@@ -144,6 +146,7 @@ const dom = {
   settingsExportJson: $("settings-export-json"),
   settingsImportBtn: $("settings-import-btn"),
   settingsFileInput: $("settings-file-input"),
+  toggleSurplusSweep: $("toggle-surplus-sweep"),
   toast: $("toast")
 };
 
@@ -172,6 +175,7 @@ function init() {
   scheduleMidnightRollover();
   initDateLifecycleListeners();
   processAutoDeductions();
+  checkMonthEndSweepNotification();
   populateCategorySelects();
   populateFilterCategories();
   dom.currencySelect.value = state.currency;
@@ -205,6 +209,7 @@ function scheduleMidnightRollover() {
   setTimeout(() => {
     setDefaultDate();
     processAutoDeductions();
+  checkMonthEndSweepNotification();
     renderHeroSpendableGaugeAndMetrics();
     renderSubscriptions();
     scheduleMidnightRollover();
@@ -217,6 +222,7 @@ function initDateLifecycleListeners() {
     if (document.visibilityState === "visible") {
       setDefaultDate();
       processAutoDeductions();
+  checkMonthEndSweepNotification();
       renderHeroSpendableGaugeAndMetrics();
       renderSubscriptions();
     }
@@ -240,6 +246,8 @@ function loadStorage() {
     if (cats) state.customCategories = JSON.parse(cats);
     const th = localStorage.getItem(STORAGE_KEYS.theme);
     if (th) state.theme = th;
+    const swp = localStorage.getItem(STORAGE_KEYS.autoSweep);
+    if (swp !== null) state.autoSweepSurplus = (swp === "true");
   } catch (e) {
     state.transactions = [];
   }
@@ -252,6 +260,7 @@ function saveStorage() {
     localStorage.setItem(STORAGE_KEYS.subs, JSON.stringify(state.subscriptions));
     localStorage.setItem(STORAGE_KEYS.customCats, JSON.stringify(state.customCategories));
     localStorage.setItem(STORAGE_KEYS.theme, state.theme);
+    localStorage.setItem(STORAGE_KEYS.autoSweep, state.autoSweepSurplus ? "true" : "false");
   } catch (e) {}
 }
 
@@ -551,6 +560,16 @@ function bindEvents() {
   dom.settingsExportJson.addEventListener("click", exportToJSON);
   dom.settingsImportBtn.addEventListener("click", () => dom.settingsFileInput.click());
   dom.settingsFileInput.addEventListener("change", handleFileImport);
+
+  // Auto-Sweep Month-End Surplus Toggle
+  if (dom.toggleSurplusSweep) {
+    dom.toggleSurplusSweep.addEventListener("change", (e) => {
+      state.autoSweepSurplus = e.target.checked;
+      saveStorage();
+      renderHeroSpendableGaugeAndMetrics();
+      showToast(state.autoSweepSurplus ? "Auto-sweep surplus enabled" : "Auto-sweep surplus disabled");
+    });
+  }
 }
 
 function setFormType(type) {
@@ -961,6 +980,69 @@ function render() {
 }
 
 // Hero Two-Tone Spendable Gauge & Monthly Metrics (Prevents Wealth Illusion)
+
+// Month-End Surplus Sweep Engine (Sweeps unspent spendable pool from closed past months into Total Saved)
+function calculatePastMonthsSurplus() {
+  const currentYm = getLocalDateString().substring(0, 7);
+  const monthGroups = {};
+
+  // Group transactions by month
+  state.transactions.forEach(t => {
+    if (!t.date || t.date.length < 7) return;
+    const ym = t.date.substring(0, 7);
+    if (!monthGroups[ym]) {
+      monthGroups[ym] = { incomes: 0, savings: 0, living: 0 };
+    }
+    if (t.type === "income") {
+      monthGroups[ym].incomes += t.amount;
+    } else if (t.category === "Savings & Investments") {
+      monthGroups[ym].savings += t.amount;
+    } else {
+      monthGroups[ym].living += t.amount;
+    }
+  });
+
+  let totalPastSurplus = 0;
+  let lastMonthSurplus = 0;
+  let lastMonthYm = "";
+
+  // Compute surplus only for past closed months (strictly before current month)
+  Object.keys(monthGroups).sort().forEach(ym => {
+    if (ym < currentYm) {
+      const g = monthGroups[ym];
+      const pool = Math.max(0, g.incomes - g.savings);
+      const surplus = Math.max(0, pool - g.living);
+      totalPastSurplus += surplus;
+      lastMonthSurplus = surplus;
+      lastMonthYm = ym;
+    }
+  });
+
+  return { totalPastSurplus, lastMonthSurplus, lastMonthYm };
+}
+
+function checkMonthEndSweepNotification() {
+  if (!state.autoSweepSurplus) return; // Only notify if user enabled auto-sweep
+  const now = new Date();
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const previousYm = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  const prevMonthName = lastMonthDate.toLocaleString(undefined, { month: "long" });
+
+  const { lastMonthSurplus, lastMonthYm } = calculatePastMonthsSurplus();
+
+  if (lastMonthYm === previousYm && lastMonthSurplus > 0) {
+    const sweptKey = "expense_tracker_last_swept_month";
+    const alreadyNotified = localStorage.getItem(sweptKey);
+
+    if (alreadyNotified !== previousYm) {
+      setTimeout(() => {
+        showToast(`🎉 ${prevMonthName} Closed: ${formatCurrency(lastMonthSurplus)} unspent surplus swept into Total Saved 💰!`);
+        localStorage.setItem(sweptKey, previousYm);
+      }, 1200);
+    }
+  }
+}
+
 function renderHeroSpendableGaugeAndMetrics() {
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -1031,26 +1113,42 @@ function renderHeroSpendableGaugeAndMetrics() {
   dom.totalIncome.textContent = formatCurrency(monthIncomeAmt);
   dom.incomeCount.textContent = `${monthlyIncomes.length} ${monthlyIncomes.length === 1 ? "earning" : "earnings"} this month`;
 
-  // Net True Savings: Accrues all-time savings, but deducts any current-month spendable deficit
-  const allTimeSavings = state.transactions
+  // Net True Savings & Optional Month-End Sweep Integration
+  const allTimeExplicitSavings = state.transactions
     .filter(t => t.category === "Savings & Investments")
     .reduce((s, t) => s + t.amount, 0);
 
+  const { totalPastSurplus, lastMonthSurplus } = calculatePastMonthsSurplus();
+  // Only add past surplus if user enabled the setting; otherwise only count direct explicit savings
+  const effectivePastSurplus = state.autoSweepSurplus ? totalPastSurplus : 0;
+  const totalAccumulatedSavings = allTimeExplicitSavings + effectivePastSurplus;
+
   if (spendableBalance < 0) {
     const deficit = Math.abs(spendableBalance);
-    const netTrueSavings = Math.max(0, allTimeSavings - deficit);
+    const netTrueSavings = Math.max(0, totalAccumulatedSavings - deficit);
     dom.totalSaved.textContent = formatCurrency(netTrueSavings);
     dom.totalSaved.className = "metric-value deficit";
     dom.savingsSub.className = "metric-sub deficit";
     dom.savingsSub.textContent = `⚠️ Reduced by ${formatCurrency(deficit)} deficit`;
   } else {
-    dom.totalSaved.textContent = formatCurrency(allTimeSavings);
+    dom.totalSaved.textContent = formatCurrency(totalAccumulatedSavings);
     dom.totalSaved.className = "metric-value";
     dom.savingsSub.className = "metric-sub";
-    const monthPct = monthIncomeAmt > 0 ? ((monthSavedAmt / monthIncomeAmt) * 100).toFixed(0) : 0;
-    dom.savingsSub.textContent = monthSavedAmt > 0
-      ? `+${formatCurrency(monthSavedAmt)} this month (${monthPct}%)`
-      : "Accumulated savings";
+
+    if (state.autoSweepSurplus && totalPastSurplus > 0) {
+      if (monthSavedAmt > 0) {
+        dom.savingsSub.textContent = `+${formatCurrency(monthSavedAmt)} this month • ${formatCurrency(totalPastSurplus)} past surplus swept`;
+      } else {
+        dom.savingsSub.textContent = `${formatCurrency(totalPastSurplus)} unspent surplus swept from past months`;
+      }
+    } else {
+      if (monthSavedAmt > 0) {
+        const monthPct = monthIncomeAmt > 0 ? ((monthSavedAmt / monthIncomeAmt) * 100).toFixed(0) : 0;
+        dom.savingsSub.textContent = `+${formatCurrency(monthSavedAmt)} this month (${monthPct}%)`;
+      } else {
+        dom.savingsSub.textContent = allTimeExplicitSavings > 0 ? "Direct savings & investments" : "No savings logged yet";
+      }
+    }
   }
 
   dom.totalSpend.textContent = formatCurrency(monthLivingAmt);
@@ -1438,6 +1536,9 @@ function renderAnalysis() {
 
 // Option 7C & Settings Render
 function renderSettings() {
+  if (dom.toggleSurplusSweep) {
+    dom.toggleSurplusSweep.checked = !!state.autoSweepSurplus;
+  }
   const listEl = dom.customCategoriesList;
   if (!state.customCategories.length) {
     listEl.innerHTML = `<p class="empty-state">No custom categories created yet. Click "+ Add Category" to personalize.</p>`;
@@ -1644,13 +1745,22 @@ function loadSampleData() {
     return dt.toISOString().split("T")[0];
   };
 
+  const now = new Date();
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevYm = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
+
   const samples = [
+    // Current Month (September)
     { id: "tx_s0", type: "income", amount: 3500.00, category: "Salary & Wages", date: d(0), note: "Monthly employment salary", createdAt: Date.now() - 1000 },
     { id: "tx_s_save", type: "expense", amount: 700.00, category: "Savings & Investments", date: d(0), note: "Bank deposit (20% of salary)", createdAt: Date.now() - 2000 },
     { id: "tx_s1", type: "expense", amount: 14.50, category: "Food & Dining", date: d(0), note: "Chicken Rice & Iced Tea lunch", createdAt: Date.now() - 3600000 },
     { id: "tx_s2", type: "expense", amount: 28.00, category: "Transportation", date: d(1), note: "Petrol refill", createdAt: Date.now() - 86400000 },
-    { id: "tx_s3", type: "expense", amount: 65.00, category: "Shopping", date: d(2), note: "Running socks and shorts", createdAt: Date.now() - 172800000 },
-    { id: "tx_s4", type: "expense", amount: 45.00, category: "Bills & Utilities", date: d(3), note: "Monthly mobile data plan", createdAt: Date.now() - 259200000 }
+    // Previous Month (August) - Demonstrates Month-End Surplus Sweep (Salary 3500 - Savings 700 - Living 1045 = RM 1755 swept surplus)
+    { id: "tx_aug_inc", type: "income", amount: 3500.00, category: "Salary & Wages", date: `${prevYm}-01`, note: "August employment salary", createdAt: Date.now() - 2500000000 },
+    { id: "tx_aug_save", type: "expense", amount: 700.00, category: "Savings & Investments", date: `${prevYm}-02`, note: "August bank deposit", createdAt: Date.now() - 2400000000 },
+    { id: "tx_aug_food", type: "expense", amount: 800.00, category: "Food & Dining", date: `${prevYm}-06`, note: "August groceries & dining", createdAt: Date.now() - 2300000000 },
+    { id: "tx_aug_trans", type: "expense", amount: 200.00, category: "Transportation", date: `${prevYm}-13`, note: "August train & fuel", createdAt: Date.now() - 2200000000 },
+    { id: "tx_aug_bills", type: "expense", amount: 45.00, category: "Bills & Utilities", date: `${prevYm}-31`, note: "August mobile plan", createdAt: Date.now() - 2100000000 }
   ];
 
   state.transactions = [...samples, ...state.transactions];
