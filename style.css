@@ -59,7 +59,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  padding-top: max(0.85rem, env(safe-area-inset-top, 0px)); /* Respect iOS notch & status bar */
+  padding-top: 0.5rem;
   padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
   padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
   padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); /* Clearance for mobile nav */
@@ -145,10 +145,10 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 0.75rem;
-  z-index: 100;
-  backdrop-filter: blur(8px);
+  position: relative; /* Static natural flow: does not follow scroll */
+  margin-top: max(0.65rem, env(safe-area-inset-top, 0px)); /* Safe distance below iPhone Dynamic Island / notch */
+  margin-bottom: 0.85rem; /* Generous breathing space above Spendable Cash Flow card */
+  z-index: 10;
 }
 
 .brand {
@@ -1494,11 +1494,14 @@ body {
     overflow-x: hidden !important;
   }
 
-  /* Compact Sticky Header */
+  /* Static Mobile Header (Natural flow, clean Dynamic Island clearance) */
   .app-header {
-    padding: 0.55rem 0.75rem !important;
+    padding: 0.6rem 0.85rem !important;
     border-radius: var(--radius-md) !important;
-    top: max(0.4rem, env(safe-area-inset-top, 0px)) !important;
+    position: relative !important;
+    top: auto !important;
+    margin-top: max(0.65rem, env(safe-area-inset-top, 0px)) !important;
+    margin-bottom: 0.75rem !important;
     width: 100% !important;
   }
 
