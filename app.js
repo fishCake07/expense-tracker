@@ -36,7 +36,9 @@ const state = {
   customEndDate: "",
   currentFormType: "expense",
   analysisGranularity: "month",
-  autoSweepSurplus: false // Defaults to OFF as requested (cash stays in bank)
+  autoSweepSurplus: false,
+  attachedReceipt: null,
+  editAttachedReceipt: null
 };
 
 const STORAGE_KEYS = {
@@ -151,6 +153,25 @@ const dom = {
   settingsImportBtn: $("settings-import-btn"),
   settingsFileInput: $("settings-file-input"),
   toggleSurplusSweep: $("toggle-surplus-sweep"),
+  // Sub 3-Wallet DOM
+  subSelectedWallet: $("sub-selected-wallet"),
+  // Receipt Attachment DOM
+  attachReceiptBtn: $("attach-receipt-btn"),
+  receiptFileInput: $("receipt-file-input"),
+  receiptPreviewBox: $("receipt-preview-box"),
+  receiptPreviewImg: $("receipt-preview-img"),
+  removeReceiptBtn: $("remove-receipt-btn"),
+  editAttachReceiptBtn: $("edit-attach-receipt-btn"),
+  editReceiptFileInput: $("edit-receipt-file-input"),
+  editReceiptPreviewBox: $("edit-receipt-preview-box"),
+  editReceiptPreviewImg: $("edit-receipt-preview-img"),
+  editRemoveReceiptBtn: $("edit-remove-receipt-btn"),
+  receiptModal: $("receipt-modal"),
+  receiptModalImg: $("receipt-modal-img"),
+  receiptModalTitle: $("receipt-modal-title"),
+  receiptModalDetails: $("receipt-modal-details"),
+  downloadReceiptLink: $("download-receipt-link"),
+  closeReceiptModalBtn: $("close-receipt-modal-btn"),
   toast: $("toast")
 };
 
@@ -276,6 +297,56 @@ function getWalletIcon(wallet) {
   if (wallet.includes("E-Wallet")) return "📱";
   if (wallet.includes("Cash")) return "💵";
   return "🏦";
+}
+
+// Client-Side Smart Image Compression (Compresses camera photos to ~50KB to prevent local storage bloat)
+function compressReceiptPhoto(file, callback) {
+  if (!file || !file.type.startsWith("image/")) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 800; // Optimal resolution for clear text reading while keeping file size tiny
+      let w = img.width;
+      let h = img.height;
+
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.72);
+      callback(compressedDataUrl);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Receipt Full-Screen Inspection Modal
+function viewReceiptModal(txId) {
+  const tx = state.transactions.find(t => t.id === txId);
+  if (!tx || !tx.receiptImage) return;
+
+  dom.receiptModalImg.src = tx.receiptImage;
+  dom.receiptModalTitle.textContent = `${tx.category} Receipt`;
+  dom.receiptModalDetails.textContent = `${formatDate(tx.date)} • ${formatCurrency(tx.amount)} • ${tx.note}`;
+  dom.downloadReceiptLink.href = tx.receiptImage;
+  dom.downloadReceiptLink.download = `receipt_${tx.date}_${tx.category.replace(/\s+/g, "_")}.jpg`;
+
+  dom.receiptModal?.showModal ? dom.receiptModal.showModal() : window.open(tx.receiptImage);
 }
 
 const formatCurrency = (amt) => `${state.currency} ${(Number(amt) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -584,6 +655,65 @@ function bindEvents() {
   dom.settingsImportBtn.addEventListener("click", () => dom.settingsFileInput.click());
   dom.settingsFileInput.addEventListener("change", handleFileImport);
 
+  // Subscriptions 3-Wallet Pill Selection (Cash excluded)
+  document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      if (dom.subSelectedWallet) dom.subSelectedWallet.value = btn.dataset.wallet;
+    });
+  });
+
+  // Receipt Attachment Handlers (Add Form)
+  if (dom.attachReceiptBtn) {
+    dom.attachReceiptBtn.addEventListener("click", () => dom.receiptFileInput.click());
+    dom.receiptFileInput.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      compressReceiptPhoto(file, (dataUrl) => {
+        state.attachedReceipt = dataUrl;
+        dom.receiptPreviewImg.src = dataUrl;
+        dom.receiptPreviewBox.style.display = "block";
+        showToast("Receipt photo attached!");
+      });
+    });
+
+    dom.removeReceiptBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.attachedReceipt = null;
+      dom.receiptFileInput.value = "";
+      dom.receiptPreviewImg.src = "";
+      dom.receiptPreviewBox.style.display = "none";
+    });
+  }
+
+  // Receipt Attachment Handlers (Edit Modal)
+  if (dom.editAttachReceiptBtn) {
+    dom.editAttachReceiptBtn.addEventListener("click", () => dom.editReceiptFileInput.click());
+    dom.editReceiptFileInput.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      compressReceiptPhoto(file, (dataUrl) => {
+        state.editAttachedReceipt = dataUrl;
+        dom.editReceiptPreviewImg.src = dataUrl;
+        dom.editReceiptPreviewBox.style.display = "block";
+        showToast("Receipt photo updated!");
+      });
+    });
+
+    dom.editRemoveReceiptBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.editAttachedReceipt = null;
+      dom.editReceiptFileInput.value = "";
+      dom.editReceiptPreviewImg.src = "";
+      dom.editReceiptPreviewBox.style.display = "none";
+    });
+  }
+
+  if (dom.closeReceiptModalBtn) {
+    dom.closeReceiptModalBtn.addEventListener("click", () => dom.receiptModal.close());
+  }
+
   // Auto-Sweep Month-End Surplus Toggle (With Instant Accrued Amount Feedback)
   if (dom.toggleSurplusSweep) {
     dom.toggleSurplusSweep.addEventListener("change", (e) => {
@@ -700,6 +830,7 @@ function handleAddTransaction(e) {
     amount: Number(amt.toFixed(2)),
     category: cat,
     wallet: chosenWallet,
+    receiptImage: state.attachedReceipt || null,
     date: dt,
     note: nt || cat,
     createdAt: Date.now()
@@ -709,6 +840,9 @@ function handleAddTransaction(e) {
   dom.amount.value = "";
   dom.category.value = "";
   dom.note.value = "";
+  state.attachedReceipt = null;
+  if (dom.receiptFileInput) dom.receiptFileInput.value = "";
+  if (dom.receiptPreviewBox) dom.receiptPreviewBox.style.display = "none";
   setDefaultDate();
   dom.amount.focus();
 
@@ -731,6 +865,16 @@ function openEditModal(id) {
   dom.editDate.value = tx.date;
   if (dom.editWallet) dom.editWallet.value = tx.wallet || "Bank Account";
   dom.editNote.value = tx.note === tx.category ? "" : tx.note;
+
+  state.editAttachedReceipt = tx.receiptImage || null;
+  if (dom.editReceiptPreviewBox) {
+    if (tx.receiptImage) {
+      dom.editReceiptPreviewImg.src = tx.receiptImage;
+      dom.editReceiptPreviewBox.style.display = "block";
+    } else {
+      dom.editReceiptPreviewBox.style.display = "none";
+    }
+  }
   dom.editCurrency.textContent = state.currency;
 
   $("edit-amount-error").textContent = "";
@@ -770,6 +914,7 @@ function handleSaveEdit(e) {
   tx.amount = Number(amt.toFixed(2));
   tx.category = cat;
   tx.wallet = dom.editWallet ? dom.editWallet.value : (tx.wallet || "Bank Account");
+  tx.receiptImage = state.editAttachedReceipt || null;
   tx.date = dt;
   tx.note = nt || cat;
 
@@ -813,6 +958,7 @@ function processAutoDeductions() {
         type: "expense",
         amount: sub.amount,
         category: sub.category,
+        wallet: sub.wallet || "Bank Account",
         date: autoDate,
         note: `${sub.name} (Auto-debited)`,
         createdAt: Date.now()
@@ -844,12 +990,14 @@ function handleAddSubscription(e) {
   }
 
   const isAuto = dom.subAutoDeduct ? dom.subAutoDeduct.checked : true;
+  const subWallet = dom.subSelectedWallet ? dom.subSelectedWallet.value : "Bank Account";
   state.subscriptions.push({
     id: "sub_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     name,
     amount: Number(amount.toFixed(2)),
     category,
     billingDay,
+    wallet: subWallet,
     autoDeduct: isAuto,
     lastLoggedMonth: null,
     createdAt: Date.now()
@@ -903,6 +1051,7 @@ function logSubscriptionNow(id) {
     type: "expense",
     amount: sub.amount,
     category: sub.category,
+    wallet: sub.wallet || "Bank Account",
     date: today,
     note: `${sub.name} (Monthly Bill)`,
     createdAt: Date.now()
@@ -959,6 +1108,8 @@ function renderSubscriptions() {
             <span class="sub-name" title="${escapeHtml(sub.name)}">${escapeHtml(sub.name)}</span>
             <div class="sub-meta">
               <span>Day ${sub.billingDay}</span>
+              <span>•</span>
+              <span class="tx-badge-wallet">${getWalletIcon(sub.wallet)} ${escapeHtml(sub.wallet || "Bank Account")}</span>
               ${dueBadge ? `<span>•</span>${dueBadge}` : ""}
               ${autoTag ? `<span>•</span>${autoTag}` : ""}
             </div>
@@ -1433,6 +1584,7 @@ function renderTransactionList() {
               <span>${formatDate(tx.date)}</span>
               <span>•</span>
               <span class="tx-badge-wallet">${getWalletIcon(tx.wallet)} ${escapeHtml(tx.wallet || "Bank Account")}</span>
+              ${tx.receiptImage ? `<button type="button" class="btn-receipt-badge" title="View receipt" onclick="viewReceiptModal('${tx.id}')">📷 Receipt</button>` : ""}
               ${tx.note && tx.note !== tx.category ? `<span>•</span><span class="tx-note" title="${escapeHtml(tx.note)}">${escapeHtml(tx.note)}</span>` : ""}
             </div>
           </div>

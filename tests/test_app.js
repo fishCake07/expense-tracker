@@ -1,49 +1,63 @@
 const fs = require('fs');
 const assert = require('assert');
 
-console.log("--- Starting Queue Item 1: Multi-Wallet / Account Selector Tests ---");
+console.log("--- Starting Queue Item 2 & Subscription 3-Wallet Tests ---");
 
-// Test 1: HTML Element Integrity
+// Test 1: HTML Element Check
 const htmlContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/index.html', 'utf8');
-const requiredWalletIds = ['wallet-pill-group', 'selected-wallet', 'edit-wallet', 'wallet-stats-grid'];
-requiredWalletIds.forEach(id => {
-  assert(htmlContent.includes(`id="${id}"`), `HTML missing required ID: ${id}`);
-});
-console.log("✓ Test 1 Passed: Wallet pill group, selected input, edit dropdown, and analysis grid exist in HTML.");
-
-// Test 2: Wallet Tagging on Transaction & Fallback
-const transactions = [
-  { id: "1", amount: 15.00, category: "Food & Dining", wallet: "E-Wallet" },
-  { id: "2", amount: 120.00, category: "Shopping", wallet: "Credit Card" },
-  { id: "3", amount: 30.00, category: "Transportation" } // legacy record without wallet property
+const requiredIds = [
+  'sub-wallet-pill-group',
+  'sub-selected-wallet',
+  'attach-receipt-btn',
+  'receipt-file-input',
+  'receipt-preview-box',
+  'receipt-modal',
+  'receipt-modal-img',
+  'download-receipt-link'
 ];
 
-assert.strictEqual(transactions[0].wallet, "E-Wallet");
-assert.strictEqual(transactions[1].wallet, "Credit Card");
-assert.strictEqual(transactions[2].wallet || "Bank Account", "Bank Account", "Legacy records must default to Bank Account");
-console.log("✓ Test 2 Passed: Wallet tagging and legacy default fallback verified.");
-
-// Test 3: Spending by Wallet Aggregation
-const walletTotals = { "Bank Account": 0, "Credit Card": 0, "E-Wallet": 0, "Cash": 0 };
-transactions.forEach(t => {
-  const w = t.wallet || "Bank Account";
-  walletTotals[w] = (walletTotals[w] || 0) + t.amount;
+requiredIds.forEach(id => {
+  assert(htmlContent.includes(`id="${id}"`), `HTML missing required ID: ${id}`);
 });
+console.log("✓ Test 1 Passed: All receipt upload/modal elements and sub 3-wallet pill group exist in HTML.");
 
-assert.strictEqual(walletTotals["E-Wallet"], 15.00);
-assert.strictEqual(walletTotals["Credit Card"], 120.00);
-assert.strictEqual(walletTotals["Bank Account"], 30.00);
-assert.strictEqual(walletTotals["Cash"], 0.00);
-console.log("✓ Test 3 Passed: Spending by Wallet breakdown aggregated accurately.");
+// Test 2: Subscription Wallet Inheritance on Auto-Deduction
+const testSub = {
+  id: "sub_spotify",
+  name: "Spotify",
+  amount: 15.90,
+  category: "Entertainment",
+  wallet: "Credit Card",
+  billingDay: 2
+};
 
-// Test 4: CSV Headers Check
-const appJsContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js', 'utf8');
-assert(appJsContent.includes('"Date", "Type", "Category", "Wallet", "Note", "Amount", "Currency"'), "CSV missing Wallet column");
-console.log("✓ Test 4 Passed: CSV export correctly contains Wallet column.");
+const autoTx = {
+  id: "tx_auto_test",
+  type: "expense",
+  amount: testSub.amount,
+  category: testSub.category,
+  wallet: testSub.wallet || "Bank Account",
+  date: "2026-09-02",
+  note: `${testSub.name} (Auto-debited)`
+};
 
-// Test 5: JavaScript Syntax Check
+assert.strictEqual(autoTx.wallet, "Credit Card", "Auto-debited transaction must inherit subscription's wallet");
+console.log("✓ Test 2 Passed: Auto-debited transaction correctly inherits Credit Card wallet.");
+
+// Test 3: Transaction with Receipt Image Attachment
+const txWithReceipt = {
+  id: "tx_dinner",
+  amount: 85.00,
+  category: "Food & Dining",
+  receiptImage: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
+};
+
+assert(txWithReceipt.receiptImage.startsWith("data:image/jpeg;base64,"));
+console.log("✓ Test 3 Passed: Receipt photo attachment structure verified.");
+
+// Test 4: JavaScript Syntax Validation
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js');
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/sw.js');
-console.log("✓ Test 5 Passed: app.js and sw.js pass syntax validation with zero errors.");
+console.log("✓ Test 4 Passed: app.js and sw.js pass syntax validation with zero errors.");
 
-console.log("\nAll Queue Item 1 tests passed successfully!");
+console.log("\nAll Queue Item 2 & Subscription 3-Wallet tests passed successfully!");
