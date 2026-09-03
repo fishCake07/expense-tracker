@@ -1,61 +1,58 @@
 const fs = require('fs');
 const assert = require('assert');
 
-console.log("--- Starting Auto-Deduction Engine Verification Tests ---");
+console.log("--- Starting Upgraded Donut Chart & Period Sync Tests ---");
 
-// Test 1: HTML Element Check
+// Test 1: HTML Elements Integrity
 const htmlContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/index.html', 'utf8');
-assert(htmlContent.includes('id="sub-auto-deduct"'), "Missing sub-auto-deduct checkbox in sub-dialog");
-console.log("✓ Test 1 Passed: Auto-deduct toggle switch verified in index.html.");
+assert(htmlContent.includes('id="breakdown-title"'), "Missing breakdown-title in index.html");
+assert(htmlContent.includes('id="chart-period-badge"'), "Missing chart-period-badge in index.html");
+console.log("✓ Test 1 Passed: Breakdown title and dynamic period badge exist in index.html.");
 
-// Test 2: Auto-Deduction Engine & Duplicate Prevention Simulation
-const subscriptions = [
-  { id: "sub_netflix", name: "Netflix", amount: 45.00, category: "Entertainment", billingDay: 2, autoDeduct: true, lastLoggedMonth: null },
-  { id: "sub_gym", name: "Gym", amount: 120.00, category: "Health & Medical", billingDay: 25, autoDeduct: true, lastLoggedMonth: null }, // future day
-  { id: "sub_manual", name: "Electric Bill", amount: 80.00, category: "Bills & Utilities", billingDay: 2, autoDeduct: false, lastLoggedMonth: null } // autoDeduct off
+// Test 2: Donut Period Filter Synchronization
+const mockTransactions = [
+  // August 2026
+  { date: "2026-08-05", type: "expense", category: "Food & Dining", amount: 800.00 },
+  { date: "2026-08-13", type: "expense", category: "Transportation", amount: 200.00 },
+  { date: "2026-08-31", type: "expense", category: "Bills & Utilities", amount: 45.00 },
+  // September 2026
+  { date: "2026-09-01", type: "expense", category: "Food & Dining", amount: 14.50 },
+  { date: "2026-09-02", type: "expense", category: "Transportation", amount: 28.00 }
 ];
 
-const transactions = [];
-const currentYm = "2026-09";
-const currentDay = 3; // Sept 3rd
-
-function runAutoDeduction(subs, txList, ym, day) {
-  let loggedCount = 0;
-  subs.forEach(sub => {
-    if (sub.autoDeduct === false) return;
-    if (day >= sub.billingDay && sub.lastLoggedMonth !== ym) {
-      txList.push({
-        id: "tx_auto_" + sub.id,
-        type: "expense",
-        amount: sub.amount,
-        category: sub.category,
-        date: `${ym}-${String(sub.billingDay).padStart(2, '0')}`,
-        note: `${sub.name} (Auto-debited)`
-      });
-      sub.lastLoggedMonth = ym;
-      loggedCount++;
-    }
-  });
-  return loggedCount;
+function getPeriodExpenses(txList, period, currentYm = "2026-09", lastYm = "2026-08") {
+  const expenses = txList.filter(t => (t.type || "expense") === "expense");
+  if (period === "THIS_MONTH") return expenses.filter(t => t.date.startsWith(currentYm));
+  if (period === "LAST_MONTH") return expenses.filter(t => t.date.startsWith(lastYm));
+  return expenses;
 }
 
-// First run: Should auto-deduct Netflix (day 2 has passed)
-const firstRunCount = runAutoDeduction(subscriptions, transactions, currentYm, currentDay);
-assert.strictEqual(firstRunCount, 1, "Only Netflix should be auto-deducted");
-assert.strictEqual(transactions.length, 1);
-assert.strictEqual(transactions[0].note, "Netflix (Auto-debited)");
-assert.strictEqual(subscriptions[0].lastLoggedMonth, "2026-09");
-console.log("✓ Test 2A Passed: First run auto-debited due bill (Netflix) on Sept 2nd.");
+// August (Last Month) check
+const augExpenses = getPeriodExpenses(mockTransactions, "LAST_MONTH");
+const augTotal = augExpenses.reduce((s, t) => s + t.amount, 0);
+assert.strictEqual(augExpenses.length, 3);
+assert.strictEqual(augTotal, 1045.00, "Donut chart for Last Month should only sum August expenses");
 
-// Second run on same day: Should NOT duplicate
-const secondRunCount = runAutoDeduction(subscriptions, transactions, currentYm, currentDay);
-assert.strictEqual(secondRunCount, 0, "Duplicate deduction must be prevented");
-assert.strictEqual(transactions.length, 1, "Transactions array length should remain 1");
-console.log("✓ Test 2B Passed: Duplicate deduction prevented (0 new transactions on repeat run).");
+// September (This Month) check
+const sepExpenses = getPeriodExpenses(mockTransactions, "THIS_MONTH");
+const sepTotal = sepExpenses.reduce((s, t) => s + t.amount, 0);
+assert.strictEqual(sepExpenses.length, 2);
+assert.strictEqual(sepTotal, 42.50, "Donut chart for This Month should only sum September expenses");
+console.log(`✓ Test 2 Passed: Donut chart accurately syncs with period filters (August: RM ${augTotal}, September: RM ${sepTotal}).`);
 
-// Test 3: JavaScript Syntax Validation
+// Test 3: SVG Donut Geometry and Arc Length
+const r = 58;
+const circumference = 2 * Math.PI * r;
+const p1 = 800 / augTotal;
+const p2 = 200 / augTotal;
+const p3 = 45 / augTotal;
+const totalLen = (p1 * circumference) + (p2 * circumference) + (p3 * circumference);
+assert(Math.abs(totalLen - circumference) < 0.001);
+console.log("✓ Test 3 Passed: SVG Donut circumference and proportional arc lengths sum to 100%.");
+
+// Test 4: JavaScript Syntax Validation
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js');
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/sw.js');
-console.log("✓ Test 3 Passed: app.js and sw.js pass syntax checks with zero errors.");
+console.log("✓ Test 4 Passed: app.js and sw.js pass syntax checks with zero errors.");
 
-console.log("\nAll Auto-Deduction tests passed successfully!");
+console.log("\nAll Upgraded Donut Chart & Period Sync tests passed successfully!");

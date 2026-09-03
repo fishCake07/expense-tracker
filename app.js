@@ -79,6 +79,8 @@ const dom = {
   topCategory: $("top-category"),
   topCategoryAmt: $("top-category-amount"),
   // Donut & Breakdown
+  breakdownTitle: $("breakdown-title"),
+  chartPeriodBadge: $("chart-period-badge"),
   donutWrapper: $("donut-wrapper"),
   donutSegments: $("donut-segments-group"),
   donutCenter: $("donut-center-info"),
@@ -1069,28 +1071,57 @@ function toggleCategory(cat) {
   state.selectedCategory === cat ? deselectCategory() : selectCategory(cat);
 }
 
-// Render Donut & Breakdown
+// Upgraded Donut Chart Engine (Period-Synced & Interactive Category Tiles)
 function renderBreakdown() {
-  const expenses = state.transactions.filter(t => (t.type || "expense") === "expense");
-  const total = expenses.reduce((s, t) => s + t.amount, 0);
+  const now = new Date();
+  const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastYm = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
 
-  if (!total || !expenses.length) {
-    dom.breakdownList.innerHTML = `<p class="empty-state">No categorized expenses recorded yet.</p>`;
+  // 1. Period Synchronization: Filter expenses by active periodFilter
+  let periodLabel = "This Month";
+  let periodExpenses = state.transactions.filter(t => (t.type || "expense") === "expense");
+
+  if (state.periodFilter === "THIS_MONTH") {
+    periodExpenses = periodExpenses.filter(t => t.date && t.date.startsWith(currentYm));
+    periodLabel = now.toLocaleString(undefined, { month: "short", year: "numeric" });
+  } else if (state.periodFilter === "LAST_MONTH") {
+    periodExpenses = periodExpenses.filter(t => t.date && t.date.startsWith(lastYm));
+    periodLabel = lastMonthDate.toLocaleString(undefined, { month: "short", year: "numeric" });
+  } else if (state.periodFilter === "CUSTOM") {
+    if (state.customStartDate) periodExpenses = periodExpenses.filter(t => t.date >= state.customStartDate);
+    if (state.customEndDate) periodExpenses = periodExpenses.filter(t => t.date <= state.customEndDate);
+    periodLabel = "Custom Range";
+  } else {
+    periodLabel = "All Time";
+  }
+
+  if (dom.chartPeriodBadge) {
+    dom.chartPeriodBadge.textContent = periodLabel;
+  }
+
+  const total = periodExpenses.reduce((s, t) => s + t.amount, 0);
+
+  // Handle Empty State for Filtered Period
+  if (!total || !periodExpenses.length) {
+    dom.breakdownList.innerHTML = `<p class="empty-state">No expenses logged for ${escapeHtml(periodLabel)}.</p>`;
     if (dom.donutSegments) dom.donutSegments.innerHTML = "";
     dom.donutWrapper?.classList.remove("has-selection");
-    dom.donutLabel.textContent = "Total";
+    dom.donutLabel.textContent = periodLabel;
     dom.donutVal.textContent = formatCurrency(0);
     if (dom.donutHint) dom.donutHint.style.display = "none";
     return;
   }
 
+  // Aggregate Category Totals for this Period
   const totals = {};
-  expenses.forEach(t => totals[t.category] = (totals[t.category] || 0) + t.amount);
+  periodExpenses.forEach(t => totals[t.category] = (totals[t.category] || 0) + t.amount);
   const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
 
+  // 2. Render Modern SVG Donut Segments
   if (dom.donutSegments) {
     const r = 58;
-    const c = 2 * Math.PI * r;
+    const c = 2 * Math.PI * r; // ~364.424
     let acc = 0;
     let segHtml = "";
 
@@ -1118,66 +1149,96 @@ function renderBreakdown() {
 
     dom.donutSegments.innerHTML = segHtml;
 
+    // Center Dial Readout
     if (state.selectedCategory && totals[state.selectedCategory]) {
       const selAmt = totals[state.selectedCategory];
       const selPct = ((selAmt / total) * 100).toFixed(1);
       dom.donutWrapper?.classList.add("has-selection");
       dom.donutLabel.textContent = state.selectedCategory;
-      dom.donutVal.textContent = `${formatCurrency(selAmt)} (${selPct}%)`;
-      if (dom.donutHint) dom.donutHint.style.display = "block";
+      dom.donutVal.textContent = formatCurrency(selAmt);
+      if (dom.donutHint) {
+        dom.donutHint.style.display = "inline-block";
+        dom.donutHint.textContent = `${selPct}% • Tap to reset`;
+      }
     } else {
       dom.donutWrapper?.classList.remove("has-selection");
-      dom.donutLabel.textContent = "Total";
+      dom.donutLabel.textContent = `${periodLabel} Total`;
       dom.donutVal.textContent = formatCurrency(total);
       if (dom.donutHint) dom.donutHint.style.display = "none";
     }
 
+    // Segment Tap/Click & Desktop Hover Listeners
     dom.donutSegments.querySelectorAll(".donut-segment").forEach(seg => {
       const cat = seg.dataset.category;
       seg.addEventListener("click", (e) => {
         e.stopPropagation();
         toggleCategory(cat);
       });
+
+      // Desktop Hover Preview (only active if no slice is locked/selected)
       seg.addEventListener("mouseenter", () => {
         if (!state.selectedCategory) {
+          const amt = parseFloat(seg.dataset.amount);
+          const pct = seg.dataset.percentage;
           dom.donutLabel.textContent = cat;
-          dom.donutVal.textContent = `${formatCurrency(seg.dataset.amount)} (${seg.dataset.percentage}%)`;
+          dom.donutVal.textContent = formatCurrency(amt);
+          if (dom.donutHint) {
+            dom.donutHint.style.display = "inline-block";
+            dom.donutHint.textContent = `${pct}%`;
+          }
         }
       });
+
       seg.addEventListener("mouseleave", () => {
         if (!state.selectedCategory) {
-          dom.donutLabel.textContent = "Total";
+          dom.donutLabel.textContent = `${periodLabel} Total`;
           dom.donutVal.textContent = formatCurrency(total);
+          if (dom.donutHint) dom.donutHint.style.display = "none";
         }
       });
     });
   }
 
-  let listHtml = "";
+  // 3. Render Thumb-Friendly Interactive Category Cards (Tiles)
+  let tilesHtml = "";
   sorted.forEach(([cat, amt]) => {
     const pct = ((amt / total) * 100).toFixed(1);
     const color = getCategoryColor(cat);
+    const icon = getCategoryIcon(cat);
     const isSel = state.selectedCategory === cat;
 
-    listHtml += `
-      <div class="breakdown-item ${isSel ? "selected" : ""}" data-category="${cat}" style="${isSel ? "background:var(--bg-subtle); font-weight:700;" : ""}">
-        <div class="breakdown-header">
-          <span class="breakdown-header-title">
-            <span class="category-dot" style="background-color:${color};"></span>
-            ${getCategoryIcon(cat)} ${cat}
-          </span>
-          <span>${formatCurrency(amt)} <span style="color:var(--text-muted); font-size:0.8rem">(${pct}%)</span></span>
+    tilesHtml += `
+      <div 
+        class="breakdown-card-tile ${isSel ? "selected" : ""}" 
+        data-category="${cat}" 
+        title="Tap to toggle filter for ${cat}"
+      >
+        <div class="breakdown-tile-top">
+          <div class="breakdown-tile-left">
+            <span class="breakdown-cat-icon" style="background-color: ${color}20; color: ${color};">
+              ${icon}
+            </span>
+            <span class="breakdown-cat-name">${escapeHtml(cat)}</span>
+          </div>
+          <div class="breakdown-tile-right">
+            <span class="breakdown-tile-amount">${formatCurrency(amt)}</span>
+            <span class="breakdown-tile-pct" style="${isSel ? `background:${color}; color:#fff;` : ''}">${pct}%</span>
+          </div>
         </div>
-        <div class="breakdown-bar-bg">
-          <div class="breakdown-bar-fill" style="width:${pct}%; background-color:${color};"></div>
+        <div class="breakdown-tile-bar-bg">
+          <div class="breakdown-tile-bar-fill" style="width: ${pct}%; background-color: ${color};"></div>
         </div>
       </div>
     `;
   });
 
-  dom.breakdownList.innerHTML = listHtml;
-  dom.breakdownList.querySelectorAll(".breakdown-item").forEach(item => {
-    item.addEventListener("click", () => toggleCategory(item.dataset.category));
+  dom.breakdownList.innerHTML = tilesHtml;
+
+  // Tile Tap Listeners
+  dom.breakdownList.querySelectorAll(".breakdown-card-tile").forEach(tile => {
+    tile.addEventListener("click", () => {
+      toggleCategory(tile.dataset.category);
+    });
   });
 }
 
