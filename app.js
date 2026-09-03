@@ -96,6 +96,7 @@ const dom = {
   subAmount: $("sub-amount"),
   subCategory: $("sub-category"),
   subBillingDay: $("sub-billing-day"),
+  subAutoDeduct: $("sub-auto-deduct"),
   subDialogCurrency: $("sub-dialog-currency"),
   cancelSubBtn: $("cancel-sub-btn"),
   // History & Filters
@@ -168,6 +169,7 @@ function init() {
   setDefaultDate();
   scheduleMidnightRollover();
   initDateLifecycleListeners();
+  processAutoDeductions();
   populateCategorySelects();
   populateFilterCategories();
   dom.currencySelect.value = state.currency;
@@ -200,6 +202,7 @@ function scheduleMidnightRollover() {
 
   setTimeout(() => {
     setDefaultDate();
+    processAutoDeductions();
     renderHeroSpendableGaugeAndMetrics();
     renderSubscriptions();
     scheduleMidnightRollover();
@@ -211,6 +214,7 @@ function initDateLifecycleListeners() {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       setDefaultDate();
+      processAutoDeductions();
       renderHeroSpendableGaugeAndMetrics();
       renderSubscriptions();
     }
@@ -727,6 +731,49 @@ function deleteExpense(id) {
 }
 
 // Subscriptions
+// Auto-Deduction Engine for Subscriptions & Fixed Bills
+function processAutoDeductions() {
+  if (!state.subscriptions || !state.subscriptions.length) return;
+
+  const now = new Date();
+  const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const currentDay = now.getDate();
+
+  let autoLoggedCount = 0;
+  const names = [];
+
+  state.subscriptions.forEach(sub => {
+    if (sub.autoDeduct === false) return;
+
+    // Check if billing day has arrived in this month and not yet logged
+    if (currentDay >= sub.billingDay && sub.lastLoggedMonth !== currentYm) {
+      const dayStr = String(sub.billingDay).padStart(2, "0");
+      const autoDate = `${currentYm}-${dayStr}`;
+
+      const newTx = {
+        id: "tx_auto_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+        type: "expense",
+        amount: sub.amount,
+        category: sub.category,
+        date: autoDate,
+        note: `${sub.name} (Auto-debited)`,
+        createdAt: Date.now()
+      };
+
+      state.transactions.unshift(newTx);
+      sub.lastLoggedMonth = currentYm;
+      autoLoggedCount++;
+      names.push(sub.name);
+    }
+  });
+
+  if (autoLoggedCount > 0) {
+    saveStorage();
+    render();
+    showToast(`🔔 Auto-debited ${autoLoggedCount} bill(s): ${names.join(", ")}`);
+  }
+}
+
 function handleAddSubscription(e) {
   e.preventDefault();
   const name = dom.subName.value.trim();
@@ -738,12 +785,15 @@ function handleAddSubscription(e) {
     return showToast("Please enter valid subscription details.");
   }
 
+  const isAuto = dom.subAutoDeduct ? dom.subAutoDeduct.checked : true;
   state.subscriptions.push({
     id: "sub_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     name,
     amount: Number(amount.toFixed(2)),
     category,
     billingDay,
+    autoDeduct: isAuto,
+    lastLoggedMonth: null,
     createdAt: Date.now()
   });
 
@@ -786,7 +836,10 @@ function logSubscriptionNow(id) {
   const sub = state.subscriptions.find(s => s.id === id);
   if (!sub) return;
 
+  const now = new Date();
+  const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const today = getLocalDateString();
+
   state.transactions.unshift({
     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     type: "expense",
@@ -797,6 +850,7 @@ function logSubscriptionNow(id) {
     createdAt: Date.now()
   });
 
+  sub.lastLoggedMonth = currentYm;
   saveStorage();
   render();
   showToast(`Logged ${sub.name} (${formatCurrency(sub.amount)}) into this month!`);
@@ -823,6 +877,19 @@ function renderSubscriptions() {
     if (diff === 0) dueBadge = `<span class="badge-due-today">🔔 Due Today</span>`;
     else if (diff > 0 && diff <= 5) dueBadge = `<span class="badge-due-soon">⚠️ Due in ${diff}d</span>`;
 
+    const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const isDebited = sub.lastLoggedMonth === currentYm;
+    const monthShort = today.toLocaleString(undefined, { month: "short" });
+
+    let actionButtonOrBadge = "";
+    if (isDebited) {
+      actionButtonOrBadge = `<span class="badge-debited" title="Already debited for this month">✓ Debited for ${monthShort}</span>`;
+    } else {
+      actionButtonOrBadge = `<button type="button" class="btn-log-now" title="Log this bill now" onclick="logSubscriptionNow('${sub.id}')">⚡ Log</button>`;
+    }
+
+    const autoTag = sub.autoDeduct === false ? `<span class="sub-tag-manual">Manual</span>` : "";
+
     return `
       <div class="sub-item" data-id="${sub.id}">
         <div class="sub-left">
@@ -832,12 +899,13 @@ function renderSubscriptions() {
             <div class="sub-meta">
               <span>Day ${sub.billingDay}</span>
               ${dueBadge ? `<span>•</span>${dueBadge}` : ""}
+              ${autoTag ? `<span>•</span>${autoTag}` : ""}
             </div>
           </div>
         </div>
         <div class="sub-right">
           <span class="sub-amount">${formatCurrency(sub.amount)}</span>
-          <button type="button" class="btn-log-now" title="Log this bill now as paid" onclick="logSubscriptionNow('${sub.id}')">⚡ Log</button>
+          ${actionButtonOrBadge}
           <button type="button" class="btn-delete" title="Delete subscription" onclick="deleteSubscription('${sub.id}')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
@@ -1507,9 +1575,11 @@ function loadSampleData() {
   state.transactions = [...samples, ...state.transactions];
 
   if (!state.subscriptions.length) {
+    const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
     state.subscriptions = [
-      { id: "sub_1", name: "Mobile Postpaid Plan", amount: 45.00, category: "Bills & Utilities", billingDay: 15, createdAt: Date.now() },
-      { id: "sub_2", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, createdAt: Date.now() }
+      { id: "sub_0", name: "Spotify Premium", amount: 15.90, category: "Entertainment", billingDay: 2, autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
+      { id: "sub_1", name: "Mobile Postpaid Plan", amount: 45.00, category: "Bills & Utilities", billingDay: 15, autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() },
+      { id: "sub_2", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() }
     ];
   }
 

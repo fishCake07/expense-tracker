@@ -407,6 +407,16 @@
           <label for="sub-billing-day">Billing Day of Month (1 - 31) *</label>
           <input type="number" id="sub-billing-day" min="1" max="31" required placeholder="e.g. 15">
         </div>
+
+        <div class="checkbox-option-group">
+          <label class="toggle-label" for="sub-auto-deduct">
+            <input type="checkbox" id="sub-auto-deduct" checked>
+            <span class="toggle-text">
+              <strong>Auto-deduct on due date</strong>
+              <small>Automatically logs this bill to expenses when the day arrives.</small>
+            </span>
+          </label>
+        </div>
         <div class="dialog-actions">
           <button type="button" id="cancel-sub-btn" class="btn-secondary">Cancel</button>
           <button type="submit" id="save-sub-btn" class="btn-primary-sm">Save Bill</button>
