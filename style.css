@@ -2940,3 +2940,295 @@ body {
   from { transform: scale(1.14); }
   to { transform: scale(1.22); }
 }
+
+
+/* ================= DYNAMIC ROLLING HEADER CAROUSEL ================= */
+.rolling-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.5rem;
+  margin-bottom: 0.5rem;
+  width: 100%;
+  min-height: 42px;
+}
+
+.nav-roller-side {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 32%;
+}
+
+.nav-roller-side:hover {
+  background: var(--bg-subtle);
+  transform: scale(1.05);
+}
+
+.nav-roller-side .roller-text {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f43f5e; /* Sleek coral/rose accent with opacity */
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  transition: transform 0.25s ease, opacity 0.25s ease, font-size 0.25s ease;
+}
+
+[data-theme="dark"] .nav-roller-side .roller-text {
+  color: #fb7185;
+  opacity: 0.9;
+}
+
+.nav-roller-center-wrap {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-roller-center {
+  font-size: 1.18rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-main);
+  text-transform: uppercase;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), font-size 0.25s ease;
+}
+
+/* ================= DASHBOARD ACTIONS (OPTION 1 GRADIENTS) ================= */
+.dashboard-actions-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
+@media (min-width: 580px) {
+  .dashboard-actions-row {
+    flex-direction: row;
+  }
+}
+
+.btn-dash-action {
+  flex: 1;
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--radius-md);
+  color: #ffffff !important;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+  min-height: 48px; /* Accessible touch target */
+}
+
+.btn-dash-action:active {
+  transform: scale(0.97);
+}
+
+/* Option 1: Royal Indigo to Violet Gradient */
+.btn-add-tx-gradient {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+}
+
+.btn-add-tx-gradient:hover {
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+  transform: translateY(-2px);
+}
+
+/* Option 1: Warm Coral to Amber Gradient */
+.btn-add-commit-gradient {
+  background: linear-gradient(135deg, #f43f5e 0%, #fb923c 100%);
+  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.35);
+}
+
+.btn-add-commit-gradient:hover {
+  box-shadow: 0 6px 20px rgba(244, 63, 94, 0.45);
+  transform: translateY(-2px);
+}
+
+/* ================= DASHBOARD INSTALLMENT PROGRESS CARDS ================= */
+.dashboard-installments-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dashboard-installments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dash-installment-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.dash-installment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.dash-installment-header span:first-child {
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 65%;
+}
+
+.dash-installment-track {
+  height: 8px;
+  background: var(--border-color);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.dash-installment-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.dash-installment-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ================= ANALYSIS PIE CHART & LIST CARDS ================= */
+.analysis-pie-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pie-chart-container-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+@media (min-width: 680px) {
+  .pie-chart-container-layout {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-around;
+  }
+}
+
+.pie-svg-wrapper {
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+#category-pie-chart {
+  transform: rotate(-90deg);
+  overflow: visible;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08));
+}
+
+.pie-slice {
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, filter 0.2s ease;
+  stroke: var(--bg-surface);
+  stroke-width: 1.5px;
+}
+
+.pie-slice:hover {
+  transform: scale(1.04);
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
+}
+
+.pie-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.pie-category-row-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.85rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.pie-category-row-card:hover {
+  background: var(--bg-surface);
+  border-color: var(--primary);
+}
+
+.pie-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.pie-pct-badge {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #ffffff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  min-width: 44px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.pie-cat-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pie-cat-amount {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-main);
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}

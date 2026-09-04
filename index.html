@@ -3,22 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#1e293b">
+  <title>Expense Tracker</title>
+  
+  <!-- PWA & Mobile Web App Meta -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#4f46e5">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Expenses">
-  <meta name="description" content="Fast, cross-platform expense tracker for Android, iOS, Windows, and Mac">
-  <title>Expense Tracker</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <meta name="apple-mobile-web-app-title" content="Expense Tracker">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <!-- Core Stylesheet with Cache-Buster -->
+  <link rel="stylesheet" href="./style.css?v=37">
 </head>
 <body>
   <div class="app-container">
-    <!-- Desktop Sticky Header & Navigation -->
+    
+    <!-- Static Top Header (Logo & Currency Selector) -->
     <header class="app-header">
       <div class="brand">
-        <div class="logo-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="logo-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <rect width="20" height="14" x="2" y="5" rx="2"/>
             <line x1="2" x2="22" y1="10" y2="10"/>
           </svg>
@@ -29,268 +34,64 @@
         </div>
       </div>
 
-      <!-- Desktop Nav Tabs -->
+      <!-- Desktop Top Nav Tabs (5 Pages) -->
       <nav class="desktop-nav" aria-label="Desktop Navigation">
-        <button type="button" class="nav-tab-btn active" data-tab="dashboard">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-          Dashboard
-        </button>
-        <button type="button" class="nav-tab-btn" data-tab="loans">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
-          Loans
-        </button>
-        <button type="button" class="nav-tab-btn" data-tab="analysis">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          Analysis
-        </button>
-        <button type="button" class="nav-tab-btn" data-tab="settings">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Settings
-        </button>
+        <button type="button" class="nav-tab-btn" data-tab="commitments">Commitments</button>
+        <button type="button" class="nav-tab-btn" data-tab="transactions">Transactions</button>
+        <button type="button" class="nav-tab-btn active" data-tab="dashboard">Dashboard</button>
+        <button type="button" class="nav-tab-btn" data-tab="analysis">Analysis</button>
+        <button type="button" class="nav-tab-btn" data-tab="settings">Settings</button>
       </nav>
 
-      <!-- Quick Theme & Currency (Desktop header) -->
       <div class="header-controls">
         <label for="currency-select" class="sr-only">Currency</label>
-        <select id="currency-select" aria-label="Select currency">
+        <select id="currency-select">
           <option value="RM" selected>RM (MYR)</option>
           <option value="$">$ (USD)</option>
+          <option value="S$">S$ (SGD)</option>
           <option value="€">€ (EUR)</option>
           <option value="£">£ (GBP)</option>
-          <option value="¥">¥ (JPY/CNY)</option>
-          <option value="S$">S$ (SGD)</option>
+          <option value="¥">¥ (JPY)</option>
         </select>
       </div>
     </header>
 
-    <!-- ================= PAGE 1: DASHBOARD ================= -->
-    <div id="view-dashboard" class="app-view active">
-      <!-- Hero: Two-Tone Spendable Gauge -->
-      <section class="card spendable-hero-card" id="spendable-hero-card">
-        <div class="spendable-hero-header">
-          <div>
-            <span class="metric-label" id="spendable-month-label">Spendable Cash Flow (This Month)</span>
-            <div class="spendable-amount-display">
-              <span class="spendable-balance-val" id="hero-spendable-val">RM 0.00</span>
-              <span class="spendable-balance-tag" id="hero-spendable-tag">Available</span>
-            </div>
-          </div>
-          <div class="spendable-stats-right">
-            <div class="spendable-stat-box spent">
-              <span class="stat-mini-label">Spent</span>
-              <span class="stat-mini-val text-danger" id="hero-spent-val">RM 0.00</span>
-            </div>
-            <div class="spendable-stat-box pool">
-              <span class="stat-mini-label">Spendable Pool</span>
-              <span class="stat-mini-val text-muted" id="hero-pool-val">RM 0.00</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="two-tone-gauge-wrapper">
-          <div class="two-tone-track" id="two-tone-track">
-            <div class="two-tone-spent-fill" id="two-tone-spent-fill" style="width: 0%;"></div>
-          </div>
-          <div class="two-tone-legend">
-            <span class="legend-spent" id="gauge-spent-text">🔴 0% Spent</span>
-            <span class="legend-available" id="gauge-available-text">🟢 100% Available</span>
-          </div>
-        </div>
-
-        <div class="spendable-hero-footer" id="hero-footer-text">
-          Log your salary and savings to establish your safe monthly spendable balance.
-        </div>
-      </section>
-
-      <!-- Monthly Cash Flow Cards -->
-      <section class="metrics-grid">
-        <div class="metric-card income-stat-card">
-          <span class="metric-label">Month Income 💼</span>
-          <div class="metric-value positive" id="total-income">RM 0.00</div>
-          <span class="metric-sub" id="income-count">0 earnings this month</span>
-        </div>
-        <div class="metric-card savings-card" id="savings-card">
-          <span class="metric-label">Total Saved 💰</span>
-          <div class="metric-value" id="total-saved">RM 0.00</div>
-          <span class="metric-sub" id="savings-sub">Accumulated savings</span>
-        </div>
-        <div class="metric-card expense-stat-card">
-          <span class="metric-label">Living Expenses 🛒</span>
-          <div class="metric-value negative" id="total-spend">RM 0.00</div>
-          <span class="metric-sub" id="transaction-count">0 expenses this month</span>
-        </div>
-        <div class="metric-card">
-          <span class="metric-label">Top Expense Category</span>
-          <div class="metric-value small" id="top-category">—</div>
-          <span class="metric-sub" id="top-category-amount">No expenses yet</span>
-        </div>
-      </section>
-
-      <!-- Main Layout -->
-      <main class="main-layout">
-        <!-- Left: Form -->
-        <section class="card form-section">
-          <div class="card-header">
-            <h2 id="form-heading">Add Transaction</h2>
-            <button type="button" id="load-sample-btn" class="btn-text">Load Sample</button>
-          </div>
-          <div class="type-toggle-group">
-            <button type="button" class="type-tab-btn active" id="tab-expense" data-type="expense">Expense</button>
-            <button type="button" class="type-tab-btn" id="tab-income" data-type="income">Income</button>
-          </div>
-          <form id="expense-form" novalidate>
-            <div class="form-group">
-              <label for="amount">Amount *</label>
-              <div class="input-prefix-wrapper">
-                <span class="currency-prefix" id="currency-display">RM</span>
-                <input type="number" id="amount" step="0.01" min="0.01" placeholder="0.00" required inputmode="decimal">
-              </div>
-              <span class="error-msg" id="amount-error"></span>
-            </div>
-
-            <div class="form-group">
-              <label for="category">Category *</label>
-              <select id="category" required></select>
-              <span class="error-msg" id="category-error"></span>
-            </div>
-
-            <!-- Option 8 (Queue Item 1): Wallet / Payment Source Selector -->
-            <div class="form-group">
-              <label>Account / Paid From</label>
-              <div class="wallet-pill-group" id="wallet-pill-group">
-                <button type="button" class="wallet-pill-btn active" data-wallet="Bank Account">🏦 Bank</button>
-                <button type="button" class="wallet-pill-btn" data-wallet="Credit Card">💳 Card</button>
-                <button type="button" class="wallet-pill-btn" data-wallet="E-Wallet">📱 E-Wallet</button>
-                <button type="button" class="wallet-pill-btn" data-wallet="Cash">💵 Cash</button>
-              </div>
-              <input type="hidden" id="selected-wallet" value="Bank Account">
-            </div>
-
-            <div class="form-group">
-              <label for="date">Date *</label>
-              <input type="date" id="date" required>
-              <span class="error-msg" id="date-error"></span>
-            </div>
-
-            <div class="form-group">
-              <label for="note">Note / Description</label>
-              <input type="text" id="note" placeholder="e.g. Groceries at supermarket" maxlength="100">
-            </div>
-
-            <!-- Queue Item 2: Receipt Attachment Field -->
-            <div class="form-group">
-              <label>Receipt Photo (Optional)</label>
-              <div class="receipt-attach-row">
-                <button type="button" id="attach-receipt-btn" class="btn-outline-sm">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                  Attach Photo / Receipt
-                </button>
-                <input type="file" id="receipt-file-input" accept="image/*" style="display:none;">
-                <div id="receipt-preview-box" class="receipt-preview-box" style="display:none;">
-                  <img id="receipt-preview-img" src="" alt="Receipt Preview">
-                  <button type="button" id="remove-receipt-btn" class="btn-remove-thumb" title="Remove photo">✕</button>
-                </div>
-              </div>
-            </div>
-
-            <button type="submit" class="btn-primary">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Save Expense
-            </button>
-          </form>
-        </section>
-
-        <!-- Right: Subscriptions, Breakdown & History -->
-        <section class="dashboard-side">
-          <!-- Subscriptions Card -->
-          <div class="card subscriptions-card" id="subscriptions-card">
-            <div class="card-header">
-              <div>
-                <h2>Subscriptions & Bills</h2>
-                <span class="sub-total-commitment" id="subs-total-commitment">Total: RM 0.00 / month</span>
-              </div>
-              <button type="button" id="add-sub-btn" class="btn-outline-sm">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add Bill
-              </button>
-            </div>
-            <div id="subscriptions-list" class="subscriptions-list">
-              <p class="empty-state">No recurring subscriptions added yet.</p>
-            </div>
-          </div>
-
-          <!-- Category Breakdown with Donut (Period-Synced & Upgraded) -->
-          <div class="card breakdown-card">
-            <div class="card-header">
-              <div>
-                <h2 id="breakdown-title">Spending by Category</h2>
-                <span class="chart-period-badge" id="chart-period-badge">This Month</span>
-              </div>
-              <span class="chart-tip" id="chart-tip">Tap slice or card to inspect</span>
-            </div>
-            <div class="chart-layout" id="chart-layout">
-              <div class="donut-wrapper" id="donut-wrapper">
-                <svg id="spending-donut" viewBox="0 0 160 160" width="160" height="160" role="img" aria-label="Visual Spending Donut Chart">
-                  <circle class="donut-bg-ring" cx="80" cy="80" r="58" />
-                  <g id="donut-segments-group"></g>
-                </svg>
-                <div class="donut-center-info" id="donut-center-info" role="button" tabindex="0" title="Tap to reset">
-                  <span class="donut-center-label" id="donut-center-label">Total</span>
-                  <span class="donut-center-val" id="donut-center-val">RM 0.00</span>
-                  <span class="donut-center-hint" id="donut-center-hint">Tap to reset</span>
-                </div>
-              </div>
-              <div id="category-breakdown-list" class="breakdown-list">
-                <p class="empty-state">No categorized expenses recorded yet.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Transaction History Card -->
-          <div class="card history-card">
-            <div class="card-header">
-              <h2>Transaction History</h2>
-              <div class="history-actions">
-                <label for="filter-period" class="sr-only">Period</label>
-                <select id="filter-period" class="select-filter">
-                  <option value="THIS_MONTH" selected>This Month</option>
-                  <option value="LAST_MONTH">Last Month</option>
-                  <option value="ALL">All Time</option>
-                  <option value="CUSTOM">Custom Dates</option>
-                </select>
-                <label for="filter-category" class="sr-only">Category</label>
-                <select id="filter-category" class="select-filter"></select>
-                <button type="button" id="clear-all-btn" class="btn-danger-text" title="Clear all records">Clear All</button>
-              </div>
-            </div>
-
-            <!-- Search & Custom Dates Bar -->
-            <div class="filter-controls-row">
-              <div class="search-input-wrapper">
-                <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="search-input" placeholder="Search note, category..." aria-label="Search expenses">
-                <button type="button" id="clear-search-btn" class="btn-clear-search" style="display:none;" title="Clear search">✕</button>
-              </div>
-              <div id="custom-date-inputs" class="custom-date-row" style="display:none;">
-                <input type="date" id="custom-start-date" aria-label="Start date">
-                <span>to</span>
-                <input type="date" id="custom-end-date" aria-label="End date">
-              </div>
-            </div>
-
-            <div id="transaction-list" class="transaction-list" role="feed" aria-busy="false"></div>
-          </div>
-        </section>
-      </main>
+    <!-- Dynamic Rolling Header Bar (Previous / Current / Next with Big-to-Small Carousel) -->
+    <div class="rolling-nav-bar" id="rolling-nav-bar" aria-label="Page Carousel Navigation">
+      <button type="button" class="nav-roller-side" id="roller-prev" title="Go to previous page" aria-label="Previous page">
+        <span class="roller-text" id="roller-prev-text">TRANSACTIONS</span>
+      </button>
+      <div class="nav-roller-center-wrap">
+        <h2 class="nav-roller-center" id="roller-current">DASHBOARD</h2>
+      </div>
+      <button type="button" class="nav-roller-side" id="roller-next" title="Go to next page" aria-label="Next page">
+        <span class="roller-text" id="roller-next-text">ANALYSIS</span>
+      </button>
     </div>
 
-    <!-- ================= PAGE 4: LOANS & INSTALLMENTS ================= -->
-    <div id="view-loans" class="app-view">
-      <!-- Portfolio Overview & DSR Health -->
+    <!-- ================= PAGE 1: COMMITMENTS ================= -->
+    <div id="view-commitments" class="app-view">
+      <!-- Subscriptions & Recurring Bills Section -->
+      <section class="card subscriptions-card">
+        <div class="card-header">
+          <div>
+            <h2>Subscriptions &amp; Bills</h2>
+            <span class="sub-total-commitment" id="subs-total-commitment">Fixed Commitments: RM 0.00 / month</span>
+          </div>
+          <button type="button" id="add-sub-btn" class="btn-primary-sm">
+            ➕ Add Bill
+          </button>
+        </div>
+        <div class="subscriptions-list" id="subscriptions-list">
+          <p class="empty-state">No recurring subscriptions added yet. Click "+ Add Bill" to track fixed commitments.</p>
+        </div>
+      </section>
+
+      <!-- Loans & Financing Portfolio Section -->
       <section class="card loan-portfolio-card">
         <div class="card-header">
           <div>
-            <h2>Loans & Financing</h2>
+            <h2>Loans &amp; Financing</h2>
             <p class="dialog-sub">Track long-term installments, DSR health, and early payoff savings.</p>
           </div>
           <button type="button" id="open-add-loan-btn" class="btn-primary-sm">
@@ -317,7 +118,7 @@
         </div>
       </section>
 
-      <!-- Active Loans List -->
+      <!-- Detailed Loan Cards with Progress Bars -->
       <section class="loans-container" id="loans-list-container">
         <div id="loans-list" class="loans-list">
           <p class="empty-state">No loans or installments added yet. Click "+ Add Loan" to start tracking.</p>
@@ -325,15 +126,247 @@
       </section>
     </div>
 
-    <!-- ================= PAGE 2: ANALYSIS ================= -->
+    <!-- ================= PAGE 2: TRANSACTIONS ================= -->
+    <div id="view-transactions" class="app-view">
+      <!-- Add Transaction Form Section -->
+      <section class="card form-section">
+        <div class="card-header">
+          <h2>Add Transaction</h2>
+          <button type="button" id="load-sample-btn" class="btn-text" title="Load authentic Malaysian workhorse daily simulation">Load Sample</button>
+        </div>
+
+        <form id="expense-form" novalidate>
+          <div class="type-toggle-group">
+            <button type="button" class="type-tab-btn active" id="tab-expense" data-type="expense">Expense</button>
+            <button type="button" class="type-tab-btn" id="tab-income" data-type="income">Income</button>
+          </div>
+
+          <div class="form-group">
+            <label for="amount">Amount *</label>
+            <div class="input-prefix-wrapper">
+              <span class="currency-prefix" id="currency-display">RM</span>
+              <input type="number" id="amount" step="0.01" min="0.01" placeholder="0.00" required inputmode="decimal">
+            </div>
+            <span class="error-msg" id="amount-error"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Category *</label>
+            <select id="category" required></select>
+            <span class="error-msg" id="category-error"></span>
+          </div>
+
+          <!-- Account / Wallet Selector -->
+          <div class="form-group">
+            <label>Account / Paid From</label>
+            <div class="wallet-pill-group" id="wallet-pill-group">
+              <button type="button" class="wallet-pill-btn active" data-wallet="Bank Account">🏦 Bank</button>
+              <button type="button" class="wallet-pill-btn" data-wallet="Credit Card">💳 Card</button>
+              <button type="button" class="wallet-pill-btn" data-wallet="E-Wallet">📱 E-Wallet</button>
+              <button type="button" class="wallet-pill-btn" data-wallet="Cash">💵 Cash</button>
+            </div>
+            <input type="hidden" id="selected-wallet" value="Bank Account">
+          </div>
+
+          <div class="form-group">
+            <label for="date">Date *</label>
+            <input type="date" id="date" required>
+            <span class="error-msg" id="date-error"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="note">Note / Description</label>
+            <input type="text" id="note" placeholder="e.g. Groceries at Lotus's" maxlength="80">
+          </div>
+
+          <!-- Receipt Photo Attachment -->
+          <div class="form-group">
+            <label>Receipt Photo (Optional)</label>
+            <div class="receipt-attach-row">
+              <button type="button" id="attach-receipt-btn" class="btn-outline-sm">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Attach Photo / Receipt
+              </button>
+              <input type="file" id="receipt-file-input" accept="image/*" style="display:none;">
+              <div id="receipt-preview-box" class="receipt-preview-box" style="display:none;">
+                <img id="receipt-preview-img" src="" alt="Receipt Preview">
+                <button type="button" id="remove-receipt-btn" class="btn-remove-thumb" title="Remove photo">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Save Expense
+          </button>
+        </form>
+      </section>
+
+      <!-- Category Breakdown Donut Chart -->
+      <section class="card breakdown-card">
+        <div class="card-header">
+          <div>
+            <h2 id="breakdown-title">Spending by Category</h2>
+            <span class="chart-period-badge" id="chart-period-badge">This Month</span>
+          </div>
+          <span class="chart-tip" id="chart-tip">Tap slice or card to inspect</span>
+        </div>
+
+        <div class="chart-layout" id="chart-layout">
+          <div class="donut-wrapper" id="donut-wrapper">
+            <svg id="spending-donut" width="160" height="160" viewBox="0 0 160 160">
+              <circle class="donut-bg-ring" cx="80" cy="80" r="58"></circle>
+              <g id="donut-segments-group"></g>
+            </svg>
+            <div class="donut-center-info" id="donut-center-info" tabindex="0" role="button" aria-label="Donut center details, tap to reset selection">
+              <span class="donut-center-label" id="donut-center-label">Total</span>
+              <span class="donut-center-val" id="donut-center-val">RM 0.00</span>
+              <span class="donut-center-hint" id="donut-center-hint" style="display:none;">Tap to reset</span>
+            </div>
+          </div>
+          <div id="category-breakdown-list" class="breakdown-list">
+            <p class="empty-state">No categorized expenses recorded yet.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Transaction History Feed -->
+      <section class="card history-card">
+        <div class="card-header">
+          <h2>Transaction History</h2>
+          <div class="history-actions">
+            <label for="filter-period" class="sr-only">Period</label>
+            <select id="filter-period" class="select-filter">
+              <option value="THIS_MONTH" selected>This Month</option>
+              <option value="LAST_MONTH">Last Month</option>
+              <option value="ALL">All Time</option>
+              <option value="CUSTOM">Custom Dates</option>
+            </select>
+            <label for="filter-category" class="sr-only">Category</label>
+            <select id="filter-category" class="select-filter"></select>
+            <button type="button" id="clear-all-btn" class="btn-danger-text" title="Clear all records">Clear All</button>
+          </div>
+        </div>
+
+        <div class="filter-controls-row">
+          <div class="search-input-wrapper">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="search-input" placeholder="Search note, category, or account...">
+            <button type="button" id="clear-search-btn" class="btn-clear-search" style="display:none;">✕</button>
+          </div>
+
+          <div class="custom-date-row" id="custom-date-inputs" style="display:none;">
+            <input type="date" id="custom-start-date" aria-label="Start Date">
+            <span>to</span>
+            <input type="date" id="custom-end-date" aria-label="End Date">
+          </div>
+        </div>
+
+        <div id="transaction-list" class="transaction-list">
+          <p class="empty-state">No transactions recorded yet.</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= PAGE 3: DASHBOARD (DEFAULT OPEN VIEW) ================= -->
+    <div id="view-dashboard" class="app-view active">
+      <!-- Spendable Cash Flow Hero Gauge -->
+      <section class="card spendable-hero-card">
+        <div class="spendable-hero-header">
+          <div>
+            <span class="metric-label" id="spendable-month-label">Spendable Cash Flow (This Month)</span>
+            <div class="spendable-amount-display">
+              <span class="spendable-balance-val" id="hero-spendable-val">RM 0.00</span>
+              <span class="spendable-balance-tag" id="hero-spendable-tag">Available</span>
+            </div>
+          </div>
+          <div class="spendable-stats-right">
+            <div class="spendable-stat-box spent">
+              <span class="stat-mini-label">Spent</span>
+              <span class="stat-mini-val text-danger" id="hero-spent-val">RM 0.00</span>
+            </div>
+            <div class="spendable-stat-box pool">
+              <span class="stat-mini-label">Spendable Pool</span>
+              <span class="stat-mini-val" id="hero-pool-val">RM 0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="two-tone-gauge-wrapper">
+          <div class="two-tone-track empty" id="two-tone-track">
+            <div class="two-tone-spent-fill" id="two-tone-spent-fill"></div>
+          </div>
+          <div class="two-tone-legend">
+            <span class="legend-spent" id="gauge-spent-text">🔴 0% Spent</span>
+            <span class="legend-available" id="gauge-available-text">🟢 Ready for salary</span>
+          </div>
+        </div>
+
+        <div class="spendable-hero-footer">
+          <p id="hero-footer-text">Tip: Log your monthly salary and savings to establish your safe spendable pool for this month.</p>
+        </div>
+      </section>
+
+      <!-- 4 Monthly Cash Flow Cards -->
+      <section class="metrics-grid">
+        <div class="metric-card income-stat-card">
+          <span class="metric-label">Month Income 💼</span>
+          <div class="metric-value positive" id="total-income">RM 0.00</div>
+          <span class="metric-sub" id="income-count">0 earnings this month</span>
+        </div>
+
+        <div class="metric-card savings-card" id="savings-card">
+          <span class="metric-label">Total Saved 💰</span>
+          <div class="metric-value" id="total-saved">RM 0.00</div>
+          <span class="metric-sub" id="savings-sub">Accumulated savings</span>
+        </div>
+
+        <div class="metric-card expense-stat-card">
+          <span class="metric-label">Living Expenses 🛒</span>
+          <div class="metric-value negative" id="total-spend">RM 0.00</div>
+          <span class="metric-sub" id="transaction-count">0 expenses this month</span>
+        </div>
+
+        <div class="metric-card">
+          <span class="metric-label">Top Expense Category</span>
+          <div class="metric-value small" id="top-category">—</div>
+          <span class="metric-sub" id="top-category-amount">No expenses yet</span>
+        </div>
+      </section>
+
+      <!-- Installment Progress Bars Summary Section -->
+      <section class="card dashboard-installments-card" id="dashboard-installments-card">
+        <div class="card-header">
+          <h2>Installment Progress</h2>
+          <span class="chart-tip" id="dash-installment-sub">Long-term commitments</span>
+        </div>
+        <div id="dashboard-installments-list" class="dashboard-installments-list">
+          <p class="empty-state">No installments tracked yet.</p>
+        </div>
+      </section>
+
+      <!-- Two Primary Action Buttons (Option 1 Gradients) -->
+      <section class="dashboard-actions-row">
+        <button type="button" class="btn-dash-action btn-add-tx-gradient" id="btn-dash-add-tx">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Transaction
+        </button>
+        <button type="button" class="btn-dash-action btn-add-commit-gradient" id="btn-dash-add-commit">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+          Add Commitment
+        </button>
+      </section>
+    </div>
+
+    <!-- ================= PAGE 4: ANALYSIS ================= -->
     <div id="view-analysis" class="app-view">
+      <!-- Historical Trends & Comparison Bar Chart Card -->
       <section class="card analysis-hero-card">
         <div class="card-header">
           <div>
-            <h2>Spending Trends & Comparisons</h2>
+            <h2>Spending Trends &amp; Comparisons</h2>
             <p class="dialog-sub">Analyze your historical spending patterns across time intervals.</p>
           </div>
-          <!-- Time Granularity Switcher -->
           <div class="granularity-toggle-group">
             <button type="button" class="gran-btn active" data-gran="month">Month-to-Month</button>
             <button type="button" class="gran-btn" data-gran="day">Day-to-Day</button>
@@ -341,26 +374,25 @@
           </div>
         </div>
 
-        <!-- Analysis Key Metrics -->
         <div class="analysis-stats-row">
           <div class="analysis-stat-box">
-            <span class="stat-mini-label" id="analysis-stat-1-label">Selected Period Spend</span>
+            <span class="stat-mini-label">Selected Period Spend</span>
             <span class="analysis-stat-value text-danger" id="analysis-total-spend">RM 0.00</span>
           </div>
           <div class="analysis-stat-box">
-            <span class="stat-mini-label" id="analysis-stat-2-label">Selected Period Income</span>
-            <span class="analysis-stat-value text-success" id="analysis-total-income">RM 0.00</span>
+            <span class="stat-mini-label">Selected Period Income</span>
+            <span class="analysis-stat-value positive" id="analysis-total-income">RM 0.00</span>
           </div>
           <div class="analysis-stat-box">
-            <span class="stat-mini-label" id="analysis-stat-3-label">Comparison vs Previous</span>
+            <span class="stat-mini-label">Comparison vs Previous</span>
             <span class="analysis-stat-value" id="analysis-comparison-stat">—</span>
           </div>
         </div>
 
-        <!-- Responsive Bar Chart Visualization -->
-        <div class="bar-chart-wrapper" id="bar-chart-wrapper">
+        <!-- SVG Multi-Bar Chart with touch-action pan-y -->
+        <div class="bar-chart-wrapper">
           <div class="chart-scroll-container">
-            <svg id="analysis-bar-chart" viewBox="0 0 540 220" width="100%" height="220"></svg>
+            <svg id="analysis-bar-chart" viewBox="0 0 540 220" width="100%" height="220" preserveAspectRatio="none"></svg>
           </div>
           <div class="chart-legend-row">
             <span class="legend-item"><span class="legend-pill" style="background:#ef4444;"></span> Expenses</span>
@@ -369,7 +401,7 @@
           </div>
         </div>
 
-        <!-- Option 8 (Queue Item 1): Spending by Account / Wallet Breakdown -->
+        <!-- Spending by Wallet Breakdown -->
         <div class="analysis-wallet-breakdown" id="analysis-wallet-breakdown" style="margin-top: 1.25rem;">
           <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.65rem;">Spending by Account / Wallet</h3>
           <div class="wallet-stats-grid" id="wallet-stats-grid"></div>
@@ -380,19 +412,42 @@
           <p id="analysis-insight-text">Analyzing your spending trends...</p>
         </div>
       </section>
+
+      <!-- NEWLY ADDED: Monthly Spending Pie Chart Section -->
+      <section class="card analysis-pie-card" id="analysis-pie-card">
+        <div class="card-header">
+          <div>
+            <h2>Category Distribution</h2>
+            <p class="dialog-sub">Visual breakdown of spending across categories.</p>
+          </div>
+          <div>
+            <label for="pie-chart-month-select" class="sr-only">Month</label>
+            <select id="pie-chart-month-select" class="select-filter"></select>
+          </div>
+        </div>
+
+        <div class="pie-chart-container-layout">
+          <div class="pie-svg-wrapper">
+            <svg id="category-pie-chart" width="220" height="220" viewBox="-110 -110 220 220"></svg>
+          </div>
+          <div class="pie-breakdown-list" id="pie-chart-breakdown-list">
+            <p class="empty-state">No category expenses found for this month.</p>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <!-- ================= PAGE 3: SETTINGS ================= -->
+    <!-- ================= PAGE 5: SETTINGS ================= -->
     <div id="view-settings" class="app-view">
       <div class="settings-grid">
         <!-- Appearance & Theme Card -->
         <section class="card settings-card">
           <div class="card-header">
-            <h2>Appearance & Theme</h2>
+            <h2>Appearance &amp; Theme</h2>
           </div>
-          <p class="dialog-sub">Choose your preferred visual theme for comfortable viewing.</p>
+          <p class="dialog-sub">Choose an interface theme for daylight or OLED comfort.</p>
           <div class="theme-options-group" style="margin-top: 1rem;">
-            <button type="button" class="theme-btn active" data-theme="light">
+            <button type="button" class="theme-btn" data-theme="light">
               <span class="theme-icon">☀️</span>
               <span class="theme-name">Light</span>
             </button>
@@ -400,31 +455,29 @@
               <span class="theme-icon">🌙</span>
               <span class="theme-name">Dark (OLED)</span>
             </button>
-            <button type="button" class="theme-btn" data-theme="auto">
+            <button type="button" class="theme-btn active" data-theme="auto">
               <span class="theme-icon">📱</span>
               <span class="theme-name">System Auto</span>
             </button>
           </div>
         </section>
 
-        <!-- Custom Categories Manager Card -->
+        <!-- Custom Category Manager Card -->
         <section class="card settings-card">
           <div class="card-header">
             <h2>Custom Categories</h2>
-            <button type="button" id="open-cat-modal-btn" class="btn-outline-sm">
-              ➕ Add Category
-            </button>
+            <button type="button" id="open-cat-modal-btn" class="btn-outline-sm">➕ Add Category</button>
           </div>
-          <p class="dialog-sub">Create your own customized spending or income categories.</p>
-          <div id="custom-categories-list" class="custom-categories-list" style="margin-top: 1rem;">
-            <p class="empty-state">No custom categories created yet.</p>
+          <p class="dialog-sub">Personalized tags created for expenses or income.</p>
+          <div class="custom-categories-list" id="custom-categories-list" style="margin-top: 1rem;">
+            <p class="empty-state">No custom categories created yet. Click "+ Add Category" to personalize.</p>
           </div>
         </section>
 
         <!-- Budgeting & Savings Rules Card -->
         <section class="card settings-card">
           <div class="card-header">
-            <h2>Budgeting & Savings Rules</h2>
+            <h2>Budgeting &amp; Savings Rules</h2>
           </div>
           <p class="dialog-sub">Customize how unspent monthly cash is handled.</p>
           <div class="setting-toggle-row" style="margin-top: 1rem;">
@@ -442,27 +495,30 @@
         <!-- Backup & Data Card -->
         <section class="card settings-card">
           <div class="card-header">
-            <h2>Data Backup & Restore</h2>
+            <h2>Backup &amp; Data Management</h2>
           </div>
-          <p class="dialog-sub">Export your data to spreadsheet formats or create full offline backups.</p>
+          <p class="dialog-sub">Export to spreadsheets or restore full backups.</p>
           <div class="backup-actions-grid" style="margin-top: 1rem;">
             <button type="button" id="settings-export-csv" class="btn-tool-lg">
-              📥 Export to CSV (Spreadsheet)
+              📊 Export to CSV (Excel / Sheets)
             </button>
             <button type="button" id="settings-export-json" class="btn-tool-lg">
-              💾 Download Full Backup (JSON)
+              💾 Full JSON Backup
             </button>
             <button type="button" id="settings-import-btn" class="btn-tool-lg">
-              📤 Restore / Import Backup File
+              📥 Import Backup (.json or .csv)
             </button>
-            <input type="file" id="settings-file-input" accept=".json,.csv" style="display:none">
+            <input type="file" id="settings-file-input" accept=".json,.csv" style="display:none;">
+            <button type="button" id="force-update-cache-btn" class="btn-tool-lg" style="color: var(--primary); font-weight: 700;">
+              🔄 Force Purge Cache &amp; Update App
+            </button>
           </div>
         </section>
       </div>
     </div>
 
-    <!-- Movable Floating Navigation Menu Button (Draggable & Long-Pressable) -->
-    <div id="movable-menu-btn" class="movable-menu-fab" role="button" tabindex="0" title="Tap to open menu, drag to move" aria-label="Open navigation menu">
+    <!-- Movable Floating Navigation Menu Button -->
+    <div id="movable-menu-btn" class="movable-menu-fab" role="button" tabindex="0" title="Tap to open menu, hold 1.5s to drag" aria-label="Open navigation menu">
       <div class="fab-inner-icon">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <rect width="20" height="14" x="2" y="5" rx="2"/>
@@ -471,7 +527,7 @@
       </div>
     </div>
 
-    <!-- Frosted Glass Dynamic Navigation Hub (2x2 Grid) -->
+    <!-- Frosted Glass Dynamic Navigation Hub (5-Item Hub) -->
     <div id="nav-hub-backdrop" class="nav-hub-backdrop" style="display:none;">
       <div class="nav-hub-panel" id="nav-hub-panel">
         <div class="nav-hub-header">
@@ -479,18 +535,25 @@
           <button type="button" id="close-nav-hub-btn" class="btn-clear-search">✕</button>
         </div>
         <div class="nav-hub-grid">
-          <button type="button" class="hub-item-card active" data-tab="dashboard">
+          <button type="button" class="hub-item-card" data-tab="commitments">
+            <div class="hub-icon-box" style="background:#fee2e2; color:#ef4444;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+            </div>
+            <span class="hub-item-title">Commitments</span>
+          </button>
+
+          <button type="button" class="hub-item-card" data-tab="transactions">
             <div class="hub-icon-box" style="background:#eef2ff; color:#4f46e5;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+            <span class="hub-item-title">Transactions</span>
+          </button>
+
+          <button type="button" class="hub-item-card active" data-tab="dashboard">
+            <div class="hub-icon-box" style="background:#ecfdf5; color:#059669;">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
             </div>
             <span class="hub-item-title">Dashboard</span>
-          </button>
-
-          <button type="button" class="hub-item-card" data-tab="loans">
-            <div class="hub-icon-box" style="background:#ecfdf5; color:#059669;">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
-            </div>
-            <span class="hub-item-title">Loans</span>
           </button>
 
           <button type="button" class="hub-item-card" data-tab="analysis">
@@ -500,7 +563,7 @@
             <span class="hub-item-title">Analysis</span>
           </button>
 
-          <button type="button" class="hub-item-card" data-tab="settings">
+          <button type="button" class="hub-item-card" data-tab="settings" style="grid-column: span 2;">
             <div class="hub-icon-box" style="background:#f1f5f9; color:#475569;">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </div>
@@ -510,26 +573,91 @@
       </div>
     </div>
 
-    <!-- Dialog: Add Subscription Modal -->
+    <!-- ================= MODAL DIALOGS ================= -->
+    <!-- Custom Category Creator Dialog -->
+    <dialog id="category-creator-dialog" class="custom-dialog">
+      <form method="dialog" id="category-creator-form">
+        <h3>Create Custom Category</h3>
+        <p class="dialog-sub">Add a personalized tag for spending or earnings.</p>
+
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="custom-cat-name">Category Name *</label>
+          <input type="text" id="custom-cat-name" placeholder="e.g. Pet Care, Gym, Gaming" required maxlength="30">
+        </div>
+
+        <div class="form-group">
+          <label for="custom-cat-type">Type</label>
+          <select id="custom-cat-type">
+            <option value="expense">Expense Category</option>
+            <option value="income">Income Category</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Select Icon</label>
+          <div class="emoji-picker-grid" id="emoji-picker-grid">
+            <button type="button" class="emoji-btn active" data-emoji="🏷️">🏷️</button>
+            <button type="button" class="emoji-btn" data-emoji="🐾">🐾</button>
+            <button type="button" class="emoji-btn" data-emoji="🎮">🎮</button>
+            <button type="button" class="emoji-btn" data-emoji="🏋️">🏋️</button>
+            <button type="button" class="emoji-btn" data-emoji="☕">☕</button>
+            <button type="button" class="emoji-btn" data-emoji="✈️">✈️</button>
+            <button type="button" class="emoji-btn" data-emoji="🎁">🎁</button>
+            <button type="button" class="emoji-btn" data-emoji="💻">💻</button>
+            <button type="button" class="emoji-btn" data-emoji="📚">📚</button>
+            <button type="button" class="emoji-btn" data-emoji="🎨">🎨</button>
+            <button type="button" class="emoji-btn" data-emoji="🌿">🌿</button>
+            <button type="button" class="emoji-btn" data-emoji="🛠️">🛠️</button>
+          </div>
+          <input type="hidden" id="custom-cat-emoji" value="🏷️">
+        </div>
+
+        <div class="form-group">
+          <label>Accent Color</label>
+          <div class="color-picker-grid" id="color-picker-grid">
+            <button type="button" class="color-swatch-btn active" data-color="#6366f1" style="background:#6366f1;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#ec4899" style="background:#ec4899;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#f97316" style="background:#f97316;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#eab308" style="background:#eab308;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#10b981" style="background:#10b981;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#06b6d4" style="background:#06b6d4;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#8b5cf6" style="background:#8b5cf6;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#64748b" style="background:#64748b;"></button>
+          </div>
+          <input type="hidden" id="custom-cat-color" value="#6366f1">
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="cancel-cat-creator-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="save-cat-creator-btn" class="btn-primary-sm">Create Category</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Subscriptions Add Dialog -->
     <dialog id="sub-dialog" class="custom-dialog">
       <form method="dialog" id="sub-form">
-        <h3>Add Recurring Bill</h3>
-        <p class="dialog-sub">Track regular monthly commitments (e.g. mobile plan, gym, rent).</p>
+        <h3>Add Recurring Subscription / Bill</h3>
+        <p class="dialog-sub">Track fixed monthly commitments with automatic deductions.</p>
+
         <div class="form-group" style="margin-top: 1rem;">
           <label for="sub-name">Bill / Service Name *</label>
-          <input type="text" id="sub-name" placeholder="e.g. Mobile Postpaid Plan" required maxlength="50">
+          <input type="text" id="sub-name" placeholder="e.g. Netflix, Mobile Plan, Gym" required maxlength="40">
         </div>
+
         <div class="form-group">
-          <label for="sub-amount">Amount *</label>
+          <label for="sub-amount">Monthly Amount *</label>
           <div class="input-prefix-wrapper">
             <span class="currency-prefix" id="sub-dialog-currency">RM</span>
-            <input type="number" id="sub-amount" step="0.01" min="0.01" required inputmode="decimal" placeholder="0.00">
+            <input type="number" id="sub-amount" step="0.01" min="0.01" placeholder="0.00" required inputmode="decimal">
           </div>
         </div>
+
         <div class="form-group">
           <label for="sub-category">Category *</label>
           <select id="sub-category" required></select>
         </div>
+
         <div class="form-group">
           <label for="sub-billing-day">Billing Day of Month (1 - 31) *</label>
           <input type="number" id="sub-billing-day" min="1" max="31" required placeholder="e.g. 15">
@@ -555,26 +683,29 @@
             </span>
           </label>
         </div>
+
         <div class="dialog-actions">
           <button type="button" id="cancel-sub-btn" class="btn-secondary">Cancel</button>
-          <button type="submit" id="save-sub-btn" class="btn-primary-sm">Save Bill</button>
+          <button type="submit" id="save-sub-btn" class="btn-primary-sm">Add Bill</button>
         </div>
       </form>
     </dialog>
 
-    <!-- Dialog: Edit Transaction Modal -->
+    <!-- Edit Transaction Modal -->
     <dialog id="edit-dialog" class="custom-dialog">
       <form method="dialog" id="edit-expense-form">
         <h3>Edit Transaction</h3>
-        <p class="dialog-sub">Modify transaction details below.</p>
+        <p class="dialog-sub">Modify details and recalculate balances instantly.</p>
         <input type="hidden" id="edit-tx-id">
-        <div class="form-group" style="margin-top: 0.85rem;">
-          <label for="edit-type">Transaction Type</label>
+
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="edit-type">Type</label>
           <select id="edit-type">
             <option value="expense">Expense</option>
             <option value="income">Income</option>
           </select>
         </div>
+
         <div class="form-group">
           <label for="edit-amount">Amount *</label>
           <div class="input-prefix-wrapper">
@@ -583,6 +714,7 @@
           </div>
           <span class="error-msg" id="edit-amount-error"></span>
         </div>
+
         <div class="form-group">
           <label for="edit-category">Category *</label>
           <select id="edit-category" required></select>
@@ -598,15 +730,18 @@
             <option value="Cash">💵 Cash</option>
           </select>
         </div>
+
         <div class="form-group">
           <label for="edit-date">Date *</label>
           <input type="date" id="edit-date" required>
           <span class="error-msg" id="edit-date-error"></span>
         </div>
+
         <div class="form-group">
           <label for="edit-note">Note / Description</label>
-          <input type="text" id="edit-note" maxlength="100">
+          <input type="text" id="edit-note" maxlength="80">
         </div>
+
         <!-- Edit Receipt Attachment Field -->
         <div class="form-group">
           <label>Receipt Photo</label>
@@ -630,72 +765,17 @@
       </form>
     </dialog>
 
-    <!-- Dialog: Option 7C Custom Category Creator Modal -->
-    <dialog id="category-creator-dialog" class="custom-dialog">
-      <form method="dialog" id="category-creator-form">
-        <h3>Create Custom Category</h3>
-        <p class="dialog-sub">Add a personalized category with your own icon and color.</p>
-        <div class="form-group" style="margin-top: 1rem;">
-          <label for="custom-cat-name">Category Name *</label>
-          <input type="text" id="custom-cat-name" placeholder="e.g. Pet Care, Games, Gym" required maxlength="30">
-        </div>
-        <div class="form-group">
-          <label for="custom-cat-type">Type</label>
-          <select id="custom-cat-type">
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Pick Emoji Icon</label>
-          <div class="emoji-picker-grid" id="emoji-picker-grid">
-            <button type="button" class="emoji-btn active" data-emoji="🏷️">🏷️</button>
-            <button type="button" class="emoji-btn" data-emoji="🐶">🐶</button>
-            <button type="button" class="emoji-btn" data-emoji="🐱">🐱</button>
-            <button type="button" class="emoji-btn" data-emoji="🎮">🎮</button>
-            <button type="button" class="emoji-btn" data-emoji="☕">☕</button>
-            <button type="button" class="emoji-btn" data-emoji="🏋️">🏋️</button>
-            <button type="button" class="emoji-btn" data-emoji="✈️">✈️</button>
-            <button type="button" class="emoji-btn" data-emoji="🎁">🎁</button>
-            <button type="button" class="emoji-btn" data-emoji="💻">💻</button>
-            <button type="button" class="emoji-btn" data-emoji="🏠">🏠</button>
-            <button type="button" class="emoji-btn" data-emoji="🚗">🚗</button>
-            <button type="button" class="emoji-btn" data-emoji="🎨">🎨</button>
-          </div>
-          <input type="hidden" id="custom-cat-emoji" value="🏷️">
-        </div>
-        <div class="form-group">
-          <label>Pick Color Swatch</label>
-          <div class="color-picker-grid" id="color-picker-grid">
-            <button type="button" class="color-swatch-btn active" data-color="#6366f1" style="background:#6366f1;"></button>
-            <button type="button" class="color-swatch-btn" data-color="#ec4899" style="background:#ec4899;"></button>
-            <button type="button" class="color-swatch-btn" data-color="#f97316" style="background:#f97316;"></button>
-            <button type="button" class="color-swatch-btn" data-color="#eab308" style="background:#eab308;"></button>
-            <button type="button" class="color-swatch-btn" data-color="#10b981" style="background:#10b981;"></button>
-            <button type="button" class="color-swatch-btn" data-color="#06b6d4" style="background:#06b6d4;"></button>
-            <button type="button" class="color-swatch-btn" data-color="#8b5cf6" style="background:#8b5cf6;"></button>
-            <button type="button" class="color-swatch-btn" data-color="#64748b" style="background:#64748b;"></button>
-          </div>
-          <input type="hidden" id="custom-cat-color" value="#6366f1">
-        </div>
-        <div class="dialog-actions">
-          <button type="button" id="cancel-cat-creator-btn" class="btn-secondary">Cancel</button>
-          <button type="submit" id="save-cat-creator-btn" class="btn-primary-sm">Create Category</button>
-        </div>
-      </form>
-    </dialog>
-
     <!-- Add Loan / Financing Modal -->
     <dialog id="loan-dialog" class="custom-dialog">
       <form method="dialog" id="loan-form">
         <h3>Add Loan / Financing</h3>
-        <p class="dialog-sub">Supports car loans (EIR/Flat), housing mortgages (SBR), PTPTN & 0% IPP.</p>
+        <p class="dialog-sub">Supports car loans (EIR/Flat), housing mortgages (SBR), PTPTN &amp; 0% IPP.</p>
 
         <div class="form-group" style="margin-top: 1rem;">
           <label for="loan-type-select">Financing Mechanism *</label>
           <select id="loan-type-select" required>
             <option value="CAR_EIR">🚗 Car Loan — 2026 Reform (Reducing Balance EIR)</option>
-            <option value="CAR_FLAT">🚗 Car Loan — Pre-2026 (Flat Rate & Rule of 78)</option>
+            <option value="CAR_FLAT">🚗 Car Loan — Pre-2026 (Flat Rate &amp; Rule of 78)</option>
             <option value="HOME_SBR">🏠 Home Mortgage (SBR + Spread Monthly Rest)</option>
             <option value="PTPTN">🎓 Study Loan (PTPTN 1% Ujrah)</option>
             <option value="IPP_0">📱 0% Credit Card Installment (EPP / BNPL)</option>
@@ -731,7 +811,6 @@
           <input type="number" id="loan-tenure" min="1" max="420" placeholder="e.g. 84 (7 years) or 360 (30 years)" required inputmode="numeric">
         </div>
 
-        <!-- Live Calculation Preview in Modal -->
         <div class="loan-calc-preview-box" id="loan-calc-preview">
           <div class="preview-row">
             <span>Est. Monthly Installment:</span>
@@ -784,8 +863,8 @@
         <h3 id="receipt-modal-title">Photo / Receipt</h3>
         <button type="button" id="close-receipt-modal-btn" class="btn-circle-close" title="Close preview" aria-label="Close preview">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
       </div>
@@ -796,9 +875,9 @@
         <span id="receipt-modal-details" class="receipt-details-text"></span>
         <a id="download-receipt-link" class="btn-download-icon" href="" download="photo.jpg" title="Download image" aria-label="Download image">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
         </a>
       </div>
@@ -806,8 +885,9 @@
 
     <!-- Toast Notification -->
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
   </div>
 
-  <script src="app.js"></script>
+  <script src="./app.js?v=37" defer></script>
 </body>
 </html>
