@@ -2926,3 +2926,17 @@ body {
   flex-direction: column;
   gap: 2px;
 }
+
+
+.movable-menu-fab.drag-ready {
+  transform: scale(1.18) !important;
+  box-shadow: 0 10px 28px rgba(79, 70, 229, 0.65) !important;
+  border-color: #ffffff !important;
+  cursor: grabbing !important;
+  animation: pulseFab 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes pulseFab {
+  from { transform: scale(1.14); }
+  to { transform: scale(1.22); }
+}

@@ -468,17 +468,17 @@ function switchTab(tabName, direction = null) {
 
 // Touch Swipe Gesture Handler (Dashboard <-> Analysis <-> Settings)
 
-// Movable Floating Action Button & Frosted Glass Hub
+// Movable Floating Action Button & Frosted Glass Hub (Instant Tap to Open, Long-Press to Drag)
 function initMovableMenuFAB() {
   const fab = dom.movableMenuBtn;
   if (!fab) return;
 
-  // Restore saved position
+  // Restore user's saved position across app launches
   try {
     const savedPos = localStorage.getItem(STORAGE_KEYS.fabPos);
     if (savedPos) {
       const { left, top } = JSON.parse(savedPos);
-      if (left && top && left < window.innerWidth && top < window.innerHeight) {
+      if (left !== undefined && top !== undefined && left < window.innerWidth && top < window.innerHeight) {
         fab.style.left = `${left}px`;
         fab.style.top = `${top}px`;
         fab.style.bottom = "auto";
@@ -486,14 +486,18 @@ function initMovableMenuFAB() {
     }
   } catch (e) {}
 
-  let isDragging = false;
+  let longPressTimer = null;
+  let isDragMode = false;
+  let hasMoved = false;
   let startX = 0, startY = 0;
   let initialLeft = 0, initialTop = 0;
-  let hasMoved = false;
+  let pressStartTime = 0;
 
   const onPointerDown = (e) => {
-    isDragging = true;
+    pressStartTime = Date.now();
     hasMoved = false;
+    isDragMode = false;
+
     startX = e.clientX || (e.touches && e.touches[0].clientX);
     startY = e.clientY || (e.touches && e.touches[0].clientY);
 
@@ -501,40 +505,66 @@ function initMovableMenuFAB() {
     initialLeft = rect.left;
     initialTop = rect.top;
 
+    clearTimeout(longPressTimer);
+
+    // Long press threshold: 1.5 seconds to unlock drag mode
+    longPressTimer = setTimeout(() => {
+      isDragMode = true;
+      fab.classList.add("drag-ready");
+
+      // Haptic feedback on mobile if supported
+      if (typeof navigator.vibrate === "function") {
+        try { navigator.vibrate([35, 40, 35]); } catch (err) {}
+      }
+
+      showToast("Ready to move! Drag to reposition.");
+    }, 1500);
+
     fab.setPointerCapture?.(e.pointerId);
   };
 
   const onPointerMove = (e) => {
-    if (!isDragging) return;
     const curX = e.clientX || (e.touches && e.touches[0].clientX);
     const curY = e.clientY || (e.touches && e.touches[0].clientY);
     const dx = curX - startX;
     const dy = curY - startY;
 
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-      hasMoved = true;
+    // If user moves finger > 8px before long press completes, cancel long press
+    if (!isDragMode) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        clearTimeout(longPressTimer);
+      }
+      return;
     }
 
-    if (hasMoved) {
-      const newLeft = Math.max(10, Math.min(window.innerWidth - 62, initialLeft + dx));
-      const newTop = Math.max(50, Math.min(window.innerHeight - 70, initialTop + dy));
+    // In drag mode: smoothly reposition with screen boundary clamping
+    hasMoved = true;
+    const newLeft = Math.max(10, Math.min(window.innerWidth - 62, initialLeft + dx));
+    const newTop = Math.max(50, Math.min(window.innerHeight - 70, initialTop + dy));
 
-      fab.style.left = `${newLeft}px`;
-      fab.style.top = `${newTop}px`;
-      fab.style.bottom = "auto";
-    }
+    fab.style.left = `${newLeft}px`;
+    fab.style.top = `${newTop}px`;
+    fab.style.bottom = "auto";
   };
 
   const onPointerUp = (e) => {
-    if (!isDragging) return;
-    isDragging = false;
+    clearTimeout(longPressTimer);
+    const pressDuration = Date.now() - pressStartTime;
 
-    if (hasMoved) {
-      // Save position
-      const rect = fab.getBoundingClientRect();
-      localStorage.setItem(STORAGE_KEYS.fabPos, JSON.stringify({ left: rect.left, top: rect.top }));
-    } else {
-      // Tap without drag -> Open Frosted Glass Hub
+    if (isDragMode) {
+      fab.classList.remove("drag-ready");
+      isDragMode = false;
+
+      if (hasMoved) {
+        // Save new position
+        const rect = fab.getBoundingClientRect();
+        localStorage.setItem(STORAGE_KEYS.fabPos, JSON.stringify({ left: rect.left, top: rect.top }));
+      }
+      return; // Do NOT open nav hub after dragging
+    }
+
+    // Quick tap (< 1500ms without dragging) -> Instantly open navigation hub!
+    if (pressDuration < 1500 && !hasMoved) {
       openNavHub();
     }
   };
@@ -555,7 +585,7 @@ function initMovableMenuFAB() {
     });
   }
 
-  // Hub Item Click Listeners
+  // Hub Item Click Listeners (2x2 Grid)
   document.querySelectorAll(".hub-item-card").forEach(card => {
     card.addEventListener("click", () => {
       const tab = card.dataset.tab;
