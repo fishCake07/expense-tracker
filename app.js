@@ -594,7 +594,7 @@ function initSwipeGestures() {
 
     // Ignore touches starting inside inputs, charts with horizontal scroll, or open dialogs
     const target = e.target;
-    isIgnoredTarget = !!target.closest("input, select, textarea, .chart-scroll-container, dialog[open], .emoji-btn, .color-swatch-btn");
+    isIgnoredTarget = !!target.closest("input, select, textarea, dialog[open], .emoji-btn, .color-swatch-btn, .movable-menu-fab");
   }, { passive: true });
 
   document.addEventListener("touchend", (e) => {
