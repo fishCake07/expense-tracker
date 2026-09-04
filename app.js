@@ -504,6 +504,10 @@ function updateRollingNavBar() {
 
   if (dom.rollerCurrent) {
     dom.rollerCurrent.textContent = currentTab.toUpperCase();
+    // Re-trigger scale-in animation (small to big)
+    dom.rollerCurrent.classList.remove("scale-animate");
+    void dom.rollerCurrent.offsetWidth; // force reflow
+    dom.rollerCurrent.classList.add("scale-animate");
   }
 
   // Previous Page Side Indicator
@@ -1492,8 +1496,12 @@ function render() {
   dom.editCurrency.textContent = state.currency;
   renderHeroSpendableGaugeAndMetrics();
   renderSubscriptions();
+  renderLoans();
+  renderDashboardInstallments();
   renderBreakdown();
   renderTransactionList();
+  renderAnalysisPieChart();
+  updateRollingNavBar();
 }
 
 // Hero Two-Tone Spendable Gauge & Monthly Metrics (Prevents Wealth Illusion)

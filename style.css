@@ -43,6 +43,7 @@
   margin: 0;
   padding: 0;
   min-width: 0; /* CRITICAL: Allows flex and grid children to shrink instead of overflowing horizontally */
+  -webkit-tap-highlight-color: transparent; /* Clean native feel on iOS/Android: removes gray tap flash */
 }
 
 html, body {
@@ -246,7 +247,7 @@ body {
   padding-top: 6px;
   padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -3px 14px rgba(0, 0, 0, 0.06);
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
 }
 
 @media (min-width: 768px) {
@@ -2644,8 +2645,8 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  -webkit--webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   z-index: 2000;
   display: flex;
   align-items: center;
@@ -2964,6 +2965,8 @@ body {
   justify-content: center;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   max-width: 32%;
+  min-height: 44px; /* Apple HIG minimum touch target */
+  min-width: 44px;
 }
 
 .nav-roller-side:hover {
@@ -3168,6 +3171,7 @@ body {
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, filter 0.2s ease;
   stroke: var(--bg-surface);
   stroke-width: 1.5px;
+  transform-origin: 0 0; /* Critical for iOS Safari: prevents SVG slices from jumping off-center */
 }
 
 .pie-slice:hover {
@@ -3231,4 +3235,20 @@ body {
   color: var(--text-main);
   flex-shrink: 0;
   margin-left: 0.5rem;
+}
+
+
+@keyframes rollerScaleIn {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.nav-roller-center.scale-animate {
+  animation: rollerScaleIn 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
