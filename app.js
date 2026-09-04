@@ -468,12 +468,12 @@ function switchTab(tabName, direction = null) {
 
 // Touch Swipe Gesture Handler (Dashboard <-> Analysis <-> Settings)
 
-// Movable Floating Action Button & Frosted Glass Hub (Instant Tap to Open, Long-Press to Drag)
+// Movable Floating Action Button & Frosted Glass Hub (Rock-Solid Tap & 1.5s Long-Press Drag)
 function initMovableMenuFAB() {
   const fab = dom.movableMenuBtn;
   if (!fab) return;
 
-  // Restore user's saved position across app launches
+  // Restore saved position
   try {
     const savedPos = localStorage.getItem(STORAGE_KEYS.fabPos);
     if (savedPos) {
@@ -487,19 +487,17 @@ function initMovableMenuFAB() {
   } catch (e) {}
 
   let longPressTimer = null;
-  let isDragMode = false;
-  let hasMoved = false;
+  let isDragActive = false;
+  let wasDragged = false;
   let startX = 0, startY = 0;
   let initialLeft = 0, initialTop = 0;
-  let pressStartTime = 0;
 
   const onPointerDown = (e) => {
-    pressStartTime = Date.now();
-    hasMoved = false;
-    isDragMode = false;
+    isDragActive = false;
+    wasDragged = false;
 
-    startX = e.clientX || (e.touches && e.touches[0].clientX);
-    startY = e.clientY || (e.touches && e.touches[0].clientY);
+    startX = e.clientX;
+    startY = e.clientY;
 
     const rect = fab.getBoundingClientRect();
     initialLeft = rect.left;
@@ -507,38 +505,34 @@ function initMovableMenuFAB() {
 
     clearTimeout(longPressTimer);
 
-    // Long press threshold: 1.5 seconds to unlock drag mode
+    // 1.5s hold threshold to unlock dragging
     longPressTimer = setTimeout(() => {
-      isDragMode = true;
+      isDragActive = true;
+      wasDragged = true;
       fab.classList.add("drag-ready");
 
-      // Haptic feedback on mobile if supported
       if (typeof navigator.vibrate === "function") {
         try { navigator.vibrate([35, 40, 35]); } catch (err) {}
       }
 
       showToast("Ready to move! Drag to reposition.");
     }, 1500);
-
-    fab.setPointerCapture?.(e.pointerId);
   };
 
   const onPointerMove = (e) => {
-    const curX = e.clientX || (e.touches && e.touches[0].clientX);
-    const curY = e.clientY || (e.touches && e.touches[0].clientY);
-    const dx = curX - startX;
-    const dy = curY - startY;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
 
-    // If user moves finger > 8px before long press completes, cancel long press
-    if (!isDragMode) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+    // If moved before 1.5s hold completed, cancel long-press
+    if (!isDragActive) {
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
         clearTimeout(longPressTimer);
       }
       return;
     }
 
-    // In drag mode: smoothly reposition with screen boundary clamping
-    hasMoved = true;
+    // Dragging mode active
+    wasDragged = true;
     const newLeft = Math.max(10, Math.min(window.innerWidth - 62, initialLeft + dx));
     const newTop = Math.max(50, Math.min(window.innerHeight - 70, initialTop + dy));
 
@@ -547,32 +541,33 @@ function initMovableMenuFAB() {
     fab.style.bottom = "auto";
   };
 
-  const onPointerUp = (e) => {
+  const onPointerUp = () => {
     clearTimeout(longPressTimer);
-    const pressDuration = Date.now() - pressStartTime;
 
-    if (isDragMode) {
+    if (isDragActive) {
       fab.classList.remove("drag-ready");
-      isDragMode = false;
+      isDragActive = false;
 
-      if (hasMoved) {
-        // Save new position
-        const rect = fab.getBoundingClientRect();
-        localStorage.setItem(STORAGE_KEYS.fabPos, JSON.stringify({ left: rect.left, top: rect.top }));
-      }
-      return; // Do NOT open nav hub after dragging
-    }
-
-    // Quick tap (< 1500ms without dragging) -> Instantly open navigation hub!
-    if (pressDuration < 1500 && !hasMoved) {
-      openNavHub();
+      // Save position
+      const rect = fab.getBoundingClientRect();
+      localStorage.setItem(STORAGE_KEYS.fabPos, JSON.stringify({ left: rect.left, top: rect.top }));
     }
   };
 
   fab.addEventListener("pointerdown", onPointerDown);
-  fab.addEventListener("pointermove", onPointerMove);
-  fab.addEventListener("pointerup", onPointerUp);
-  fab.addEventListener("pointercancel", onPointerUp);
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
+
+  // Native click event: 100% reliable on iOS & Android on a normal single tap!
+  fab.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (wasDragged) {
+      wasDragged = false;
+      return; // Do not open menu if user just finished dragging
+    }
+    openNavHub();
+  });
 
   // Hub Close Listeners
   if (dom.closeNavHubBtn) {
