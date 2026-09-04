@@ -1,4 +1,4 @@
-const CACHE_NAME = "expense-tracker-cache-v32";
+const CACHE_NAME = "expense-tracker-cache-v33";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -9,16 +9,17 @@ const ASSETS_TO_CACHE = [
   "./icons/icon-512.png"
 ];
 
-// Install Event
+// Install Event: Cache all assets and force immediate activation
 self.addEventListener("install", (e) => {
+  self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
-// Activate Event
+// Activate Event: Purge all old caches and claim all clients immediately
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -33,29 +34,29 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Fetch Event (Cache-first with network fallback)
+// Fetch Event: NETWORK-FIRST with offline Cache fallback (Crucial for iOS PWA updates)
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
-  
+
   e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(e.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== "basic") {
-          return networkResponse;
+    fetch(e.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(e.request, responseToCache);
+          });
         }
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(e.request, responseToCache);
-        });
         return networkResponse;
-      }).catch(() => {
-        if (e.request.mode === "navigate") {
-          return caches.match("./index.html");
-        }
-      });
-    })
+      })
+      .catch(() => {
+        // Offline fallback
+        return caches.match(e.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          if (e.request.mode === "navigate") {
+            return caches.match("./index.html");
+          }
+        });
+      })
   );
 });

@@ -829,6 +829,21 @@ function bindEvents() {
   dom.settingsImportBtn.addEventListener("click", () => dom.settingsFileInput.click());
   dom.settingsFileInput.addEventListener("change", handleFileImport);
 
+  const purgeBtn = document.getElementById("force-update-cache-btn");
+  if (purgeBtn) {
+    purgeBtn.addEventListener("click", () => {
+      if ("caches" in window) {
+        caches.keys().then(names => Promise.all(names.map(n => caches.delete(n))))
+          .then(() => {
+            showToast("Cache purged! Reloading latest build...");
+            setTimeout(() => { window.location.reload(true); }, 500);
+          });
+      } else {
+        window.location.reload(true);
+      }
+    });
+  }
+
   // Subscriptions 3-Wallet Pill Selection (Cash excluded)
   document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -2434,6 +2449,8 @@ function resetAllFilters() {
 
 // Malaysian Working Professional (打工族) Real-Life Simulation (Jan 1 to Sep 3, 2026)
 function loadSampleData() {
+  // Completely wipe existing transactions to prevent stacking
+  state.transactions = [];
   const receipts = {
     dining: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500" style="background:#fff;font-family:monospace;padding:20px;">
