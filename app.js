@@ -58,6 +58,21 @@ const STORAGE_KEYS = {
 const $ = (id) => document.getElementById(id);
 const dom = {
   form: $("expense-form"),
+  // Rolling Bar DOM
+  rollingNavBar: $("rolling-nav-bar"),
+  rollerPrev: $("roller-prev"),
+  rollerPrevText: $("roller-prev-text"),
+  rollerCurrent: $("roller-current"),
+  rollerNext: $("roller-next"),
+  rollerNextText: $("roller-next-text"),
+  // Dashboard Action Buttons & Installment Summary DOM
+  btnDashAddTx: $("btn-dash-add-tx"),
+  btnDashAddCommit: $("btn-dash-add-commit"),
+  dashboardInstallmentsList: $("dashboard-installments-list"),
+  // Analysis Pie Chart DOM
+  pieChartMonthSelect: $("pie-chart-month-select"),
+  categoryPieChart: $("category-pie-chart"),
+  pieChartBreakdownList: $("pie-chart-breakdown-list"),
   // Movable FAB & Frosted Glass Hub
   movableMenuBtn: $("movable-menu-btn"),
   navHubBackdrop: $("nav-hub-backdrop"),
@@ -241,6 +256,8 @@ function init() {
   dom.filterPeriod.value = state.periodFilter;
   bindEvents();
   render();
+  updateRollingNavBar();
+  renderDashboardInstallments();
   registerSW();
   initSwipeGestures();
   initMovableMenuFAB();
@@ -424,7 +441,7 @@ function applyTheme(theme) {
 }
 
 // Navigation Tabs Router (Direction-Aware Slide & Haptic)
-const TAB_ORDER = ["dashboard", "loans", "analysis", "settings"];
+const TAB_ORDER = ["commitments", "transactions", "dashboard", "analysis", "settings"];
 
 function switchTab(tabName, direction = null) {
   if (state.activeTab === tabName) return;
@@ -461,9 +478,55 @@ function switchTab(tabName, direction = null) {
     try { navigator.vibrate(12); } catch (e) {}
   }
 
-  if (tabName === "loans") renderLoans();
-  if (tabName === "analysis") renderAnalysis();
-  if (tabName === "settings") renderSettings();
+  updateRollingNavBar();
+
+  if (tabName === "commitments") {
+    renderSubscriptions();
+    renderLoans();
+  } else if (tabName === "transactions") {
+    renderBreakdown();
+    renderTransactionList();
+  } else if (tabName === "dashboard") {
+    renderHeroSpendableGaugeAndMetrics();
+    renderDashboardInstallments();
+  } else if (tabName === "analysis") {
+    renderAnalysis();
+    renderAnalysisPieChart();
+  } else if (tabName === "settings") {
+    renderSettings();
+  }
+}
+
+// Dynamic Rolling Header Carousel Engine
+function updateRollingNavBar() {
+  const currentTab = state.activeTab || "dashboard";
+  const idx = TAB_ORDER.indexOf(currentTab);
+
+  if (dom.rollerCurrent) {
+    dom.rollerCurrent.textContent = currentTab.toUpperCase();
+  }
+
+  // Previous Page Side Indicator
+  if (dom.rollerPrev && dom.rollerPrevText) {
+    if (idx > 0) {
+      dom.rollerPrev.style.visibility = "visible";
+      dom.rollerPrevText.textContent = TAB_ORDER[idx - 1].toUpperCase();
+    } else {
+      dom.rollerPrev.style.visibility = "hidden";
+      dom.rollerPrevText.textContent = "";
+    }
+  }
+
+  // Next Page Side Indicator
+  if (dom.rollerNext && dom.rollerNextText) {
+    if (idx < TAB_ORDER.length - 1) {
+      dom.rollerNext.style.visibility = "visible";
+      dom.rollerNextText.textContent = TAB_ORDER[idx + 1].toUpperCase();
+    } else {
+      dom.rollerNext.style.visibility = "hidden";
+      dom.rollerNextText.textContent = "";
+    }
+  }
 }
 
 // Touch Swipe Gesture Handler (Dashboard <-> Analysis <-> Settings)
@@ -741,6 +804,43 @@ function bindEvents() {
   });
 
   dom.loadSampleBtn.addEventListener("click", loadSampleData);
+
+  // Rolling Navigation Bar Carousel Clicks
+  if (dom.rollerPrev) {
+    dom.rollerPrev.addEventListener("click", () => {
+      const idx = TAB_ORDER.indexOf(state.activeTab);
+      if (idx > 0) switchTab(TAB_ORDER[idx - 1], "backward");
+    });
+  }
+
+  if (dom.rollerNext) {
+    dom.rollerNext.addEventListener("click", () => {
+      const idx = TAB_ORDER.indexOf(state.activeTab);
+      if (idx < TAB_ORDER.length - 1) switchTab(TAB_ORDER[idx + 1], "forward");
+    });
+  }
+
+  // Dashboard Primary Action Buttons (Option 1 Gradients)
+  if (dom.btnDashAddTx) {
+    dom.btnDashAddTx.addEventListener("click", () => {
+      switchTab("transactions", "backward");
+      setTimeout(() => { dom.amount?.focus(); }, 250);
+    });
+  }
+
+  if (dom.btnDashAddCommit) {
+    dom.btnDashAddCommit.addEventListener("click", () => {
+      switchTab("commitments", "backward");
+    });
+  }
+
+  // Analysis Pie Chart Month Select
+  if (dom.pieChartMonthSelect) {
+    dom.pieChartMonthSelect.addEventListener("change", (e) => {
+      selectedPieMonth = e.target.value;
+      renderAnalysisPieChart();
+    });
+  }
 
   // Search & Period Listeners
   dom.searchInput.addEventListener("input", (e) => {
@@ -1871,6 +1971,144 @@ function calculateSimResults() {
     dom.simTimeSaved.textContent = `${monthsSaved} mos`;
     dom.simInterestSaved.textContent = formatCurrency(0);
   }
+}
+
+
+// Dashboard Installment Progress Summary Renderer
+function renderDashboardInstallments() {
+  if (!dom.dashboardInstallmentsList) return;
+
+  if (!state.loans || !state.loans.length) {
+    dom.dashboardInstallmentsList.innerHTML = `<p class="empty-state">No active installments. Tap "+ Add Commitment" to start tracking.</p>`;
+    return;
+  }
+
+  dom.dashboardInstallmentsList.innerHTML = state.loans.map(ln => {
+    const orig = ln.originalPrincipal || ln.principal;
+    const rem = ln.remainingPrincipal || ln.principal;
+    const paid = Math.max(0, orig - rem);
+    const pct = orig > 0 ? ((paid / orig) * 100).toFixed(1) : 0;
+    const icon = ln.type === "CAR_EIR" || ln.type === "CAR_FLAT" ? "🚗" : (ln.type === "HOME_SBR" ? "🏠" : (ln.type === "PTPTN" ? "🎓" : "📱"));
+
+    return `
+      <div class="dash-installment-item" onclick="switchTab('commitments')" style="cursor:pointer;" title="Tap to view commitments">
+        <div class="dash-installment-header">
+          <span>${icon} ${escapeHtml(ln.name)}</span>
+          <span style="color:var(--primary); font-size:0.8rem;">${pct}% paid</span>
+        </div>
+        <div class="dash-installment-track">
+          <div class="dash-installment-fill" style="width:${pct}%;"></div>
+        </div>
+        <div class="dash-installment-meta">
+          <span>${formatCurrency(ln.monthlyInstallment)} / mo</span>
+          <span>${formatCurrency(rem)} left</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// Analysis Monthly Pie Chart Engine
+let selectedPieMonth = "";
+
+function renderAnalysisPieChart() {
+  if (!dom.categoryPieChart || !dom.pieChartBreakdownList) return;
+
+  // 1. Populate Month Dropdown
+  const months = new Set();
+  state.transactions.forEach(t => {
+    if (t.date && t.date.length >= 7) months.add(t.date.substring(0, 7));
+  });
+
+  const sortedMonths = Array.from(months).sort().reverse();
+  const currentLocalYm = getLocalDateString().substring(0, 7);
+  if (!sortedMonths.includes(currentLocalYm)) sortedMonths.unshift(currentLocalYm);
+
+  if (!selectedPieMonth || !sortedMonths.includes(selectedPieMonth)) {
+    selectedPieMonth = sortedMonths[0];
+  }
+
+  if (dom.pieChartMonthSelect) {
+    dom.pieChartMonthSelect.innerHTML = sortedMonths.map(ym => {
+      const [y, m] = ym.split("-");
+      const d = new Date(y, m - 1, 1);
+      const label = d.toLocaleString(undefined, { month: "long", year: "numeric" });
+      return `<option value="${ym}" ${ym === selectedPieMonth ? "selected" : ""}>${label}</option>`;
+    }).join("");
+  }
+
+  // 2. Filter Expenses for Selected Month
+  const monthExpenses = state.transactions.filter(t => {
+    return (t.type || "expense") === "expense" && t.date && t.date.startsWith(selectedPieMonth);
+  });
+
+  const total = monthExpenses.reduce((s, t) => s + t.amount, 0);
+
+  if (!total || !monthExpenses.length) {
+    dom.categoryPieChart.innerHTML = `<circle cx="0" cy="0" r="90" fill="var(--bg-subtle)" stroke="var(--border-color)" stroke-width="2"></circle><text x="0" y="5" font-size="12" font-weight="700" fill="var(--text-muted)" text-anchor="middle">No Expenses</text>`;
+    dom.pieChartBreakdownList.innerHTML = `<p class="empty-state">No category expenses found for this month.</p>`;
+    return;
+  }
+
+  // 3. Aggregate by Category & Sort Descending
+  const catTotals = {};
+  monthExpenses.forEach(t => {
+    catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
+  });
+
+  const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+
+  // 4. Render SVG Pie Slices (Polar to Cartesian SVG Paths)
+  let cumulativeAngle = 0;
+  const radius = 90;
+  let svgPaths = "";
+
+  sortedCats.forEach(([cat, amt]) => {
+    const sliceAngle = (amt / total) * 360;
+    const startAngle = cumulativeAngle;
+    const endAngle = cumulativeAngle + sliceAngle;
+
+    // Convert angles to radians
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+
+    const x1 = radius * Math.cos(startRad);
+    const y1 = radius * Math.sin(startRad);
+    const x2 = radius * Math.cos(endRad);
+    const y2 = radius * Math.sin(endRad);
+
+    const largeArcFlag = sliceAngle > 180 ? 1 : 0;
+    const color = getCategoryColor(cat);
+
+    let d = "";
+    if (sliceAngle >= 359.99) {
+      d = `M 0 -${radius} A ${radius} ${radius} 0 1 1 0 ${radius} A ${radius} ${radius} 0 1 1 0 -${radius} Z`;
+    } else {
+      d = `M 0 0 L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+    }
+
+    svgPaths += `<path class="pie-slice" d="${d}" fill="${color}" data-cat="${cat}" data-amt="${amt}" data-pct="${((amt/total)*100).toFixed(1)}"><title>${cat}: ${formatCurrency(amt)} (${((amt/total)*100).toFixed(1)}%)</title></path>`;
+    cumulativeAngle += sliceAngle;
+  });
+
+  dom.categoryPieChart.innerHTML = svgPaths;
+
+  // 5. Render Breakdown List Cards Below (Percentage badge + Category + Price)
+  dom.pieChartBreakdownList.innerHTML = sortedCats.map(([cat, amt]) => {
+    const pct = ((amt / total) * 100).toFixed(0);
+    const color = getCategoryColor(cat);
+    const icon = getCategoryIcon(cat);
+
+    return `
+      <div class="pie-category-row-card">
+        <div class="pie-card-left">
+          <span class="pie-pct-badge" style="background-color:${color};">${pct}%</span>
+          <span class="pie-cat-title">${icon} ${escapeHtml(cat)}</span>
+        </div>
+        <span class="pie-cat-amount">${formatCurrency(amt)}</span>
+      </div>
+    `;
+  }).join("");
 }
 
 function renderBreakdown() {
