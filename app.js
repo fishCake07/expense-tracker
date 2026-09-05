@@ -40,8 +40,12 @@ const state = {
   autoSweepSurplus: false,
   loans: [],
   creditCards: [],
+  debitCards: [],
   notifications: [],
   activeNotifTab: "all",
+  selectedCardId: null,
+  selectedCardType: null,
+  selectedCardName: null,
   attachedReceipt: null,
   editAttachedReceipt: null
 };
@@ -55,6 +59,7 @@ const STORAGE_KEYS = {
   autoSweep: "expense_tracker_auto_sweep_v1",
   loans: "expense_tracker_loans_v1",
   cards: "expense_tracker_credit_cards_v1",
+  debitCards: "expense_tracker_debit_cards_v1",
   notifications: "expense_tracker_notifications_v1",
   lastSeenRelease: "expense_tracker_last_seen_release_v1",
   fabPos: "expense_tracker_fab_pos_v1"
@@ -211,9 +216,31 @@ const dom = {
   // Header Notification Bell DOM
   openNotificationsBtn: $("open-notifications-btn"),
   notifBadgeCount: $("notif-badge-count"),
+  // Card Picker & Selected Inputs
+  walletPillCardBtn: $("wallet-pill-card-btn"),
+  selectedCardId: $("selected-card-id"),
+  selectedCardType: $("selected-card-type"),
+  selectedCardName: $("selected-card-name"),
+  cardPickerModal: $("card-picker-modal"),
+  closeCardPickerBtn: $("close-card-picker-btn"),
+  pickerCreditCardsList: $("picker-credit-cards-list"),
+  pickerDebitCardsList: $("picker-debit-cards-list"),
+  pickerAddCardBtn: $("picker-add-card-btn"),
   // Credit Cards Section DOM
   cardsTotalCommitment: $("cards-total-commitment"),
   creditCardsGrid: $("credit-cards-grid"),
+  // Debit Cards Section DOM
+  debitCardsTotalSpend: $("debit-cards-total-spend"),
+  debitCardsGrid: $("debit-cards-grid"),
+  openAddDebitCardBtn: $("open-add-debit-card-btn"),
+  debitCardDialog: $("debit-card-dialog"),
+  closeDebitCardBtn: $("close-debit-card-btn"),
+  cancelDebitCardBtn: $("cancel-debit-card-btn"),
+  debitCardForm: $("debit-card-form"),
+  debitCardEditId: $("debit-card-edit-id"),
+  debitCardName: $("debit-card-name"),
+  debitCardBank: $("debit-card-bank"),
+  debitCardInitialSpent: $("debit-card-initial-spent"),
   openAddCardBtn: $("open-add-card-btn"),
   cardDialog: $("card-dialog"),
   closeCardModalBtn: $("close-card-modal-btn"),
@@ -367,6 +394,8 @@ function loadStorage() {
     if (ln) state.loans = JSON.parse(ln);
     const cd = localStorage.getItem(STORAGE_KEYS.cards);
     if (cd) state.creditCards = JSON.parse(cd);
+    const dcd = localStorage.getItem(STORAGE_KEYS.debitCards);
+    if (dcd) state.debitCards = JSON.parse(dcd);
     const nt = localStorage.getItem(STORAGE_KEYS.notifications);
     if (nt) state.notifications = JSON.parse(nt);
   } catch (e) {
@@ -384,6 +413,7 @@ function saveStorage() {
     localStorage.setItem(STORAGE_KEYS.autoSweep, state.autoSweepSurplus ? "true" : "false");
     localStorage.setItem(STORAGE_KEYS.loans, JSON.stringify(state.loans));
     localStorage.setItem(STORAGE_KEYS.cards, JSON.stringify(state.creditCards));
+    localStorage.setItem(STORAGE_KEYS.debitCards, JSON.stringify(state.debitCards));
     localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(state.notifications));
   } catch (e) {}
 }
@@ -526,6 +556,8 @@ function switchTab(tabName, direction = null) {
 
   if (tabName === "commitments") {
     renderSubscriptions();
+    renderCreditCards();
+    renderDebitCards();
     renderLoans();
   } else if (tabName === "transactions") {
     renderBreakdown();
@@ -1070,14 +1102,51 @@ function bindEvents() {
     });
   });
 
-  // Wallet Pill Selection (Queue Item 1)
+  // Wallet Pill Selection (Queue Item 1 & Multi-Card Picker)
   document.querySelectorAll(".wallet-pill-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".wallet-pill-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      if (dom.selectedWalletInput) dom.selectedWalletInput.value = btn.dataset.wallet;
+      if (btn.id === "wallet-pill-card-btn") {
+        // If tapping [ 💳 Card ], pop up Card Picker Modal to choose specific credit or debit card!
+        openCardPicker();
+      } else {
+        document.querySelectorAll(".wallet-pill-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        if (dom.selectedWalletInput) dom.selectedWalletInput.value = btn.dataset.wallet;
+        state.selectedCardId = null;
+        state.selectedCardType = null;
+        state.selectedCardName = null;
+        if (dom.walletPillCardBtn) dom.walletPillCardBtn.textContent = "💳 Card";
+      }
     });
   });
+
+  // Card Picker Modal Listeners
+  if (dom.closeCardPickerBtn) {
+    dom.closeCardPickerBtn.addEventListener("click", () => dom.cardPickerModal.close());
+  }
+
+  if (dom.pickerAddCardBtn) {
+    dom.pickerAddCardBtn.addEventListener("click", () => {
+      dom.cardPickerModal.close();
+      switchTab("commitments", "backward");
+    });
+  }
+
+  // Debit Card Modal Handlers
+  if (dom.openAddDebitCardBtn) {
+    dom.openAddDebitCardBtn.addEventListener("click", () => {
+      dom.debitCardEditId.value = "";
+      dom.debitCardName.value = "";
+      dom.debitCardBank.value = "Maybank";
+      dom.debitCardInitialSpent.value = "0.00";
+      $("debit-card-modal-title").textContent = "Add New Debit Card";
+      dom.debitCardDialog?.showModal ? dom.debitCardDialog.showModal() : alert("Add debit card dialog");
+    });
+  }
+
+  if (dom.closeDebitCardBtn) dom.closeDebitCardBtn.addEventListener("click", () => dom.debitCardDialog.close());
+  if (dom.cancelDebitCardBtn) dom.cancelDebitCardBtn.addEventListener("click", () => dom.debitCardDialog.close());
+  if (dom.debitCardForm) dom.debitCardForm.addEventListener("submit", handleSaveDebitCard);
 
   // Theme Buttons (Option 7)
   document.querySelectorAll(".theme-btn").forEach(btn => {
@@ -1294,17 +1363,36 @@ function handleAddTransaction(e) {
 
   const chosenWallet = dom.selectedWalletInput ? dom.selectedWalletInput.value : "Bank Account";
   
-  // Auto-accumulate unbilled spending on credit card
-  if (chosenWallet === "Credit Card" && state.currentFormType === "expense" && state.creditCards && state.creditCards.length > 0) {
-    state.creditCards[0].unbilledBalance = Number((state.creditCards[0].unbilledBalance + amt).toFixed(2));
+  const cardId = dom.selectedCardId ? dom.selectedCardId.value : state.selectedCardId;
+  const cardType = dom.selectedCardType ? dom.selectedCardType.value : state.selectedCardType;
+  const cardName = dom.selectedCardName ? dom.selectedCardName.value : state.selectedCardName;
+
+  // Automation for Credit Card vs Debit Card
+  if (chosenWallet === "Credit Card" || chosenWallet === "Card" || chosenWallet === "Debit Card") {
+    if (cardType === "credit") {
+      const targetCard = state.creditCards.find(c => c.id === cardId) || state.creditCards[0];
+      if (targetCard && state.currentFormType === "expense") {
+        targetCard.unbilledBalance = Number((targetCard.unbilledBalance + amt).toFixed(2));
+      }
+    } else if (cardType === "debit") {
+      const targetDebit = state.debitCards.find(dc => dc.id === cardId) || state.debitCards[0];
+      if (targetDebit && state.currentFormType === "expense") {
+        targetDebit.totalSpentThisMonth = Number(((targetDebit.totalSpentThisMonth || 0) + amt).toFixed(2));
+      }
+    }
   }
+
+  const effectiveWallet = cardType === "debit" ? "Debit Card" : (cardType === "credit" ? "Credit Card" : chosenWallet);
 
   state.transactions.unshift({
     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     type: state.currentFormType,
     amount: Number(amt.toFixed(2)),
     category: cat,
-    wallet: chosenWallet,
+    wallet: effectiveWallet,
+    cardId: cardId || null,
+    cardName: cardName || null,
+    cardType: cardType || null,
     receiptImage: state.attachedReceipt || null,
     date: dt,
     note: nt || cat,
@@ -1640,6 +1728,7 @@ function render() {
   renderHeroSpendableGaugeAndMetrics();
   renderSubscriptions();
   renderCreditCards();
+  renderDebitCards();
   renderLoans();
   renderDashboardInstallments();
   renderBreakdown();
@@ -2030,6 +2119,202 @@ function dismissNotification(notifId) {
     updateNotificationBadge();
     renderNotificationsFeed();
   }
+}
+
+
+// ================= DEBIT CARDS & CARD PICKER ENGINES =================
+function renderDebitCards() {
+  if (!dom.debitCardsGrid) return;
+
+  const currentYm = getLocalDateString().substring(0, 7);
+  let totalDebitSpend = 0;
+
+  state.debitCards.forEach(dc => {
+    totalDebitSpend += (dc.totalSpentThisMonth || 0);
+  });
+
+  if (dom.debitCardsTotalSpend) {
+    dom.debitCardsTotalSpend.textContent = `Monthly Debit Spending: ${formatCurrency(totalDebitSpend)} • 0% DSR`;
+  }
+
+  if (!state.debitCards.length) {
+    dom.debitCardsGrid.innerHTML = `<p class="empty-state">No debit cards added. Click "+ Add Debit Card" to track direct bank card spending.</p>`;
+    return;
+  }
+
+  dom.debitCardsGrid.innerHTML = state.debitCards.map(dc => {
+    const spent = dc.totalSpentThisMonth || 0;
+    return `
+      <div class="debit-card-item" data-bank="${escapeHtml(dc.bank)}" data-id="${dc.id}">
+        <div class="card-top-row">
+          <div class="card-identity">
+            <div class="card-chip-box" style="border-color:#10b981;">💳</div>
+            <div>
+              <div class="card-title-text">${escapeHtml(dc.name)}</div>
+              <div class="card-bank-sub">${escapeHtml(dc.bank)} • Direct Bank Account Debit</div>
+            </div>
+          </div>
+          <button type="button" class="btn-delete" title="Delete debit card" onclick="deleteDebitCard('${dc.id}')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </button>
+        </div>
+
+        <div class="card-balances-row">
+          <div class="card-balance-col" style="grid-column: span 2;">
+            <span class="stat-mini-label">Spent This Month (${new Date().toLocaleString(undefined, { month: "short" })})</span>
+            <strong class="card-balance-val">${formatCurrency(spent)}</strong>
+          </div>
+        </div>
+
+        <div class="card-dsr-row">
+          <span>DSR Status:</span>
+          <span class="badge-debit-dsr">🟢 0% DSR • Direct Debit (No Debt)</span>
+        </div>
+
+        <div class="card-actions-row">
+          <button type="button" class="btn-outline-sm" onclick="openEditDebitCardModal('${dc.id}')">
+            ✏️ Edit Debit Card
+          </button>
+          <span style="font-size:0.72rem; color:var(--text-muted);">Instant cash deduction</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function openEditDebitCardModal(cardId) {
+  const card = state.debitCards.find(c => c.id === cardId);
+  if (!card) return;
+
+  dom.debitCardEditId.value = card.id;
+  dom.debitCardName.value = card.name;
+  dom.debitCardBank.value = card.bank;
+  dom.debitCardInitialSpent.value = card.totalSpentThisMonth || 0;
+
+  $("debit-card-modal-title").textContent = "Edit Debit Card";
+  dom.debitCardDialog?.showModal ? dom.debitCardDialog.showModal() : alert("Edit debit card");
+}
+
+function deleteDebitCard(cardId) {
+  const idx = state.debitCards.findIndex(c => c.id === cardId);
+  if (idx === -1) return;
+  const deleted = state.debitCards.splice(idx, 1)[0];
+  saveStorage();
+  renderDebitCards();
+  showToast(`Deleted debit card "${deleted.name}"`);
+}
+
+function handleSaveDebitCard(e) {
+  e.preventDefault();
+  const name = dom.debitCardName.value.trim();
+  const bank = dom.debitCardBank.value;
+  const spent = parseFloat(dom.debitCardInitialSpent.value) || 0;
+
+  if (!name) return showToast("Please enter a card nickname.");
+
+  const editId = dom.debitCardEditId.value;
+  if (editId) {
+    const card = state.debitCards.find(c => c.id === editId);
+    if (card) {
+      card.name = name;
+      card.bank = bank;
+      card.totalSpentThisMonth = spent;
+      showToast(`Updated "${name}"!`);
+    }
+  } else {
+    state.debitCards.push({
+      id: "debit_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+      name,
+      bank,
+      totalSpentThisMonth: spent,
+      createdAt: Date.now()
+    });
+    showToast(`Added debit card "${name}"!`);
+  }
+
+  saveStorage();
+  renderDebitCards();
+  dom.debitCardDialog.close();
+}
+
+// Card Picker Modal (Hierarchy: Credit Cards vs Debit Cards)
+function openCardPicker() {
+  if (!dom.cardPickerModal) return;
+
+  // 1. Render Credit Cards List
+  if (dom.pickerCreditCardsList) {
+    if (!state.creditCards.length) {
+      dom.pickerCreditCardsList.innerHTML = `<p class="empty-state-sm">No credit cards added.</p>`;
+    } else {
+      dom.pickerCreditCardsList.innerHTML = state.creditCards.map(c => `
+        <div class="picker-card-option ${state.selectedCardId === c.id ? "selected" : ""}" data-id="${c.id}" data-type="credit" data-name="${escapeHtml(c.name)}">
+          <div class="picker-card-left">
+            <span class="picker-card-icon">💳</span>
+            <div>
+              <div class="picker-card-name">${escapeHtml(c.name)}</div>
+              <div class="picker-card-sub">${escapeHtml(c.bank)} • Due: Day ${c.dueDay}</div>
+            </div>
+          </div>
+          <div class="picker-card-meta">
+            <span>Unbilled: ${formatCurrency(c.unbilledBalance)}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+  }
+
+  // 2. Render Debit Cards List
+  if (dom.pickerDebitCardsList) {
+    if (!state.debitCards.length) {
+      dom.pickerDebitCardsList.innerHTML = `<p class="empty-state-sm">No debit cards added.</p>`;
+    } else {
+      dom.pickerDebitCardsList.innerHTML = state.debitCards.map(dc => `
+        <div class="picker-card-option ${state.selectedCardId === dc.id ? "selected" : ""}" data-id="${dc.id}" data-type="debit" data-name="${escapeHtml(dc.name)}">
+          <div class="picker-card-left">
+            <span class="picker-card-icon">💳</span>
+            <div>
+              <div class="picker-card-name">${escapeHtml(dc.name)}</div>
+              <div class="picker-card-sub">${escapeHtml(dc.bank)} • 0% DSR Direct Debit</div>
+            </div>
+          </div>
+          <div class="picker-card-meta">
+            <span>Spent: ${formatCurrency(dc.totalSpentThisMonth || 0)}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+  }
+
+  // Bind option clicks
+  dom.cardPickerModal.querySelectorAll(".picker-card-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      const id = opt.dataset.id;
+      const type = opt.dataset.type;
+      const name = opt.dataset.name;
+
+      state.selectedCardId = id;
+      state.selectedCardType = type;
+      state.selectedCardName = name;
+
+      if (dom.selectedCardId) dom.selectedCardId.value = id;
+      if (dom.selectedCardType) dom.selectedCardType.value = type;
+      if (dom.selectedCardName) dom.selectedCardName.value = name;
+      if (dom.selectedWalletInput) dom.selectedWalletInput.value = type === "credit" ? "Credit Card" : "Debit Card";
+
+      // Update pill button appearance
+      document.querySelectorAll(".wallet-pill-btn").forEach(b => b.classList.remove("active"));
+      if (dom.walletPillCardBtn) {
+        dom.walletPillCardBtn.classList.add("active");
+        const shortName = name.length > 14 ? name.substring(0, 12) + ".." : name;
+        dom.walletPillCardBtn.textContent = `💳 ${shortName}`;
+      }
+
+      dom.cardPickerModal.close();
+      showToast(`Selected ${name} (${type === "credit" ? "Credit Card" : "Debit Card"})`);
+    });
+  });
+
+  dom.cardPickerModal.showModal ? dom.cardPickerModal.showModal() : alert("Select card modal");
 }
 
 function renderCreditCards() {
@@ -2850,7 +3135,7 @@ function renderTransactionList() {
             <div class="tx-meta">
               <span>${formatDate(tx.date)}</span>
               <span>•</span>
-              <span class="tx-badge-wallet">${getWalletIcon(tx.wallet)} ${escapeHtml(tx.wallet || "Bank Account")}</span>
+              <span class="tx-badge-wallet">${getWalletIcon(tx.wallet)} ${escapeHtml(tx.cardName || tx.wallet || "Bank Account")}</span>
               ${tx.receiptImage ? `
                 <button type="button" class="btn-photo-icon" title="View photo / receipt" onclick="viewReceiptModal('${tx.id}')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -3534,6 +3819,17 @@ function loadSampleData() {
       payInFull: true,
       lastStatementRolledMonth: "2026-08",
       lastDuePromptedMonth: "2026-08",
+      createdAt: Date.now()
+    }
+  ];
+
+  // Sample Debit Cards: Maybank Visa Debit (Direct Bank Debit)
+  state.debitCards = [
+    {
+      id: "debit_maybank",
+      name: "Maybank Visa Debit",
+      bank: "Maybank",
+      totalSpentThisMonth: 180.00,
       createdAt: Date.now()
     }
   ];

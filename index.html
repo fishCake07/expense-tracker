@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
   <!-- Core Stylesheet with Cache-Buster -->
-  <link rel="stylesheet" href="./style.css?v=40">
+  <link rel="stylesheet" href="./style.css?v=41">
 </head>
 <body>
   <div class="app-container">
@@ -112,6 +112,22 @@
         </div>
       </section>
 
+      <!-- Debit Cards Section (Direct Bank Deductions • 0% DSR) -->
+      <section class="card debit-cards-section">
+        <div class="card-header">
+          <div>
+            <h2>Debit Cards</h2>
+            <span class="sub-total-commitment" id="debit-cards-total-spend">Monthly Debit Spending: RM 0.00 • 0% DSR</span>
+          </div>
+          <button type="button" id="open-add-debit-card-btn" class="btn-primary-sm">
+            ➕ Add Debit Card
+          </button>
+        </div>
+        <div class="debit-cards-grid" id="debit-cards-grid">
+          <p class="empty-state">No debit cards added. Click "+ Add Debit Card" to track bank card spending.</p>
+        </div>
+      </section>
+
       <!-- Loans & Financing Portfolio Section -->
       <section class="card loan-portfolio-card">
         <div class="card-header">
@@ -186,11 +202,14 @@
             <label>Account / Paid From</label>
             <div class="wallet-pill-group" id="wallet-pill-group">
               <button type="button" class="wallet-pill-btn active" data-wallet="Bank Account">🏦 Bank</button>
-              <button type="button" class="wallet-pill-btn" data-wallet="Credit Card">💳 Card</button>
+              <button type="button" class="wallet-pill-btn" id="wallet-pill-card-btn" data-wallet="Card">💳 Card</button>
               <button type="button" class="wallet-pill-btn" data-wallet="E-Wallet">📱 E-Wallet</button>
               <button type="button" class="wallet-pill-btn" data-wallet="Cash">💵 Cash</button>
             </div>
             <input type="hidden" id="selected-wallet" value="Bank Account">
+            <input type="hidden" id="selected-card-id" value="">
+            <input type="hidden" id="selected-card-type" value="">
+            <input type="hidden" id="selected-card-name" value="">
           </div>
 
           <div class="form-group">
@@ -1038,6 +1057,93 @@
       </div>
     </dialog>
 
+    <!-- Add / Edit Debit Card Modal -->
+    <dialog id="debit-card-dialog" class="custom-dialog">
+      <form method="dialog" id="debit-card-form">
+        <div class="receipt-dialog-header">
+          <h3 id="debit-card-modal-title">Add New Debit Card</h3>
+          <button type="button" id="close-debit-card-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+        </div>
+        <p class="dialog-sub">Track direct bank card spending with 0% DSR impact and no debt accumulation.</p>
+        <input type="hidden" id="debit-card-edit-id">
+
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="debit-card-name">Card Nickname *</label>
+          <input type="text" id="debit-card-name" placeholder="e.g. Maybank Visa Debit" required maxlength="50">
+        </div>
+
+        <div class="form-group">
+          <label for="debit-card-bank">Bank Provider *</label>
+          <select id="debit-card-bank" required>
+            <option value="Maybank">Maybank</option>
+            <option value="CIMB">CIMB Bank</option>
+            <option value="Public Bank">Public Bank</option>
+            <option value="Hong Leong">Hong Leong Bank</option>
+            <option value="RHB">RHB Bank</option>
+            <option value="AmBank">AmBank</option>
+            <option value="Standard Chartered">Standard Chartered</option>
+            <option value="HSBC">HSBC Malaysia</option>
+            <option value="UOB">UOB Malaysia</option>
+            <option value="Alliance">Alliance Bank</option>
+            <option value="Other">Other Bank / Fintech</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="debit-card-initial-spent">Spent This Month (Initial Sync)</label>
+          <div class="input-prefix-wrapper">
+            <span class="currency-prefix">RM</span>
+            <input type="number" id="debit-card-initial-spent" step="0.01" min="0" placeholder="0.00" value="0.00" inputmode="decimal">
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="cancel-debit-card-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="save-debit-card-btn" class="btn-primary-sm">Save Debit Card</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Interactive Card Selection Modal (Hierarchical Credit & Debit Cards) -->
+    <dialog id="card-picker-modal" class="custom-dialog card-picker-dialog">
+      <div class="receipt-dialog-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.25rem;">💳</span>
+          <h3>Select Payment Card</h3>
+        </div>
+        <button type="button" id="close-card-picker-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+      </div>
+      <p class="dialog-sub">Choose which credit or debit card was used for this transaction.</p>
+
+      <div class="card-picker-body" style="margin-top: 0.85rem; max-height: 55vh; overflow-y: auto;">
+        <!-- Credit Cards Group -->
+        <div class="picker-group-section">
+          <div class="picker-group-header">
+            <span>CREDIT CARDS (Statements &amp; Revolving)</span>
+          </div>
+          <div class="picker-cards-list" id="picker-credit-cards-list">
+            <p class="empty-state-sm">No credit cards added yet.</p>
+          </div>
+        </div>
+
+        <!-- Debit Cards Group -->
+        <div class="picker-group-section" style="margin-top: 1rem;">
+          <div class="picker-group-header">
+            <span>DEBIT CARDS (Direct Bank Debit • 0% DSR)</span>
+          </div>
+          <div class="picker-cards-list" id="picker-debit-cards-list">
+            <p class="empty-state-sm">No debit cards added yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-picker-footer" style="margin-top: 1rem; border-top: 1px dashed var(--border-color); padding-top: 0.75rem;">
+        <button type="button" id="picker-add-card-btn" class="btn-tool-lg" style="width: 100%; text-align: center; color: var(--primary); font-weight: 700;">
+          ➕ Add New Card (Go to Commitments)
+        </button>
+      </div>
+    </dialog>
+
     <!-- Full Receipt / Photo View Modal -->
     <dialog id="receipt-modal" class="custom-dialog receipt-dialog">
       <div class="receipt-dialog-header">
@@ -1069,6 +1175,6 @@
 
   </div>
 
-  <script src="./app.js?v=40" defer></script>
+  <script src="./app.js?v=41" defer></script>
 </body>
 </html>
