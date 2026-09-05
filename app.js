@@ -68,6 +68,15 @@ const STORAGE_KEYS = {
 // DOM Cache
 const $ = (id) => document.getElementById(id);
 const dom = {
+  selectedCardId: $("selected-source-id"),
+  selectedCardName: $("selected-source-name"),
+  selectedCardType: $("selected-wallet"),
+  // Safe Aliases for Property Lookups
+  selectedWalletInput: $("selected-wallet"),
+  cardPickerModal: $("select-card-dialog"),
+  pickerAddCardBtn: $("nav-to-add-card-btn"),
+  closeDebitCardBtn: $("close-debit-modal-btn"),
+  cancelDebitCardBtn: $("cancel-debit-modal-btn"),
   form: $("expense-form"),
   tabExpense: $("tab-expense"),
   tabIncome: $("tab-income"),
@@ -1166,33 +1175,7 @@ function bindEvents() {
   if (dom.cancelDebitCardBtn) dom.cancelDebitCardBtn.addEventListener("click", () => dom.debitCardDialog?.close());
   if (dom.debitCardForm) dom.debitCardForm.addEventListener("submit", handleSaveDebitCard);
 
-  // Card Picker Modal Listeners
-  if (dom.closeCardPickerBtn) {
-    dom.closeCardPickerBtn.addEventListener("click", () => dom.cardPickerModal.close());
-  }
 
-  if (dom.pickerAddCardBtn) {
-    dom.pickerAddCardBtn.addEventListener("click", () => {
-      dom.cardPickerModal.close();
-      switchTab("commitments", "backward");
-    });
-  }
-
-  // Debit Card Modal Handlers
-  if (dom.openAddDebitCardBtn) {
-    dom.openAddDebitCardBtn.addEventListener("click", () => {
-      dom.debitCardEditId.value = "";
-      dom.debitCardName.value = "";
-      dom.debitCardBank.value = "Maybank";
-      dom.debitCardInitialSpent.value = "0.00";
-      document.getElementById("debit-modal-title").textContent = "Add New Debit Card";
-      dom.debitCardDialog?.showModal ? dom.debitCardDialog.showModal() : alert("Add debit card dialog");
-    });
-  }
-
-  if (dom.closeDebitCardBtn) dom.closeDebitCardBtn.addEventListener("click", () => dom.debitCardDialog.close());
-  if (dom.cancelDebitCardBtn) dom.cancelDebitCardBtn.addEventListener("click", () => dom.debitCardDialog.close());
-  if (dom.debitCardForm) dom.debitCardForm.addEventListener("submit", handleSaveDebitCard);
 
   // Theme Buttons (Option 7)
   document.querySelectorAll(".theme-btn").forEach(btn => {
@@ -2235,7 +2218,6 @@ function openEditDebitCardModal(cardId) {
   dom.debitCardEditId.value = card.id;
   dom.debitCardName.value = card.name;
   dom.debitCardBank.value = card.bank;
-  dom.debitCardInitialSpent.value = card.totalSpentThisMonth || 0;
 
   document.getElementById("debit-modal-title").textContent = "Edit Debit Card";
   dom.debitCardDialog?.showModal ? dom.debitCardDialog.showModal() : alert("Edit debit card");
@@ -2254,17 +2236,15 @@ function handleSaveDebitCard(e) {
   e.preventDefault();
   const name = dom.debitCardName.value.trim();
   const bank = dom.debitCardBank.value;
-  const spent = parseFloat(dom.debitCardInitialSpent.value) || 0;
 
   if (!name) return showToast("Please enter a card nickname.");
 
-  const editId = dom.debitCardEditId.value;
+  const editId = dom.debitCardEditId ? dom.debitCardEditId.value : "";
   if (editId) {
     const card = state.debitCards.find(c => c.id === editId);
     if (card) {
       card.name = name;
       card.bank = bank;
-      card.totalSpentThisMonth = spent;
       showToast(`Updated "${name}"!`);
     }
   } else {
@@ -2272,7 +2252,7 @@ function handleSaveDebitCard(e) {
       id: "debit_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
       name,
       bank,
-      totalSpentThisMonth: spent,
+      totalSpentThisMonth: 0.00,
       createdAt: Date.now()
     });
     showToast(`Added debit card "${name}"!`);
@@ -2280,7 +2260,7 @@ function handleSaveDebitCard(e) {
 
   saveStorage();
   renderDebitCards();
-  dom.debitCardDialog.close();
+  dom.debitCardDialog?.close();
 }
 
 // Card Picker Modal (Hierarchy: Credit Cards vs Debit Cards)
