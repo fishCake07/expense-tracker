@@ -69,51 +69,6 @@ const STORAGE_KEYS = {
 const $ = (id) => document.getElementById(id);
 const dom = {
   form: $("expense-form"),
-  // Rolling Bar DOM
-  rollingNavBar: $("rolling-nav-bar"),
-  rollerPrev: $("roller-prev"),
-  rollerPrevText: $("roller-prev-text"),
-  rollerCurrent: $("roller-current"),
-  rollerNext: $("roller-next"),
-  rollerNextText: $("roller-next-text"),
-  // Dashboard Action Buttons & Installment Summary DOM
-  btnDashAddTx: $("btn-dash-add-tx"),
-  btnDashAddCommit: $("btn-dash-add-commit"),
-  dashboardInstallmentsList: $("dashboard-installments-list"),
-  // Analysis Pie Chart DOM
-  pieChartMonthSelect: $("pie-chart-month-select"),
-  categoryPieChart: $("category-pie-chart"),
-  pieChartBreakdownList: $("pie-chart-breakdown-list"),
-  // Movable FAB & Frosted Glass Hub
-  movableMenuBtn: $("movable-menu-btn"),
-  navHubBackdrop: $("nav-hub-backdrop"),
-  closeNavHubBtn: $("close-nav-hub-btn"),
-  // Loans View DOM
-  totalLoanDebt: $("total-loan-debt"),
-  totalLoanMonthly: $("total-loan-monthly"),
-  totalLoanCount: $("total-loan-count"),
-  loanDsrBadge: $("loan-dsr-badge"),
-  loanDsrStatus: $("loan-dsr-status"),
-  loansList: $("loans-list"),
-  openAddLoanBtn: $("open-add-loan-btn"),
-  loanDialog: $("loan-dialog"),
-  loanForm: $("loan-form"),
-  loanTypeSelect: $("loan-type-select"),
-  loanName: $("loan-name"),
-  loanBank: $("loan-bank"),
-  loanPrincipal: $("loan-principal"),
-  loanRate: $("loan-rate"),
-  loanRateLabel: $("loan-rate-label"),
-  loanTenure: $("loan-tenure"),
-  previewInstallment: $("preview-installment"),
-  previewInterest: $("preview-interest"),
-  cancelLoanBtn: $("cancel-loan-btn"),
-  simulatorDialog: $("simulator-dialog"),
-  closeSimBtn: $("close-sim-btn"),
-  simLoanTitle: $("sim-loan-title"),
-  simExtraPayment: $("sim-extra-payment"),
-  simTimeSaved: $("sim-time-saved"),
-  simInterestSaved: $("sim-interest-saved"),
   tabExpense: $("tab-expense"),
   tabIncome: $("tab-income"),
   amount: $("amount"),
@@ -183,10 +138,16 @@ const dom = {
   editType: $("edit-type"),
   editAmount: $("edit-amount"),
   editCategory: $("edit-category"),
+  editWallet: $("edit-wallet"),
   editDate: $("edit-date"),
   editNote: $("edit-note"),
   editCurrency: $("edit-dialog-currency"),
   cancelEditBtn: $("cancel-edit-btn"),
+  editAttachReceiptBtn: $("edit-attach-receipt-btn"),
+  editReceiptFileInput: $("edit-receipt-file-input"),
+  editReceiptPreviewBox: $("edit-receipt-preview-box"),
+  editReceiptPreviewImg: $("edit-receipt-preview-img"),
+  editRemoveReceiptBtn: $("edit-remove-receipt-btn"),
   // Custom Category Creator Dialog
   catCreatorDialog: $("category-creator-dialog"),
   catCreatorForm: $("category-creator-form"),
@@ -197,50 +158,65 @@ const dom = {
   cancelCatCreatorBtn: $("cancel-cat-creator-btn"),
   openCatModalBtn: $("open-cat-modal-btn"),
   customCategoriesList: $("custom-categories-list"),
-  // Wallet DOM
-  selectedWalletInput: $("selected-wallet"),
-  editWallet: $("edit-wallet"),
-  walletStatsGrid: $("wallet-stats-grid"),
   // Analysis Elements
   analysisTotalSpend: $("analysis-total-spend"),
   analysisTotalIncome: $("analysis-total-income"),
   analysisComparisonStat: $("analysis-comparison-stat"),
   analysisBarChart: $("analysis-bar-chart"),
   analysisInsightText: $("analysis-insight-text"),
+  walletStatsGrid: $("wallet-stats-grid"),
+  pieChartMonthSelect: $("pie-chart-month-select"),
+  categoryPieChart: $("category-pie-chart"),
+  pieChartBreakdownList: $("pie-chart-breakdown-list"),
   // Settings Elements
   settingsExportCsv: $("settings-export-csv"),
   settingsExportJson: $("settings-export-json"),
   settingsImportBtn: $("settings-import-btn"),
   settingsFileInput: $("settings-file-input"),
   toggleSurplusSweep: $("toggle-surplus-sweep"),
-  // Header Notification Bell DOM
+  // Header Notification Bell
   openNotificationsBtn: $("open-notifications-btn"),
   notifBadgeCount: $("notif-badge-count"),
-  // Card Picker & Selected Inputs
-  walletPillCardBtn: $("wallet-pill-card-btn"),
-  selectedCardId: $("selected-card-id"),
-  selectedCardType: $("selected-card-type"),
-  selectedCardName: $("selected-card-name"),
-  cardPickerModal: $("card-picker-modal"),
-  closeCardPickerBtn: $("close-card-picker-btn"),
-  pickerCreditCardsList: $("picker-credit-cards-list"),
-  pickerDebitCardsList: $("picker-debit-cards-list"),
-  pickerAddCardBtn: $("picker-add-card-btn"),
+  // Rolling Bar DOM
+  rollingNavBar: $("rolling-nav-bar"),
+  rollerPrev: $("roller-prev"),
+  rollerPrevText: $("roller-prev-text"),
+  rollerCurrent: $("roller-current"),
+  rollerNext: $("roller-next"),
+  rollerNextText: $("roller-next-text"),
+  // Dashboard Actions & Installments
+  btnDashAddTx: $("btn-dash-add-tx"),
+  btnDashAddCommit: $("btn-dash-add-commit"),
+  dashboardInstallmentsList: $("dashboard-installments-list"),
+  // Loans View DOM
+  totalLoanDebt: $("total-loan-debt"),
+  totalLoanMonthly: $("total-loan-monthly"),
+  totalLoanCount: $("total-loan-count"),
+  loanDsrBadge: $("loan-dsr-badge"),
+  loanDsrStatus: $("loan-dsr-status"),
+  loansList: $("loans-list"),
+  openAddLoanBtn: $("open-add-loan-btn"),
+  loanDialog: $("loan-dialog"),
+  loanForm: $("loan-form"),
+  loanTypeSelect: $("loan-type-select"),
+  loanName: $("loan-name"),
+  loanBank: $("loan-bank"),
+  loanPrincipal: $("loan-principal"),
+  loanRate: $("loan-rate"),
+  loanRateLabel: $("loan-rate-label"),
+  loanTenure: $("loan-tenure"),
+  previewInstallment: $("preview-installment"),
+  previewInterest: $("preview-interest"),
+  cancelLoanBtn: $("cancel-loan-btn"),
+  simulatorDialog: $("simulator-dialog"),
+  closeSimBtn: $("close-sim-btn"),
+  simLoanTitle: $("sim-loan-title"),
+  simExtraPayment: $("sim-extra-payment"),
+  simTimeSaved: $("sim-time-saved"),
+  simInterestSaved: $("sim-interest-saved"),
   // Credit Cards Section DOM
   cardsTotalCommitment: $("cards-total-commitment"),
   creditCardsGrid: $("credit-cards-grid"),
-  // Debit Cards Section DOM
-  debitCardsTotalSpend: $("debit-cards-total-spend"),
-  debitCardsGrid: $("debit-cards-grid"),
-  openAddDebitCardBtn: $("open-add-debit-card-btn"),
-  debitCardDialog: $("debit-card-dialog"),
-  closeDebitCardBtn: $("close-debit-card-btn"),
-  cancelDebitCardBtn: $("cancel-debit-card-btn"),
-  debitCardForm: $("debit-card-form"),
-  debitCardEditId: $("debit-card-edit-id"),
-  debitCardName: $("debit-card-name"),
-  debitCardBank: $("debit-card-bank"),
-  debitCardInitialSpent: $("debit-card-initial-spent"),
   openAddCardBtn: $("open-add-card-btn"),
   cardDialog: $("card-dialog"),
   closeCardModalBtn: $("close-card-modal-btn"),
@@ -255,6 +231,54 @@ const dom = {
   cardBilled: $("card-billed"),
   cardUnbilled: $("card-unbilled"),
   cardPayInFull: $("card-pay-in-full"),
+  // Debit Cards Section DOM
+  debitCardsTotalSpend: $("debit-cards-total-spend"),
+  debitCardsGrid: $("debit-cards-grid"),
+  openAddDebitCardBtn: $("open-add-debit-card-btn"),
+  debitCardDialog: $("debit-card-dialog"),
+  closeDebitModalBtn: $("close-debit-modal-btn"),
+  cancelDebitModalBtn: $("cancel-debit-modal-btn"),
+  debitCardForm: $("debit-card-form"),
+  debitCardEditId: $("debit-card-edit-id"),
+  debitCardName: $("debit-card-name"),
+  debitCardBank: $("debit-card-bank"),
+  // Bank Accounts Section DOM
+  banksTotalSummary: $("banks-total-summary"),
+  bankAccountsGrid: $("bank-accounts-grid"),
+  openAddBankAccountBtn: $("open-add-bank-account-btn"),
+  bankAccountDialog: $("bank-account-dialog"),
+  closeBankModalBtn: $("close-bank-modal-btn"),
+  cancelBankModalBtn: $("cancel-bank-modal-btn"),
+  bankAccountForm: $("bank-account-form"),
+  bankAccountEditId: $("bank-account-edit-id"),
+  bankAccountName: $("bank-account-name"),
+  bankAccountProvider: $("bank-account-provider"),
+  // Card & Bank Picker Sheets DOM
+  selectCardDialog: $("select-card-dialog"),
+  closeCardPickerBtn: $("close-card-picker-btn"),
+  cancelCardPickerBtn: $("cancel-card-picker-btn"),
+  navToAddCardBtn: $("nav-to-add-card-btn"),
+  pickerCreditCardsList: $("picker-credit-cards-list"),
+  pickerDebitCardsList: $("picker-debit-cards-list"),
+  selectBankDialog: $("select-bank-dialog"),
+  closeBankPickerBtn: $("close-bank-picker-btn"),
+  cancelBankPickerBtn: $("cancel-bank-picker-btn"),
+  navToAddBankBtn: $("nav-to-add-bank-btn"),
+  pickerBanksList: $("picker-banks-list"),
+  // Form Pill References
+  pillBankTx: $("pill-bank-tx"),
+  pillCardTx: $("pill-card-tx"),
+  pillEwalletTx: $("pill-ewallet-tx"),
+  pillCashTx: $("pill-cash-tx"),
+  selectedWallet: $("selected-wallet"),
+  selectedSourceId: $("selected-source-id"),
+  selectedSourceName: $("selected-source-name"),
+  pillBankSub: $("pill-bank-sub"),
+  pillCardSub: $("pill-card-sub"),
+  pillEwalletSub: $("pill-ewallet-sub"),
+  subSelectedWallet: $("sub-selected-wallet"),
+  subSelectedSourceId: $("sub-selected-source-id"),
+  subSelectedSourceName: $("sub-selected-source-name"),
   // Notification Center DOM
   notifCenterDialog: $("notification-center-dialog"),
   closeNotifCenterBtn: $("close-notif-center-btn"),
@@ -264,25 +288,22 @@ const dom = {
   releaseGuideDialog: $("release-guide-dialog"),
   closeReleaseGuideBtn: $("close-release-guide-btn"),
   confirmReleaseGuideBtn: $("confirm-release-guide-btn"),
-  // Sub 3-Wallet DOM
-  subSelectedWallet: $("sub-selected-wallet"),
   // Receipt Attachment DOM
   attachReceiptBtn: $("attach-receipt-btn"),
   receiptFileInput: $("receipt-file-input"),
   receiptPreviewBox: $("receipt-preview-box"),
   receiptPreviewImg: $("receipt-preview-img"),
   removeReceiptBtn: $("remove-receipt-btn"),
-  editAttachReceiptBtn: $("edit-attach-receipt-btn"),
-  editReceiptFileInput: $("edit-receipt-file-input"),
-  editReceiptPreviewBox: $("edit-receipt-preview-box"),
-  editReceiptPreviewImg: $("edit-receipt-preview-img"),
-  editRemoveReceiptBtn: $("edit-remove-receipt-btn"),
   receiptModal: $("receipt-modal"),
   receiptModalImg: $("receipt-modal-img"),
   receiptModalTitle: $("receipt-modal-title"),
   receiptModalDetails: $("receipt-modal-details"),
   downloadReceiptLink: $("download-receipt-link"),
   closeReceiptModalBtn: $("close-receipt-modal-btn"),
+  // Movable FAB & Frosted Hub
+  movableMenuBtn: $("movable-menu-btn"),
+  navHubBackdrop: $("nav-hub-backdrop"),
+  closeNavHubBtn: $("close-nav-hub-btn"),
   toast: $("toast")
 };
 
@@ -1139,7 +1160,7 @@ function bindEvents() {
       dom.debitCardName.value = "";
       dom.debitCardBank.value = "Maybank";
       dom.debitCardInitialSpent.value = "0.00";
-      $("debit-card-modal-title").textContent = "Add New Debit Card";
+      document.getElementById("debit-modal-title").textContent = "Add New Debit Card";
       dom.debitCardDialog?.showModal ? dom.debitCardDialog.showModal() : alert("Add debit card dialog");
     });
   }
@@ -2191,7 +2212,7 @@ function openEditDebitCardModal(cardId) {
   dom.debitCardBank.value = card.bank;
   dom.debitCardInitialSpent.value = card.totalSpentThisMonth || 0;
 
-  $("debit-card-modal-title").textContent = "Edit Debit Card";
+  document.getElementById("debit-modal-title").textContent = "Edit Debit Card";
   dom.debitCardDialog?.showModal ? dom.debitCardDialog.showModal() : alert("Edit debit card");
 }
 
@@ -2238,85 +2259,6 @@ function handleSaveDebitCard(e) {
 }
 
 // Card Picker Modal (Hierarchy: Credit Cards vs Debit Cards)
-function openCardPicker() {
-  if (!dom.cardPickerModal) return;
-
-  // 1. Render Credit Cards List
-  if (dom.pickerCreditCardsList) {
-    if (!state.creditCards.length) {
-      dom.pickerCreditCardsList.innerHTML = `<p class="empty-state-sm">No credit cards added.</p>`;
-    } else {
-      dom.pickerCreditCardsList.innerHTML = state.creditCards.map(c => `
-        <div class="picker-card-option ${state.selectedCardId === c.id ? "selected" : ""}" data-id="${c.id}" data-type="credit" data-name="${escapeHtml(c.name)}">
-          <div class="picker-card-left">
-            <span class="picker-card-icon">💳</span>
-            <div>
-              <div class="picker-card-name">${escapeHtml(c.name)}</div>
-              <div class="picker-card-sub">${escapeHtml(c.bank)} • Due: Day ${c.dueDay}</div>
-            </div>
-          </div>
-          <div class="picker-card-meta">
-            <span>Unbilled: ${formatCurrency(c.unbilledBalance)}</span>
-          </div>
-        </div>
-      `).join("");
-    }
-  }
-
-  // 2. Render Debit Cards List
-  if (dom.pickerDebitCardsList) {
-    if (!state.debitCards.length) {
-      dom.pickerDebitCardsList.innerHTML = `<p class="empty-state-sm">No debit cards added.</p>`;
-    } else {
-      dom.pickerDebitCardsList.innerHTML = state.debitCards.map(dc => `
-        <div class="picker-card-option ${state.selectedCardId === dc.id ? "selected" : ""}" data-id="${dc.id}" data-type="debit" data-name="${escapeHtml(dc.name)}">
-          <div class="picker-card-left">
-            <span class="picker-card-icon">💳</span>
-            <div>
-              <div class="picker-card-name">${escapeHtml(dc.name)}</div>
-              <div class="picker-card-sub">${escapeHtml(dc.bank)} • 0% DSR Direct Debit</div>
-            </div>
-          </div>
-          <div class="picker-card-meta">
-            <span>Spent: ${formatCurrency(dc.totalSpentThisMonth || 0)}</span>
-          </div>
-        </div>
-      `).join("");
-    }
-  }
-
-  // Bind option clicks
-  dom.cardPickerModal.querySelectorAll(".picker-card-option").forEach(opt => {
-    opt.addEventListener("click", () => {
-      const id = opt.dataset.id;
-      const type = opt.dataset.type;
-      const name = opt.dataset.name;
-
-      state.selectedCardId = id;
-      state.selectedCardType = type;
-      state.selectedCardName = name;
-
-      if (dom.selectedCardId) dom.selectedCardId.value = id;
-      if (dom.selectedCardType) dom.selectedCardType.value = type;
-      if (dom.selectedCardName) dom.selectedCardName.value = name;
-      if (dom.selectedWalletInput) dom.selectedWalletInput.value = type === "credit" ? "Credit Card" : "Debit Card";
-
-      // Update pill button appearance
-      document.querySelectorAll(".wallet-pill-btn").forEach(b => b.classList.remove("active"));
-      if (dom.walletPillCardBtn) {
-        dom.walletPillCardBtn.classList.add("active");
-        const shortName = name.length > 14 ? name.substring(0, 12) + ".." : name;
-        dom.walletPillCardBtn.textContent = `💳 ${shortName}`;
-      }
-
-      dom.cardPickerModal.close();
-      showToast(`Selected ${name} (${type === "credit" ? "Credit Card" : "Debit Card"})`);
-    });
-  });
-
-  dom.cardPickerModal.showModal ? dom.cardPickerModal.showModal() : alert("Select card modal");
-}
-
 function renderCreditCards() {
   if (!dom.creditCardsGrid) return;
 
@@ -2507,11 +2449,42 @@ function handleSaveCreditCard(e) {
   dom.cardDialog.close();
 }
 
+// Automated Release Changelog Registry (Catches new features automatically)
+const APP_RELEASES_REGISTRY = [
+  {
+    version: "v41",
+    title: "🎉 Version 41: Multi-Bank Card Pickers & Debit Cards",
+    date: "September 2026",
+    features: [
+      "💳 Card Picker Sheet: Choose exact Credit Card or Debit Card per transaction or bill.",
+      "🏦 Bank Transfer Sync: Select and track specific bank accounts (Maybank, CIMB, etc.).",
+      "🟢 Debit Cards Tracker: 0% DSR direct bank debit tracking with monthly spend counter.",
+      "🔔 Automatic Notification Center Archive: Every app update is automatically captured and archived."
+    ]
+  }
+];
+
 function checkReleaseOnboardingGuide() {
-  const CURRENT_RELEASE = "v39-credit-cards-and-notifications";
+  const latestRelease = APP_RELEASES_REGISTRY[0];
   const lastSeen = localStorage.getItem(STORAGE_KEYS.lastSeenRelease);
 
-  if (lastSeen !== CURRENT_RELEASE && dom.releaseGuideDialog) {
+  if (lastSeen !== latestRelease.version && dom.releaseGuideDialog) {
+    const titleEl = dom.releaseGuideDialog.querySelector("h3");
+    if (titleEl) titleEl.textContent = latestRelease.title;
+
+    const bodyEl = dom.releaseGuideDialog.querySelector(".release-guide-body");
+    if (bodyEl) {
+      bodyEl.innerHTML = latestRelease.features.map(f => {
+        const [heading, desc] = f.split(":");
+        return `
+          <div class="guide-feature-box">
+            <strong>${heading}</strong>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${desc || ""}</p>
+          </div>
+        `;
+      }).join("");
+    }
+
     setTimeout(() => {
       dom.releaseGuideDialog?.showModal ? dom.releaseGuideDialog.showModal() : null;
     }, 600);
