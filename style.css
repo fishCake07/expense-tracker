@@ -3897,3 +3897,132 @@ a,
     font-size: 0.78rem !important;
   }
 }
+
+
+/* ================= CARD PICKER SHEET & DEBIT CARDS STYLES ================= */
+.card-picker-dialog {
+  max-width: 440px !important;
+  width: 92% !important;
+}
+
+.picker-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.picker-group-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.picker-cards-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.picker-card-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.85rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.picker-card-option:hover {
+  background: var(--bg-surface);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.picker-card-option.selected {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.picker-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.picker-chip-icon {
+  width: 32px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.picker-card-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.picker-card-bank {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.picker-card-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.picker-card-balance {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.picker-card-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* Debit Cards Grid & Item */
+.debit-cards-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.debit-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.debit-card-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.15rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-left: 5px solid #10b981;
+}
+
+.debit-card-item[data-bank="Maybank"] { border-left-color: #fbbf24; }
+.debit-card-item[data-bank="CIMB"] { border-left-color: #ef4444; }
+.debit-card-item[data-bank="Public Bank"] { border-left-color: #dc2626; }
+.debit-card-item[data-bank="Hong Leong"] { border-left-color: #0284c7; }

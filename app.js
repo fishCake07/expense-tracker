@@ -1123,23 +1123,48 @@ function bindEvents() {
     });
   });
 
-  // Wallet Pill Selection (Queue Item 1 & Multi-Card Picker)
+  // Wallet Pill Selection (Multi-Card Picker & Direct Cash/Bank/E-Wallet)
   document.querySelectorAll(".wallet-pill-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (btn.id === "wallet-pill-card-btn") {
-        // If tapping [ 💳 Card ], pop up Card Picker Modal to choose specific credit or debit card!
+      if (btn.id === "pill-card-tx" || btn.id === "wallet-pill-card-btn") {
+        // Tapping [ 💳 Card ] pops up the Card Picker modal!
         openCardPicker();
       } else {
         document.querySelectorAll(".wallet-pill-btn").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
-        if (dom.selectedWalletInput) dom.selectedWalletInput.value = btn.dataset.wallet;
+        if (dom.selectedWallet) dom.selectedWallet.value = btn.dataset.wallet;
         state.selectedCardId = null;
         state.selectedCardType = null;
         state.selectedCardName = null;
-        if (dom.walletPillCardBtn) dom.walletPillCardBtn.textContent = "💳 Card";
+        if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
       }
     });
   });
+
+  // Card Picker Modal Listeners
+  if (dom.closeCardPickerBtn) dom.closeCardPickerBtn.addEventListener("click", () => dom.selectCardDialog?.close());
+  if (dom.cancelCardPickerBtn) dom.cancelCardPickerBtn.addEventListener("click", () => dom.selectCardDialog?.close());
+  if (dom.navToAddCardBtn) {
+    dom.navToAddCardBtn.addEventListener("click", () => {
+      dom.selectCardDialog?.close();
+      switchTab("commitments");
+      showToast("Navigate to Commitments to add a new card.");
+    });
+  }
+
+  // Debit Card Modal Listeners
+  if (dom.openAddDebitCardBtn) {
+    dom.openAddDebitCardBtn.addEventListener("click", () => {
+      if (dom.debitCardEditId) dom.debitCardEditId.value = "";
+      if (dom.debitCardName) dom.debitCardName.value = "";
+      if (dom.debitCardBank) dom.debitCardBank.value = "Maybank";
+      document.getElementById("debit-modal-title").textContent = "Add Debit Card";
+      dom.debitCardDialog?.showModal ? dom.debitCardDialog.showModal() : alert("Add debit card");
+    });
+  }
+  if (dom.closeDebitModalBtn) dom.closeDebitModalBtn.addEventListener("click", () => dom.debitCardDialog?.close());
+  if (dom.cancelDebitCardBtn) dom.cancelDebitCardBtn.addEventListener("click", () => dom.debitCardDialog?.close());
+  if (dom.debitCardForm) dom.debitCardForm.addEventListener("submit", handleSaveDebitCard);
 
   // Card Picker Modal Listeners
   if (dom.closeCardPickerBtn) {
@@ -2259,6 +2284,88 @@ function handleSaveDebitCard(e) {
 }
 
 // Card Picker Modal (Hierarchy: Credit Cards vs Debit Cards)
+
+// ================= INTERACTIVE CARD PICKER (CREDIT VS DEBIT) =================
+function openCardPicker() {
+  if (!dom.selectCardDialog) return;
+
+  // 1. Populate Credit Cards List
+  if (dom.pickerCreditCardsList) {
+    if (!state.creditCards || !state.creditCards.length) {
+      dom.pickerCreditCardsList.innerHTML = `<p class="empty-state" style="padding:0.75rem;">No credit cards configured. Click "+ Add New Card" below.</p>`;
+    } else {
+      dom.pickerCreditCardsList.innerHTML = state.creditCards.map(c => {
+        const isSel = state.selectedCardId === c.id;
+        return `
+          <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectPaymentCard('credit', '${c.id}', '${escapeHtml(c.name)}')">
+            <div class="picker-card-left">
+              <div class="picker-chip-icon" style="color:var(--primary);">💳</div>
+              <div>
+                <div class="picker-card-name">${escapeHtml(c.name)}</div>
+                <div class="picker-card-bank">${escapeHtml(c.bank)} • Cut-off: Day ${c.statementDay}</div>
+              </div>
+            </div>
+            <div class="picker-card-right">
+              <span class="picker-card-balance">${formatCurrency(c.unbilledBalance)}</span>
+              <span class="picker-card-tag">Unbilled Spend</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  // 2. Populate Debit Cards List
+  if (dom.pickerDebitCardsList) {
+    if (!state.debitCards || !state.debitCards.length) {
+      dom.pickerDebitCardsList.innerHTML = `<p class="empty-state" style="padding:0.75rem;">No debit cards configured. Click "+ Add New Card" below.</p>`;
+    } else {
+      dom.pickerDebitCardsList.innerHTML = state.debitCards.map(dc => {
+        const isSel = state.selectedCardId === dc.id;
+        return `
+          <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectPaymentCard('debit', '${dc.id}', '${escapeHtml(dc.name)}')">
+            <div class="picker-card-left">
+              <div class="picker-chip-icon" style="color:#059669;">💳</div>
+              <div>
+                <div class="picker-card-name">${escapeHtml(dc.name)}</div>
+                <div class="picker-card-bank">${escapeHtml(dc.bank)} • Direct Bank Debit</div>
+              </div>
+            </div>
+            <div class="picker-card-right">
+              <span class="picker-card-balance">${formatCurrency(dc.totalSpentThisMonth || 0)}</span>
+              <span class="picker-card-tag">Spent This Month</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  dom.selectCardDialog?.showModal ? dom.selectCardDialog.showModal() : null;
+}
+
+function selectPaymentCard(type, cardId, cardName) {
+  state.selectedCardId = cardId;
+  state.selectedCardType = type;
+  state.selectedCardName = cardName;
+
+  if (dom.selectedWallet) {
+    dom.selectedWallet.value = type === "credit" ? "Credit Card" : "Debit Card";
+  }
+  if (dom.selectedSourceId) dom.selectedSourceId.value = cardId;
+  if (dom.selectedSourceName) dom.selectedSourceName.value = cardName;
+
+  // Update card pill button text and active state
+  document.querySelectorAll(".wallet-pill-btn").forEach(b => b.classList.remove("active"));
+  if (dom.pillCardTx) {
+    dom.pillCardTx.classList.add("active");
+    dom.pillCardTx.textContent = `💳 ${cardName} ▾`;
+  }
+
+  dom.selectCardDialog?.close();
+  showToast(`Selected ${cardName}!`);
+}
+
 function renderCreditCards() {
   if (!dom.creditCardsGrid) return;
 
