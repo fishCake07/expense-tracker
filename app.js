@@ -41,7 +41,11 @@ const state = {
   loans: [],
   creditCards: [],
   debitCards: [],
+  bankAccounts: [],
   notifications: [],
+  selectedBankId: null,
+  selectedBankName: null,
+  pickerTargetContext: "transaction",
   activeNotifTab: "all",
   selectedCardId: null,
   selectedCardType: null,
@@ -60,6 +64,7 @@ const STORAGE_KEYS = {
   loans: "expense_tracker_loans_v1",
   cards: "expense_tracker_credit_cards_v1",
   debitCards: "expense_tracker_debit_cards_v1",
+  banks: "expense_tracker_banks_v1",
   notifications: "expense_tracker_notifications_v1",
   lastSeenRelease: "expense_tracker_last_seen_release_v1",
   fabPos: "expense_tracker_fab_pos_v1"
@@ -77,6 +82,32 @@ const dom = {
   pickerAddCardBtn: $("nav-to-add-card-btn"),
   closeDebitCardBtn: $("close-debit-modal-btn"),
   cancelDebitCardBtn: $("cancel-debit-modal-btn"),
+  // Bank Accounts & Picker Elements (Bug 2, 3, 4)
+  openAddBankAccountBtn: $("open-add-bank-account-btn"),
+  bankAccountsGrid: $("bank-accounts-grid"),
+  banksTotalSummary: $("banks-total-summary"),
+  bankAccountDialog: $("bank-account-dialog"),
+  bankAccountForm: $("bank-account-form"),
+  bankAccountEditId: $("bank-account-edit-id"),
+  bankAccountName: $("bank-account-name"),
+  bankAccountProvider: $("bank-account-provider"),
+  closeBankModalBtn: $("close-bank-modal-btn"),
+  cancelBankModalBtn: $("cancel-bank-modal-btn"),
+  selectBankDialog: $("select-bank-dialog"),
+  closeBankPickerBtn: $("close-bank-picker-btn"),
+  cancelBankPickerBtn: $("cancel-bank-picker-btn"),
+  pickerBanksList: $("picker-banks-list"),
+  navToAddBankBtn: $("nav-to-add-bank-btn"),
+  pillBankTx: $("pill-bank-tx"),
+  pillCardTx: $("pill-card-tx"),
+  pillEwalletTx: $("pill-ewallet-tx"),
+  pillCashTx: $("pill-cash-tx"),
+  pillBankSub: $("pill-bank-sub"),
+  pillCardSub: $("pill-card-sub"),
+  pillEwalletSub: $("pill-ewallet-sub"),
+  subSelectedWallet: $("sub-selected-wallet"),
+  subSelectedSourceId: $("sub-selected-source-id"),
+  subSelectedSourceName: $("sub-selected-source-name"),
   form: $("expense-form"),
   tabExpense: $("tab-expense"),
   tabIncome: $("tab-income"),
@@ -251,17 +282,7 @@ const dom = {
   debitCardEditId: $("debit-card-edit-id"),
   debitCardName: $("debit-card-name"),
   debitCardBank: $("debit-card-bank"),
-  // Bank Accounts Section DOM
-  banksTotalSummary: $("banks-total-summary"),
-  bankAccountsGrid: $("bank-accounts-grid"),
-  openAddBankAccountBtn: $("open-add-bank-account-btn"),
-  bankAccountDialog: $("bank-account-dialog"),
-  closeBankModalBtn: $("close-bank-modal-btn"),
-  cancelBankModalBtn: $("cancel-bank-modal-btn"),
-  bankAccountForm: $("bank-account-form"),
-  bankAccountEditId: $("bank-account-edit-id"),
-  bankAccountName: $("bank-account-name"),
-  bankAccountProvider: $("bank-account-provider"),
+
   // Card & Bank Picker Sheets DOM
   selectCardDialog: $("select-card-dialog"),
   closeCardPickerBtn: $("close-card-picker-btn"),
@@ -269,11 +290,7 @@ const dom = {
   navToAddCardBtn: $("nav-to-add-card-btn"),
   pickerCreditCardsList: $("picker-credit-cards-list"),
   pickerDebitCardsList: $("picker-debit-cards-list"),
-  selectBankDialog: $("select-bank-dialog"),
-  closeBankPickerBtn: $("close-bank-picker-btn"),
-  cancelBankPickerBtn: $("cancel-bank-picker-btn"),
-  navToAddBankBtn: $("nav-to-add-bank-btn"),
-  pickerBanksList: $("picker-banks-list"),
+
   // Form Pill References
   pillBankTx: $("pill-bank-tx"),
   pillCardTx: $("pill-card-tx"),
@@ -426,6 +443,8 @@ function loadStorage() {
     if (cd) state.creditCards = JSON.parse(cd);
     const dcd = localStorage.getItem(STORAGE_KEYS.debitCards);
     if (dcd) state.debitCards = JSON.parse(dcd);
+    const bks = localStorage.getItem(STORAGE_KEYS.banks);
+    if (bks) state.bankAccounts = JSON.parse(bks);
     const nt = localStorage.getItem(STORAGE_KEYS.notifications);
     if (nt) state.notifications = JSON.parse(nt);
   } catch (e) {
@@ -444,6 +463,7 @@ function saveStorage() {
     localStorage.setItem(STORAGE_KEYS.loans, JSON.stringify(state.loans));
     localStorage.setItem(STORAGE_KEYS.cards, JSON.stringify(state.creditCards));
     localStorage.setItem(STORAGE_KEYS.debitCards, JSON.stringify(state.debitCards));
+    localStorage.setItem(STORAGE_KEYS.banks, JSON.stringify(state.bankAccounts));
     localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(state.notifications));
   } catch (e) {}
 }
@@ -782,13 +802,8 @@ function closeNavHub() {
 function initUniversalBackdropDismissal() {
   document.querySelectorAll("dialog").forEach(dialog => {
     dialog.addEventListener("click", (e) => {
-      // If clicking directly on the native <dialog> backdrop (outside the inner rect)
-      const rect = dialog.getBoundingClientRect();
-      const isInDialog = (
-        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
-        rect.left <= e.clientX && e.clientX <= rect.left + rect.width
-      );
-      if (!isInDialog) {
+      // If clicking directly on the native <dialog> backdrop
+      if (e.target === dialog) {
         dialog.close();
       }
     });
@@ -1095,6 +1110,13 @@ function bindEvents() {
     dom.subAmount.value = "";
     dom.subBillingDay.value = "";
     dom.subDialogCurrency.textContent = state.currency;
+    if (dom.subSelectedWallet) dom.subSelectedWallet.value = "Bank Transfer";
+    if (dom.subSelectedSourceId) dom.subSelectedSourceId.value = "";
+    if (dom.subSelectedSourceName) dom.subSelectedSourceName.value = "";
+    if (dom.pillBankSub) dom.pillBankSub.textContent = "🏦 Bank Transfer ▾";
+    if (dom.pillCardSub) dom.pillCardSub.textContent = "💳 Card ▾";
+    document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+    if (dom.pillBankSub) dom.pillBankSub.classList.add("active");
     dom.subDialog?.showModal ? dom.subDialog.showModal() : promptSubFallback();
   });
 
@@ -1132,23 +1154,77 @@ function bindEvents() {
     });
   });
 
-  // Wallet Pill Selection (Multi-Card Picker & Direct Cash/Bank/E-Wallet)
-  document.querySelectorAll(".wallet-pill-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (btn.id === "pill-card-tx" || btn.id === "wallet-pill-card-btn") {
-        // Tapping [ 💳 Card ] pops up the Card Picker modal!
-        openCardPicker();
-      } else {
-        document.querySelectorAll(".wallet-pill-btn").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        if (dom.selectedWallet) dom.selectedWallet.value = btn.dataset.wallet;
-        state.selectedCardId = null;
-        state.selectedCardType = null;
-        state.selectedCardName = null;
-        if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
-      }
+  // ================= WALLET & PAYMENT METHOD LISTENERS (BUGS 3 & 4) =================
+  // Transaction Form Payment Method Selection
+  if (dom.pillBankTx) {
+    dom.pillBankTx.addEventListener("click", () => {
+      state.pickerTargetContext = "transaction";
+      openBankPicker();
     });
-  });
+  }
+  if (dom.pillCardTx) {
+    dom.pillCardTx.addEventListener("click", () => {
+      state.pickerTargetContext = "transaction";
+      openCardPicker();
+    });
+  }
+  if (dom.pillEwalletTx) {
+    dom.pillEwalletTx.addEventListener("click", () => {
+      document.querySelectorAll("#wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+      dom.pillEwalletTx.classList.add("active");
+      if (dom.selectedWallet) dom.selectedWallet.value = "E-Wallet";
+      if (dom.selectedSourceId) dom.selectedSourceId.value = "";
+      if (dom.selectedSourceName) dom.selectedSourceName.value = "";
+      if (dom.pillBankTx) dom.pillBankTx.textContent = "🏦 Bank Transfer ▾";
+      if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
+      state.selectedCardId = null;
+      state.selectedCardType = null;
+      state.selectedCardName = null;
+      state.selectedBankId = null;
+      state.selectedBankName = null;
+    });
+  }
+  if (dom.pillCashTx) {
+    dom.pillCashTx.addEventListener("click", () => {
+      document.querySelectorAll("#wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+      dom.pillCashTx.classList.add("active");
+      if (dom.selectedWallet) dom.selectedWallet.value = "Cash";
+      if (dom.selectedSourceId) dom.selectedSourceId.value = "";
+      if (dom.selectedSourceName) dom.selectedSourceName.value = "";
+      if (dom.pillBankTx) dom.pillBankTx.textContent = "🏦 Bank Transfer ▾";
+      if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
+      state.selectedCardId = null;
+      state.selectedCardType = null;
+      state.selectedCardName = null;
+      state.selectedBankId = null;
+      state.selectedBankName = null;
+    });
+  }
+
+  // Subscription Form Payment Method Selection (Bug 3)
+  if (dom.pillBankSub) {
+    dom.pillBankSub.addEventListener("click", () => {
+      state.pickerTargetContext = "subscription";
+      openBankPicker();
+    });
+  }
+  if (dom.pillCardSub) {
+    dom.pillCardSub.addEventListener("click", () => {
+      state.pickerTargetContext = "subscription";
+      openCardPicker();
+    });
+  }
+  if (dom.pillEwalletSub) {
+    dom.pillEwalletSub.addEventListener("click", () => {
+      document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+      dom.pillEwalletSub.classList.add("active");
+      if (dom.subSelectedWallet) dom.subSelectedWallet.value = "E-Wallet";
+      if (dom.subSelectedSourceId) dom.subSelectedSourceId.value = "";
+      if (dom.subSelectedSourceName) dom.subSelectedSourceName.value = "";
+      if (dom.pillBankSub) dom.pillBankSub.textContent = "🏦 Bank Transfer ▾";
+      if (dom.pillCardSub) dom.pillCardSub.textContent = "💳 Card ▾";
+    });
+  }
 
   // Card Picker Modal Listeners
   if (dom.closeCardPickerBtn) dom.closeCardPickerBtn.addEventListener("click", () => dom.selectCardDialog?.close());
@@ -1160,6 +1236,26 @@ function bindEvents() {
       showToast("Navigate to Commitments to add a new card.");
     });
   }
+
+  // Bank Picker Modal Listeners (Option A)
+  if (dom.closeBankPickerBtn) dom.closeBankPickerBtn.addEventListener("click", () => dom.selectBankDialog?.close());
+  if (dom.cancelBankPickerBtn) dom.cancelBankPickerBtn.addEventListener("click", () => dom.selectBankDialog?.close());
+  if (dom.navToAddBankBtn) {
+    dom.navToAddBankBtn.addEventListener("click", () => {
+      dom.selectBankDialog?.close();
+      openAddBankAccountModal();
+    });
+  }
+
+  // Bank Account Modal Listeners (Bug 2)
+  if (dom.openAddBankAccountBtn) {
+    dom.openAddBankAccountBtn.addEventListener("click", () => {
+      openAddBankAccountModal();
+    });
+  }
+  if (dom.closeBankModalBtn) dom.closeBankModalBtn.addEventListener("click", () => dom.bankAccountDialog?.close());
+  if (dom.cancelBankModalBtn) dom.cancelBankModalBtn.addEventListener("click", () => dom.bankAccountDialog?.close());
+  if (dom.bankAccountForm) dom.bankAccountForm.addEventListener("submit", handleSaveBankAccount);
 
   // Debit Card Modal Listeners
   if (dom.openAddDebitCardBtn) {
@@ -1269,12 +1365,7 @@ function bindEvents() {
   // Click outside modal card on backdrop to exit
   if (dom.receiptModal) {
     dom.receiptModal.addEventListener("click", (e) => {
-      const rect = dom.receiptModal.getBoundingClientRect();
-      const isInDialog = (
-        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
-        rect.left <= e.clientX && e.clientX <= rect.left + rect.width
-      );
-      if (!isInDialog) {
+      if (e.target === dom.receiptModal) {
         dom.receiptModal.close();
       }
     });
@@ -1390,11 +1481,15 @@ function handleAddTransaction(e) {
 
   if (!amt || amt <= 0 || !cat || !dt || cat === "__ADD_CUSTOM__") return;
 
-  const chosenWallet = dom.selectedWalletInput ? dom.selectedWalletInput.value : "Bank Account";
+  const chosenWallet = (dom.selectedWalletInput && dom.selectedWalletInput.value) ? dom.selectedWalletInput.value.trim() : "";
+  if (!chosenWallet) {
+    showToast("Please select a payment method / account.");
+    return;
+  }
   
   const cardId = dom.selectedCardId ? dom.selectedCardId.value : state.selectedCardId;
   const cardType = dom.selectedCardType ? dom.selectedCardType.value : state.selectedCardType;
-  const cardName = dom.selectedCardName ? dom.selectedCardName.value : state.selectedCardName;
+  const cardName = dom.selectedCardName ? dom.selectedCardName.value : (state.selectedCardName || state.selectedBankName);
 
   // Automation for Credit Card vs Debit Card
   if (chosenWallet === "Credit Card" || chosenWallet === "Card" || chosenWallet === "Debit Card") {
@@ -1436,6 +1531,18 @@ function handleAddTransaction(e) {
   if (dom.receiptFileInput) dom.receiptFileInput.value = "";
   if (dom.receiptPreviewBox) dom.receiptPreviewBox.style.display = "none";
   setDefaultDate();
+  // Reset payment selection to unselected state (Bug 4)
+  document.querySelectorAll("#wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+  if (dom.selectedWallet) dom.selectedWallet.value = "";
+  if (dom.selectedSourceId) dom.selectedSourceId.value = "";
+  if (dom.selectedSourceName) dom.selectedSourceName.value = "";
+  if (dom.pillBankTx) dom.pillBankTx.textContent = "🏦 Bank Transfer ▾";
+  if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
+  state.selectedCardId = null;
+  state.selectedCardType = null;
+  state.selectedCardName = null;
+  state.selectedBankId = null;
+  state.selectedBankName = null;
   dom.amount.focus();
 
   render();
@@ -1582,7 +1689,9 @@ function handleAddSubscription(e) {
   }
 
   const isAuto = dom.subAutoDeduct ? dom.subAutoDeduct.checked : true;
-  const subWallet = dom.subSelectedWallet ? dom.subSelectedWallet.value : "Bank Account";
+  const subWallet = dom.subSelectedWallet ? dom.subSelectedWallet.value : "Bank Transfer";
+  const sourceId = dom.subSelectedSourceId ? dom.subSelectedSourceId.value : "";
+  const sourceName = dom.subSelectedSourceName ? dom.subSelectedSourceName.value : "";
   state.subscriptions.push({
     id: "sub_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     name,
@@ -1590,6 +1699,9 @@ function handleAddSubscription(e) {
     category,
     billingDay,
     wallet: subWallet,
+    sourceId: sourceId || null,
+    sourceName: sourceName || null,
+    cardName: sourceName || null,
     autoDeduct: isAuto,
     lastLoggedMonth: null,
     createdAt: Date.now()
@@ -1758,6 +1870,7 @@ function render() {
   renderSubscriptions();
   renderCreditCards();
   renderDebitCards();
+  renderBankAccounts();
   renderLoans();
   renderDashboardInstallments();
   renderBreakdown();
@@ -2263,6 +2376,185 @@ function handleSaveDebitCard(e) {
   dom.debitCardDialog?.close();
 }
 
+
+// ================= BANK ACCOUNTS MANAGEMENT (BUG 2) =================
+function renderBankAccounts() {
+  if (!dom.bankAccountsGrid) return;
+
+  if (dom.banksTotalSummary) {
+    if (state.bankAccounts && state.bankAccounts.length > 0) {
+      dom.banksTotalSummary.textContent = `${state.bankAccounts.length} Active Bank Account${state.bankAccounts.length > 1 ? "s" : ""}`;
+    } else {
+      dom.banksTotalSummary.textContent = "Direct transfer & salary accounts";
+    }
+  }
+
+  if (!state.bankAccounts || !state.bankAccounts.length) {
+    dom.bankAccountsGrid.innerHTML = `<p class="empty-state">No bank accounts added yet. Click "+ Add Bank" to configure direct transfer sources.</p>`;
+    return;
+  }
+
+  dom.bankAccountsGrid.innerHTML = state.bankAccounts.map(b => {
+    return `
+      <div class="bank-account-item" data-bank="${escapeHtml(b.bank)}" data-id="${b.id}">
+        <div class="card-top-row">
+          <div class="card-identity">
+            <div class="card-chip-box" style="border-color:#2563eb; color:#2563eb;">🏦</div>
+            <div>
+              <div class="card-title-text">${escapeHtml(b.name)}</div>
+              <div class="card-bank-sub">${escapeHtml(b.bank)} • Direct Transfer Account</div>
+            </div>
+          </div>
+          <button type="button" class="btn-delete" title="Delete bank account" onclick="deleteBankAccount('${b.id}')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </button>
+        </div>
+
+        <div class="card-actions-row">
+          <button type="button" class="btn-outline-sm" onclick="openEditBankAccountModal('${b.id}')">
+            ✏️ Edit Bank Account
+          </button>
+          <span style="font-size:0.72rem; color:var(--text-muted);">Direct transfer source</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function openAddBankAccountModal() {
+  if (dom.bankAccountEditId) dom.bankAccountEditId.value = "";
+  if (dom.bankAccountName) dom.bankAccountName.value = "";
+  if (dom.bankAccountProvider) dom.bankAccountProvider.value = "Maybank";
+  const titleEl = document.getElementById("bank-modal-title");
+  if (titleEl) titleEl.textContent = "Add Bank Account";
+  dom.bankAccountDialog?.showModal ? dom.bankAccountDialog.showModal() : alert("Add bank account");
+}
+
+function openEditBankAccountModal(bankId) {
+  const bank = state.bankAccounts.find(b => b.id === bankId);
+  if (!bank) return;
+
+  if (dom.bankAccountEditId) dom.bankAccountEditId.value = bank.id;
+  if (dom.bankAccountName) dom.bankAccountName.value = bank.name;
+  if (dom.bankAccountProvider) dom.bankAccountProvider.value = bank.bank;
+
+  const titleEl = document.getElementById("bank-modal-title");
+  if (titleEl) titleEl.textContent = "Edit Bank Account";
+  dom.bankAccountDialog?.showModal ? dom.bankAccountDialog.showModal() : alert("Edit bank account");
+}
+
+function deleteBankAccount(bankId) {
+  const idx = state.bankAccounts.findIndex(b => b.id === bankId);
+  if (idx === -1) return;
+  const deleted = state.bankAccounts.splice(idx, 1)[0];
+  saveStorage();
+  renderBankAccounts();
+  showToast(`Deleted bank account "${deleted.name}"`);
+}
+
+function handleSaveBankAccount(e) {
+  e.preventDefault();
+  const name = dom.bankAccountName ? dom.bankAccountName.value.trim() : "";
+  const provider = dom.bankAccountProvider ? dom.bankAccountProvider.value : "Maybank";
+
+  if (!name) return showToast("Please enter an account name.");
+
+  const editId = dom.bankAccountEditId ? dom.bankAccountEditId.value : "";
+  if (editId) {
+    const bank = state.bankAccounts.find(b => b.id === editId);
+    if (bank) {
+      bank.name = name;
+      bank.bank = provider;
+      showToast(`Updated "${name}"!`);
+    }
+  } else {
+    state.bankAccounts.push({
+      id: "bank_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+      name,
+      bank: provider,
+      createdAt: Date.now()
+    });
+    showToast(`Added bank account "${name}"!`);
+  }
+
+  saveStorage();
+  renderBankAccounts();
+  dom.bankAccountDialog?.close();
+}
+
+// ================= BANK PICKER MODAL (OPTION A) =================
+function openBankPicker() {
+  if (!dom.selectBankDialog) return;
+
+  if (dom.pickerBanksList) {
+    if (!state.bankAccounts || !state.bankAccounts.length) {
+      dom.pickerBanksList.innerHTML = `<p class="empty-state" style="padding:0.75rem;">No bank accounts configured. Click "+ Add Bank Account" below.</p>`;
+    } else {
+      const activeId = state.pickerTargetContext === "subscription"
+        ? (dom.subSelectedSourceId ? dom.subSelectedSourceId.value : "")
+        : (dom.selectedSourceId ? dom.selectedSourceId.value : "");
+
+      dom.pickerBanksList.innerHTML = state.bankAccounts.map(b => {
+        const isSel = activeId === b.id;
+        return `
+          <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectBankAccount('${b.id}', '${escapeHtml(b.name)}')">
+            <div class="picker-card-left">
+              <div class="picker-chip-icon" style="color:#2563eb;">🏦</div>
+              <div>
+                <div class="picker-card-name">${escapeHtml(b.name)}</div>
+                <div class="picker-card-bank">${escapeHtml(b.bank)} • Direct Transfer</div>
+              </div>
+            </div>
+            <div class="picker-card-right">
+              <span class="picker-card-tag" style="background:rgba(37,99,235,0.1); color:#2563eb;">Bank Account</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  dom.selectBankDialog?.showModal ? dom.selectBankDialog.showModal() : null;
+}
+
+function selectBankAccount(bankId, bankName) {
+  state.selectedBankId = bankId;
+  state.selectedBankName = bankName;
+
+  if (state.pickerTargetContext === "subscription") {
+    if (dom.subSelectedWallet) dom.subSelectedWallet.value = "Bank Transfer";
+    if (dom.subSelectedSourceId) dom.subSelectedSourceId.value = bankId;
+    if (dom.subSelectedSourceName) dom.subSelectedSourceName.value = bankName;
+
+    document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+    if (dom.pillBankSub) {
+      dom.pillBankSub.classList.add("active");
+      dom.pillBankSub.textContent = `🏦 ${bankName} ▾`;
+    }
+  } else {
+    // Transaction context
+    state.selectedCardId = null;
+    state.selectedCardType = null;
+    state.selectedCardName = null;
+
+    if (dom.selectedWallet) dom.selectedWallet.value = "Bank Transfer";
+    if (dom.selectedSourceId) dom.selectedSourceId.value = bankId;
+    if (dom.selectedSourceName) dom.selectedSourceName.value = bankName;
+
+    document.querySelectorAll("#wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+    if (dom.pillBankTx) {
+      dom.pillBankTx.classList.add("active");
+      dom.pillBankTx.textContent = `🏦 ${bankName} ▾`;
+    }
+    if (dom.pillCardTx) {
+      dom.pillCardTx.textContent = "💳 Card ▾";
+    }
+  }
+
+  dom.selectBankDialog?.close();
+  showToast(`Selected ${bankName}!`);
+}
+
 // Card Picker Modal (Hierarchy: Credit Cards vs Debit Cards)
 
 // ================= INTERACTIVE CARD PICKER (CREDIT VS DEBIT) =================
@@ -2275,7 +2567,10 @@ function openCardPicker() {
       dom.pickerCreditCardsList.innerHTML = `<p class="empty-state" style="padding:0.75rem;">No credit cards configured. Click "+ Add New Card" below.</p>`;
     } else {
       dom.pickerCreditCardsList.innerHTML = state.creditCards.map(c => {
-        const isSel = state.selectedCardId === c.id;
+        const activeId = state.pickerTargetContext === "subscription"
+          ? (dom.subSelectedSourceId ? dom.subSelectedSourceId.value : "")
+          : (state.selectedCardId || (dom.selectedSourceId ? dom.selectedSourceId.value : ""));
+        const isSel = activeId === c.id;
         return `
           <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectPaymentCard('credit', '${c.id}', '${escapeHtml(c.name)}')">
             <div class="picker-card-left">
@@ -2301,7 +2596,10 @@ function openCardPicker() {
       dom.pickerDebitCardsList.innerHTML = `<p class="empty-state" style="padding:0.75rem;">No debit cards configured. Click "+ Add New Card" below.</p>`;
     } else {
       dom.pickerDebitCardsList.innerHTML = state.debitCards.map(dc => {
-        const isSel = state.selectedCardId === dc.id;
+        const activeId = state.pickerTargetContext === "subscription"
+          ? (dom.subSelectedSourceId ? dom.subSelectedSourceId.value : "")
+          : (state.selectedCardId || (dom.selectedSourceId ? dom.selectedSourceId.value : ""));
+        const isSel = activeId === dc.id;
         return `
           <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectPaymentCard('debit', '${dc.id}', '${escapeHtml(dc.name)}')">
             <div class="picker-card-left">
@@ -2325,21 +2623,39 @@ function openCardPicker() {
 }
 
 function selectPaymentCard(type, cardId, cardName) {
-  state.selectedCardId = cardId;
-  state.selectedCardType = type;
-  state.selectedCardName = cardName;
+  if (state.pickerTargetContext === "subscription") {
+    if (dom.subSelectedWallet) {
+      dom.subSelectedWallet.value = type === "credit" ? "Credit Card" : "Debit Card";
+    }
+    if (dom.subSelectedSourceId) dom.subSelectedSourceId.value = cardId;
+    if (dom.subSelectedSourceName) dom.subSelectedSourceName.value = cardName;
 
-  if (dom.selectedWallet) {
-    dom.selectedWallet.value = type === "credit" ? "Credit Card" : "Debit Card";
-  }
-  if (dom.selectedSourceId) dom.selectedSourceId.value = cardId;
-  if (dom.selectedSourceName) dom.selectedSourceName.value = cardName;
+    document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+    if (dom.pillCardSub) {
+      dom.pillCardSub.classList.add("active");
+      dom.pillCardSub.textContent = `💳 ${cardName} ▾`;
+    }
+  } else {
+    state.selectedCardId = cardId;
+    state.selectedCardType = type;
+    state.selectedCardName = cardName;
+    state.selectedBankId = null;
+    state.selectedBankName = null;
 
-  // Update card pill button text and active state
-  document.querySelectorAll(".wallet-pill-btn").forEach(b => b.classList.remove("active"));
-  if (dom.pillCardTx) {
-    dom.pillCardTx.classList.add("active");
-    dom.pillCardTx.textContent = `💳 ${cardName} ▾`;
+    if (dom.selectedWallet) {
+      dom.selectedWallet.value = type === "credit" ? "Credit Card" : "Debit Card";
+    }
+    if (dom.selectedSourceId) dom.selectedSourceId.value = cardId;
+    if (dom.selectedSourceName) dom.selectedSourceName.value = cardName;
+
+    document.querySelectorAll("#wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+    if (dom.pillCardTx) {
+      dom.pillCardTx.classList.add("active");
+      dom.pillCardTx.textContent = `💳 ${cardName} ▾`;
+    }
+    if (dom.pillBankTx) {
+      dom.pillBankTx.textContent = "🏦 Bank Transfer ▾";
+    }
   }
 
   dom.selectCardDialog?.close();
@@ -2540,7 +2856,7 @@ function handleSaveCreditCard(e) {
 const APP_RELEASES_REGISTRY = [
   {
     version: "v41",
-    title: "🎉 Version 41: Multi-Bank Card Pickers & Debit Cards",
+    title: "Version 41: Multi-Bank Card Pickers & Debit Cards",
     date: "September 2026",
     features: [
       "💳 Card Picker Sheet: Choose exact Credit Card or Debit Card per transaction or bill.",
@@ -3864,6 +4180,22 @@ function loadSampleData() {
   // Populate active subscriptions list for Malaysian worker
   const today = new Date();
   const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  // Sample Bank Accounts (Direct Bank Transfer Sources)
+  state.bankAccounts = [
+    {
+      id: "bank_maybank",
+      name: "Maybank Savings",
+      bank: "Maybank",
+      createdAt: Date.now()
+    },
+    {
+      id: "bank_public",
+      name: "Public Bank Salary Account",
+      bank: "Public Bank",
+      createdAt: Date.now()
+    }
+  ];
 
   // Sample Credit Cards: Maybank Visa Signature
   state.creditCards = [

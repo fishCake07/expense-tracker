@@ -4026,3 +4026,136 @@ a,
 .debit-card-item[data-bank="CIMB"] { border-left-color: #ef4444; }
 .debit-card-item[data-bank="Public Bank"] { border-left-color: #dc2626; }
 .debit-card-item[data-bank="Hong Leong"] { border-left-color: #0284c7; }
+
+
+/* ================= DEBIT CARDS SECTION (COMMITMENTS) ================= */
+.debit-cards-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.debit-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.debit-card-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.15rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-left: 5px solid #10b981; /* Fresh Emerald for Debit / Cash */
+}
+
+.debit-card-item[data-bank="Maybank"] { border-left-color: #fbbf24; }
+.debit-card-item[data-bank="CIMB"] { border-left-color: #ef4444; }
+.debit-card-item[data-bank="Public Bank"] { border-left-color: #dc2626; }
+.debit-card-item[data-bank="Hong Leong"] { border-left-color: #0284c7; }
+
+.debit-card-spend-box {
+  background: var(--bg-subtle);
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ================= CARD PICKER MODAL (MATCHES IMAGE_101269.PNG) ================= */
+.card-picker-dialog {
+  max-width: 420px !important;
+  width: 92% !important;
+  padding: 1.25rem !important;
+}
+
+.card-picker-group-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.picker-card-option-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.85rem;
+  background: var(--bg-subtle);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.picker-card-option-btn:hover {
+  background: var(--bg-surface);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.picker-card-option-btn.selected {
+  background: var(--bg-surface);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.picker-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.picker-card-icon {
+  width: 32px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.picker-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.picker-card-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-card-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.picker-card-amount {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-main);
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}

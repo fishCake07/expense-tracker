@@ -144,6 +144,22 @@
         </div>
       </section>
 
+      <!-- Debit Cards Section (Direct Bank Deductions • 0% DSR) -->
+      <section class="card debit-cards-section">
+        <div class="card-header">
+          <div>
+            <h2>Debit Cards</h2>
+            <span class="sub-total-commitment" id="debit-cards-total-commitment">Direct Bank Account Deductions • 0% DSR</span>
+          </div>
+          <button type="button" id="open-add-debit-card-btn" class="btn-primary-sm">
+            ➕ Add Debit Card
+          </button>
+        </div>
+        <div class="debit-cards-grid" id="debit-cards-grid">
+          <p class="empty-state">No debit cards added. Click "+ Add Debit Card" to track card-specific bank spending.</p>
+        </div>
+      </section>
+
       <!-- Loans & Financing Portfolio Section -->
       <section class="card loan-portfolio-card">
         <div class="card-header">
@@ -217,12 +233,12 @@
           <div class="form-group">
               <label>Account / Payment Method</label>
               <div class="wallet-pill-group" id="wallet-pill-group">
-                <button type="button" class="wallet-pill-btn active" id="pill-bank-tx" data-wallet="Bank Transfer">🏦 Bank Transfer</button>
-                <button type="button" class="wallet-pill-btn" id="pill-card-tx" data-wallet="Card">💳 Card</button>
+                <button type="button" class="wallet-pill-btn" id="pill-bank-tx" data-wallet="Bank Transfer">🏦 Bank Transfer ▾</button>
+                <button type="button" class="wallet-pill-btn" id="pill-card-tx" data-wallet="Card">💳 Card ▾</button>
                 <button type="button" class="wallet-pill-btn" id="pill-ewallet-tx" data-wallet="E-Wallet">📱 E-Wallet</button>
                 <button type="button" class="wallet-pill-btn" id="pill-cash-tx" data-wallet="Cash">💵 Cash</button>
               </div>
-              <input type="hidden" id="selected-wallet" value="Bank Transfer">
+              <input type="hidden" id="selected-wallet" value="">
               <input type="hidden" id="selected-source-id" value="">
               <input type="hidden" id="selected-source-name" value="">
             </div>
@@ -726,8 +742,8 @@
         <div class="form-group">
           <label>Payment Method / Account</label>
           <div class="wallet-pill-group" id="sub-wallet-pill-group">
-            <button type="button" class="wallet-pill-btn active" id="pill-bank-sub" data-wallet="Bank Transfer">🏦 Bank Transfer</button>
-            <button type="button" class="wallet-pill-btn" id="pill-card-sub" data-wallet="Card">💳 Card</button>
+            <button type="button" class="wallet-pill-btn active" id="pill-bank-sub" data-wallet="Bank Transfer">🏦 Bank Transfer ▾</button>
+            <button type="button" class="wallet-pill-btn" id="pill-card-sub" data-wallet="Card">💳 Card ▾</button>
             <button type="button" class="wallet-pill-btn" id="pill-ewallet-sub" data-wallet="E-Wallet">📱 E-Wallet</button>
           </div>
           <input type="hidden" id="sub-selected-wallet" value="Bank Transfer">
@@ -929,6 +945,14 @@
         <input type="hidden" id="card-edit-id">
 
         <div class="form-group" style="margin-top: 1rem;">
+          <label for="card-type-select">Card Type *</label>
+          <select id="card-type-select">
+            <option value="CREDIT">💳 Credit Card (Statements, Cycles &amp; 5% DSR)</option>
+            <option value="DEBIT">💳 Debit Card (Direct Bank Debit • 0% DSR)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label for="card-name">Card Nickname *</label>
           <input type="text" id="card-name" placeholder="e.g. Maybank Visa Signature" required maxlength="50">
         </div>
@@ -950,52 +974,55 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label for="card-statement-day">Statement Cut-off Date (Day of Month: 1 - 31) *</label>
-          <input type="number" id="card-statement-day" min="1" max="31" required placeholder="e.g. 25">
-        </div>
-
-        <div class="form-group">
-          <label for="card-due-day">Payment Due Date (Day of Month: 1 - 31) *</label>
-          <input type="number" id="card-due-day" min="1" max="31" required placeholder="e.g. 15">
-        </div>
-
-        <div class="form-group">
-          <label for="card-limit">Credit Limit (Optional)</label>
-          <div class="input-prefix-wrapper">
-            <span class="currency-prefix">RM</span>
-            <input type="number" id="card-limit" step="100" min="0" placeholder="e.g. 10000.00" inputmode="decimal">
+        <!-- Credit Card Specific Fields (Hidden when Debit Card is selected) -->
+        <div id="credit-card-specific-fields">
+          <div class="form-group">
+            <label for="card-statement-day">Statement Cut-off Date (Day of Month: 1 - 31) *</label>
+            <input type="number" id="card-statement-day" min="1" max="31" placeholder="e.g. 25">
           </div>
-        </div>
 
-        <!-- Balances & DSR Controls (Fully Editable Anytime) -->
-        <div class="card-balances-box" style="margin: 0.85rem 0; padding: 0.85rem; background: var(--bg-subtle); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-          <strong style="font-size: 0.85rem; color: var(--text-main); display: block; margin-bottom: 0.5rem;">Current Outstanding (Sync Balances)</strong>
-          
-          <div class="form-group" style="margin-bottom: 0.5rem;">
-            <label for="card-billed">Current Bill (Billed Balance) *</label>
+          <div class="form-group">
+            <label for="card-due-day">Payment Due Date (Day of Month: 1 - 31) *</label>
+            <input type="number" id="card-due-day" min="1" max="31" placeholder="e.g. 15">
+          </div>
+
+          <div class="form-group">
+            <label for="card-limit">Credit Limit (Optional)</label>
             <div class="input-prefix-wrapper">
               <span class="currency-prefix">RM</span>
-              <input type="number" id="card-billed" step="0.01" min="0" placeholder="0.00" value="0.00" required inputmode="decimal">
+              <input type="number" id="card-limit" step="100" min="0" placeholder="e.g. 10000.00" inputmode="decimal">
             </div>
           </div>
 
-          <div class="form-group" style="margin-bottom: 0.5rem;">
-            <label for="card-unbilled">Unbilled Spending (Current Cycle) *</label>
-            <div class="input-prefix-wrapper">
-              <span class="currency-prefix">RM</span>
-              <input type="number" id="card-unbilled" step="0.01" min="0" placeholder="0.00" value="0.00" required inputmode="decimal">
+          <!-- Balances & DSR Controls (Fully Editable Anytime) -->
+          <div class="card-balances-box" style="margin: 0.85rem 0; padding: 0.85rem; background: var(--bg-subtle); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+            <strong style="font-size: 0.85rem; color: var(--text-main); display: block; margin-bottom: 0.5rem;">Current Outstanding (Sync Balances)</strong>
+            
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+              <label for="card-billed">Current Bill (Billed Balance)</label>
+              <div class="input-prefix-wrapper">
+                <span class="currency-prefix">RM</span>
+                <input type="number" id="card-billed" step="0.01" min="0" placeholder="0.00" value="0.00" inputmode="decimal">
+              </div>
             </div>
-          </div>
 
-          <div class="checkbox-option-group" style="margin-top: 0.5rem; background: transparent; padding: 0; border: none;">
-            <label class="toggle-label" for="card-pay-in-full">
-              <input type="checkbox" id="card-pay-in-full" checked>
-              <span class="toggle-text">
-                <strong>Pay in full every month?</strong>
-                <small>YES: 0% DSR impact. NO: Banks calculate 5% or RM50 CCRIS commitment (compounding 15-18% p.a.).</small>
-              </span>
-            </label>
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+              <label for="card-unbilled">Unbilled Spending (Current Cycle)</label>
+              <div class="input-prefix-wrapper">
+                <span class="currency-prefix">RM</span>
+                <input type="number" id="card-unbilled" step="0.01" min="0" placeholder="0.00" value="0.00" inputmode="decimal">
+              </div>
+            </div>
+
+            <div class="checkbox-option-group" style="margin-top: 0.5rem; background: transparent; padding: 0; border: none;">
+              <label class="toggle-label" for="card-pay-in-full">
+                <input type="checkbox" id="card-pay-in-full" checked>
+                <span class="toggle-text">
+                  <strong>Pay in full every month?</strong>
+                  <small>YES: 0% DSR impact. NO: Banks calculate 5% or RM50 CCRIS commitment (compounding 15-18% p.a.).</small>
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -1031,133 +1058,6 @@
       <div class="dialog-actions" style="margin-top: 0.85rem;">
         <button type="button" id="clear-all-notifs-btn" class="btn-text">Clear Read Notifications</button>
       </div>
-    </dialog>
-
-    <!-- Card Picker Sheet (Choose Credit Card vs Debit Card) -->
-    <dialog id="select-card-dialog" class="custom-dialog">
-      <div class="receipt-dialog-header">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.25rem;">💳</span>
-          <h3>Select Payment Card</h3>
-        </div>
-        <button type="button" id="close-card-picker-btn" class="btn-circle-close">✕</button>
-      </div>
-      <p class="dialog-sub">Choose which bank card was used for this transaction.</p>
-
-      <div class="card-picker-scroll-list" style="margin: 1rem 0; display: flex; flex-direction: column; gap: 1rem; max-height: 55vh; overflow-y: auto;">
-        <!-- Credit Cards Group -->
-        <div class="picker-group">
-          <span class="picker-group-title">CREDIT CARDS (Revolving &amp; Statements)</span>
-          <div id="picker-credit-cards-list" class="picker-cards-sublist"></div>
-        </div>
-
-        <!-- Debit Cards Group -->
-        <div class="picker-group">
-          <span class="picker-group-title">DEBIT CARDS (Direct Bank Debit • 0% DSR)</span>
-          <div id="picker-debit-cards-list" class="picker-cards-sublist"></div>
-        </div>
-      </div>
-
-      <div class="dialog-actions" style="justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 0.85rem;">
-        <button type="button" id="nav-to-add-card-btn" class="btn-outline-sm">
-          ➕ Add New Card
-        </button>
-        <button type="button" id="cancel-card-picker-btn" class="btn-secondary">Cancel</button>
-      </div>
-    </dialog>
-
-    <!-- Bank Account Picker Sheet (Choose Bank Account for Bank Transfer) -->
-    <dialog id="select-bank-dialog" class="custom-dialog">
-      <div class="receipt-dialog-header">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.25rem;">🏦</span>
-          <h3>Select Bank Account</h3>
-        </div>
-        <button type="button" id="close-bank-picker-btn" class="btn-circle-close">✕</button>
-      </div>
-      <p class="dialog-sub">Choose which bank account was used for this transfer.</p>
-
-      <div id="picker-banks-list" class="picker-cards-sublist" style="margin: 1rem 0; max-height: 50vh; overflow-y: auto;"></div>
-
-      <div class="dialog-actions" style="justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 0.85rem;">
-        <button type="button" id="nav-to-add-bank-btn" class="btn-outline-sm">
-          ➕ Add Bank Account
-        </button>
-        <button type="button" id="cancel-bank-picker-btn" class="btn-secondary">Cancel</button>
-      </div>
-    </dialog>
-
-    <!-- Add / Edit Debit Card Modal -->
-    <dialog id="debit-card-dialog" class="custom-dialog">
-      <form method="dialog" id="debit-card-form">
-        <div class="receipt-dialog-header">
-          <h3 id="debit-modal-title">Add Debit Card</h3>
-          <button type="button" id="close-debit-modal-btn" class="btn-circle-close">✕</button>
-        </div>
-        <p class="dialog-sub">Direct debit from your bank account (0% DSR impact, zero debt).</p>
-        <input type="hidden" id="debit-card-edit-id">
-
-        <div class="form-group" style="margin-top: 1rem;">
-          <label for="debit-card-name">Card Nickname *</label>
-          <input type="text" id="debit-card-name" placeholder="e.g. Maybank Visa Debit" required maxlength="50">
-        </div>
-
-        <div class="form-group">
-          <label for="debit-card-bank">Bank Provider *</label>
-          <select id="debit-card-bank" required>
-            <option value="Maybank">Maybank</option>
-            <option value="CIMB">CIMB Bank</option>
-            <option value="Public Bank">Public Bank</option>
-            <option value="Hong Leong">Hong Leong Bank</option>
-            <option value="RHB">RHB Bank</option>
-            <option value="AmBank">AmBank</option>
-            <option value="Touch 'n Go">Touch 'n Go eWallet Visa</option>
-            <option value="BigPay">BigPay</option>
-            <option value="Other">Other Bank</option>
-          </select>
-        </div>
-
-        <div class="dialog-actions">
-          <button type="button" id="cancel-debit-modal-btn" class="btn-secondary">Cancel</button>
-          <button type="submit" id="save-debit-card-btn" class="btn-primary-sm">Save Debit Card</button>
-        </div>
-      </form>
-    </dialog>
-
-    <!-- Add / Edit Bank Account Modal -->
-    <dialog id="bank-account-dialog" class="custom-dialog">
-      <form method="dialog" id="bank-account-form">
-        <div class="receipt-dialog-header">
-          <h3 id="bank-modal-title">Add Bank Account</h3>
-          <button type="button" id="close-bank-modal-btn" class="btn-circle-close">✕</button>
-        </div>
-        <p class="dialog-sub">Account for receiving salary and making online transfers.</p>
-        <input type="hidden" id="bank-account-edit-id">
-
-        <div class="form-group" style="margin-top: 1rem;">
-          <label for="bank-account-name">Account Name *</label>
-          <input type="text" id="bank-account-name" placeholder="e.g. Maybank Savings Account" required maxlength="50">
-        </div>
-
-        <div class="form-group">
-          <label for="bank-account-provider">Bank Institution *</label>
-          <select id="bank-account-provider" required>
-            <option value="Maybank">Maybank</option>
-            <option value="CIMB">CIMB Bank</option>
-            <option value="Public Bank">Public Bank</option>
-            <option value="Hong Leong">Hong Leong Bank</option>
-            <option value="RHB">RHB Bank</option>
-            <option value="AmBank">AmBank</option>
-            <option value="Bank Islam">Bank Islam</option>
-            <option value="Other">Other Institution</option>
-          </select>
-        </div>
-
-        <div class="dialog-actions">
-          <button type="button" id="cancel-bank-modal-btn" class="btn-secondary">Cancel</button>
-          <button type="submit" id="save-bank-account-btn" class="btn-primary-sm">Save Bank Account</button>
-        </div>
-      </form>
     </dialog>
 
     <!-- Startup "What's New" Feature Release Guide Modal -->
@@ -1225,6 +1125,142 @@
         </a>
       </div>
     </dialog>
+
+    <!-- Card Picker Modal (Matches image_101269.png) -->
+    
+
+    <!-- Card Picker Sheet (Matches image_101269.png) -->
+    <dialog id="select-card-dialog" class="custom-dialog card-picker-dialog">
+      <div class="receipt-dialog-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.25rem;">💳</span>
+          <h3>Select Payment Card</h3>
+        </div>
+        <button type="button" id="close-card-picker-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+      </div>
+      <p class="dialog-sub">Choose which bank card was used for this transaction.</p>
+
+      <div class="card-picker-body" id="card-picker-body" style="margin: 0.85rem 0; display: flex; flex-direction: column; gap: 0.85rem; max-height: 55vh; overflow-y: auto;">
+        <!-- Credit Cards Group -->
+        <div class="card-picker-group">
+          <span class="card-picker-group-title">CREDIT CARDS (Revolving &amp; Statements)</span>
+          <div id="picker-credit-cards-list" class="picker-cards-list" style="margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.45rem;"></div>
+        </div>
+
+        <!-- Debit Cards Group -->
+        <div class="card-picker-group">
+          <span class="card-picker-group-title">DEBIT CARDS (Direct Bank Debit • 0% DSR)</span>
+          <div id="picker-debit-cards-list" class="picker-cards-list" style="margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.45rem;"></div>
+        </div>
+      </div>
+
+      <div class="dialog-actions" style="justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 0.85rem;">
+        <button type="button" id="nav-to-add-card-btn" class="btn-outline-sm">
+          ➕ Add New Card
+        </button>
+        <button type="button" id="cancel-card-picker-btn" class="btn-secondary">Cancel</button>
+      </div>
+    </dialog>
+
+    <!-- Add / Edit Debit Card Modal -->
+    <dialog id="debit-card-dialog" class="custom-dialog">
+      <form method="dialog" id="debit-card-form">
+        <div class="receipt-dialog-header">
+          <h3 id="debit-modal-title">Add Debit Card</h3>
+          <button type="button" id="close-debit-modal-btn" class="btn-circle-close">✕</button>
+        </div>
+        <p class="dialog-sub">Direct debit from your bank account (0% DSR impact, zero debt).</p>
+        <input type="hidden" id="debit-card-edit-id">
+
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="debit-card-name">Card Nickname *</label>
+          <input type="text" id="debit-card-name" placeholder="e.g. Maybank Visa Debit" required maxlength="50">
+        </div>
+
+        <div class="form-group">
+          <label for="debit-card-bank">Bank Provider *</label>
+          <select id="debit-card-bank" required>
+            <option value="Maybank">Maybank</option>
+            <option value="CIMB">CIMB Bank</option>
+            <option value="Public Bank">Public Bank</option>
+            <option value="Hong Leong">Hong Leong Bank</option>
+            <option value="RHB">RHB Bank</option>
+            <option value="AmBank">AmBank</option>
+            <option value="Touch 'n Go">Touch 'n Go eWallet Visa</option>
+            <option value="BigPay">BigPay</option>
+            <option value="Other">Other Bank</option>
+          </select>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="cancel-debit-modal-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="save-debit-card-btn" class="btn-primary-sm">Save Debit Card</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Add / Edit Bank Account Modal (Bug 2) -->
+    <dialog id="bank-account-dialog" class="custom-dialog">
+      <form method="dialog" id="bank-account-form">
+        <div class="receipt-dialog-header">
+          <h3 id="bank-modal-title">Add Bank Account</h3>
+          <button type="button" id="close-bank-modal-btn" class="btn-circle-close">✕</button>
+        </div>
+        <p class="dialog-sub">Direct transfer and salary accounts.</p>
+        <input type="hidden" id="bank-account-edit-id">
+
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="bank-account-name">Account Name / Nickname *</label>
+          <input type="text" id="bank-account-name" placeholder="e.g. Maybank Savings, Public Bank" required maxlength="50">
+        </div>
+
+        <div class="form-group">
+          <label for="bank-account-provider">Bank Provider *</label>
+          <select id="bank-account-provider" required>
+            <option value="Maybank">Maybank</option>
+            <option value="CIMB">CIMB Bank</option>
+            <option value="Public Bank">Public Bank</option>
+            <option value="Hong Leong">Hong Leong Bank</option>
+            <option value="RHB">RHB Bank</option>
+            <option value="AmBank">AmBank</option>
+            <option value="Alliance">Alliance Bank</option>
+            <option value="Other">Other Bank</option>
+          </select>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="cancel-bank-modal-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="save-bank-account-btn" class="btn-primary-sm">Save Bank Account</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Bank Picker Sheet (Option A - Dedicated Bank Picker Modal) -->
+    <dialog id="select-bank-dialog" class="custom-dialog card-picker-dialog">
+      <div class="receipt-dialog-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.25rem;">🏦</span>
+          <h3>Select Bank Account</h3>
+        </div>
+        <button type="button" id="close-bank-picker-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+      </div>
+      <p class="dialog-sub">Choose which bank account was used for this payment.</p>
+
+      <div class="card-picker-body" id="bank-picker-body" style="margin: 0.85rem 0; display: flex; flex-direction: column; gap: 0.85rem; max-height: 55vh; overflow-y: auto;">
+        <div class="card-picker-group">
+          <span class="card-picker-group-title">BANK ACCOUNTS (Direct Transfers)</span>
+          <div id="picker-banks-list" class="picker-cards-list" style="margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.45rem;"></div>
+        </div>
+      </div>
+
+      <div class="dialog-actions" style="justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 0.85rem;">
+        <button type="button" id="nav-to-add-bank-btn" class="btn-outline-sm">
+          ➕ Add Bank Account
+        </button>
+        <button type="button" id="cancel-bank-picker-btn" class="btn-secondary">Cancel</button>
+      </div>
+    </dialog>
+
 
     <!-- Toast Notification -->
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
