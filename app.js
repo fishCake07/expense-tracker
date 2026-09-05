@@ -298,6 +298,7 @@ function init() {
   registerSW();
   initSwipeGestures();
   initMovableMenuFAB();
+  initUniversalBackdropDismissal();
 }
 
 // Local Timezone Helpers (Guarantees rollover at 00:00 local time)
@@ -712,6 +713,24 @@ function openNavHub() {
 
 function closeNavHub() {
   if (dom.navHubBackdrop) dom.navHubBackdrop.style.display = "none";
+}
+
+
+// Universal Click-Outside Backdrop Dismissal for ALL Modals (iOS & Android)
+function initUniversalBackdropDismissal() {
+  document.querySelectorAll("dialog").forEach(dialog => {
+    dialog.addEventListener("click", (e) => {
+      // If clicking directly on the native <dialog> backdrop (outside the inner rect)
+      const rect = dialog.getBoundingClientRect();
+      const isInDialog = (
+        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+      );
+      if (!isInDialog) {
+        dialog.close();
+      }
+    });
+  });
 }
 
 function initSwipeGestures() {
