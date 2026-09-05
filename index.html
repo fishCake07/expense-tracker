@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
   <!-- Core Stylesheet with Cache-Buster -->
-  <link rel="stylesheet" href="./style.css?v=38">
+  <link rel="stylesheet" href="./style.css?v=39">
 </head>
 <body>
   <div class="app-container">
@@ -44,6 +44,15 @@
       </nav>
 
       <div class="header-controls">
+        <!-- Notification Center Bell Icon -->
+        <button type="button" id="open-notifications-btn" class="btn-icon-header" title="Notification Center" aria-label="Open Notification Center">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span id="notif-badge-count" class="notif-badge" style="display:none;">0</span>
+        </button>
+
         <label for="currency-select" class="sr-only">Currency</label>
         <select id="currency-select">
           <option value="RM" selected>RM (MYR)</option>
@@ -84,6 +93,22 @@
         </div>
         <div class="subscriptions-list" id="subscriptions-list">
           <p class="empty-state">No recurring subscriptions added yet. Click "+ Add Bill" to track fixed commitments.</p>
+        </div>
+      </section>
+
+      <!-- Credit Cards & Revolving Facilities Section (Option A: Malaysian CCRIS 5% Rule) -->
+      <section class="card credit-cards-section">
+        <div class="card-header">
+          <div>
+            <h2>Credit Cards</h2>
+            <span class="sub-total-commitment" id="cards-total-commitment">Total Card Debt: RM 0.00 • 5% DSR: RM 0.00</span>
+          </div>
+          <button type="button" id="open-add-card-btn" class="btn-primary-sm">
+            ➕ Add Card
+          </button>
+        </div>
+        <div class="credit-cards-grid" id="credit-cards-grid">
+          <p class="empty-state">No credit cards added. Click "+ Add Card" to track billing cycles, unbilled spends, and DSR impact.</p>
         </div>
       </section>
 
@@ -857,6 +882,162 @@
       </div>
     </dialog>
 
+    <!-- Add / Edit Credit Card Modal (Matches ASCII Wireframe) -->
+    <dialog id="card-dialog" class="custom-dialog">
+      <form method="dialog" id="card-form">
+        <div class="receipt-dialog-header">
+          <h3 id="card-modal-title">Add New Credit Card</h3>
+          <button type="button" id="close-card-modal-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+        </div>
+        <p class="dialog-sub">Track monthly statements, unbilled cycles, and the 5% CCRIS DSR rule.</p>
+        <input type="hidden" id="card-edit-id">
+
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="card-name">Card Nickname *</label>
+          <input type="text" id="card-name" placeholder="e.g. Maybank Visa Signature" required maxlength="50">
+        </div>
+
+        <div class="form-group">
+          <label for="card-bank">Bank Provider *</label>
+          <select id="card-bank" required>
+            <option value="Maybank">Maybank</option>
+            <option value="CIMB">CIMB Bank</option>
+            <option value="Public Bank">Public Bank</option>
+            <option value="Hong Leong">Hong Leong Bank</option>
+            <option value="RHB">RHB Bank</option>
+            <option value="AmBank">AmBank</option>
+            <option value="Standard Chartered">Standard Chartered</option>
+            <option value="HSBC">HSBC Malaysia</option>
+            <option value="UOB">UOB Malaysia</option>
+            <option value="Alliance">Alliance Bank</option>
+            <option value="Other">Other Bank / Fintech</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="card-statement-day">Statement Cut-off Date (Day of Month: 1 - 31) *</label>
+          <input type="number" id="card-statement-day" min="1" max="31" required placeholder="e.g. 25">
+        </div>
+
+        <div class="form-group">
+          <label for="card-due-day">Payment Due Date (Day of Month: 1 - 31) *</label>
+          <input type="number" id="card-due-day" min="1" max="31" required placeholder="e.g. 15">
+        </div>
+
+        <div class="form-group">
+          <label for="card-limit">Credit Limit (Optional)</label>
+          <div class="input-prefix-wrapper">
+            <span class="currency-prefix">RM</span>
+            <input type="number" id="card-limit" step="100" min="0" placeholder="e.g. 10000.00" inputmode="decimal">
+          </div>
+        </div>
+
+        <!-- Balances & DSR Controls (Fully Editable Anytime) -->
+        <div class="card-balances-box" style="margin: 0.85rem 0; padding: 0.85rem; background: var(--bg-subtle); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <strong style="font-size: 0.85rem; color: var(--text-main); display: block; margin-bottom: 0.5rem;">Current Outstanding (Sync Balances)</strong>
+          
+          <div class="form-group" style="margin-bottom: 0.5rem;">
+            <label for="card-billed">Current Bill (Billed Balance) *</label>
+            <div class="input-prefix-wrapper">
+              <span class="currency-prefix">RM</span>
+              <input type="number" id="card-billed" step="0.01" min="0" placeholder="0.00" value="0.00" required inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0.5rem;">
+            <label for="card-unbilled">Unbilled Spending (Current Cycle) *</label>
+            <div class="input-prefix-wrapper">
+              <span class="currency-prefix">RM</span>
+              <input type="number" id="card-unbilled" step="0.01" min="0" placeholder="0.00" value="0.00" required inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="checkbox-option-group" style="margin-top: 0.5rem; background: transparent; padding: 0; border: none;">
+            <label class="toggle-label" for="card-pay-in-full">
+              <input type="checkbox" id="card-pay-in-full" checked>
+              <span class="toggle-text">
+                <strong>Pay in full every month?</strong>
+                <small>YES: 0% DSR impact. NO: Banks calculate 5% or RM50 CCRIS commitment (compounding 15-18% p.a.).</small>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="cancel-card-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="save-card-btn" class="btn-primary-sm">Save Card</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Notification Center Modal Dialog -->
+    <dialog id="notification-center-dialog" class="custom-dialog notif-center-dialog">
+      <div class="receipt-dialog-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.25rem;">🔔</span>
+          <h3 id="notif-center-title">Notification Center</h3>
+        </div>
+        <button type="button" id="close-notif-center-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div class="notif-tabs-row">
+        <button type="button" class="notif-tab-btn active" data-notif-tab="all">All</button>
+        <button type="button" class="notif-tab-btn" data-notif-tab="action">Action Needed</button>
+        <button type="button" class="notif-tab-btn" data-notif-tab="statements">Statements &amp; Guides</button>
+      </div>
+
+      <!-- Notifications List -->
+      <div class="notifications-feed" id="notifications-list">
+        <p class="empty-state">No notifications right now. You are all caught up!</p>
+      </div>
+
+      <div class="dialog-actions" style="margin-top: 0.85rem;">
+        <button type="button" id="clear-all-notifs-btn" class="btn-text">Clear Read Notifications</button>
+      </div>
+    </dialog>
+
+    <!-- Startup "What's New" Feature Release Guide Modal -->
+    <dialog id="release-guide-dialog" class="custom-dialog release-dialog">
+      <div class="receipt-dialog-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.3rem;">🎉</span>
+          <h3>What's New in This Update</h3>
+        </div>
+        <button type="button" id="close-release-guide-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+      </div>
+      <p class="dialog-sub">Quick guide to your new financial tools.</p>
+
+      <div class="release-guide-body" style="margin: 1rem 0; display: flex; flex-direction: column; gap: 0.85rem;">
+        <div class="guide-feature-box">
+          <strong>💳 Credit Card Management (In Commitments)</strong>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            Track real-world statement cut-off days and payment due dates. Spends logged with 💳 Credit Card automatically accumulate in your unbilled cycle, and Bank Negara Malaysia's 5% CCRIS rule evaluates your true DSR.
+          </p>
+        </div>
+
+        <div class="guide-feature-box">
+          <strong>🔔 Notification Center (Top Bell Icon)</strong>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            Never miss an alert: view monthly statement cut-off digests and interactive bill payment reminders in one permanent inbox.
+          </p>
+        </div>
+
+        <div class="guide-feature-box">
+          <strong>📝 Interactive Payment Decisions</strong>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            Settle credit card bills in full or partial payments directly inside the Notification Center to automatically update your balances and audit history.
+          </p>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" id="confirm-release-guide-btn" class="btn-primary" style="width: 100%;">
+          ✓ Got It! Mark as Read
+        </button>
+      </div>
+    </dialog>
+
     <!-- Full Receipt / Photo View Modal -->
     <dialog id="receipt-modal" class="custom-dialog receipt-dialog">
       <div class="receipt-dialog-header">
@@ -888,6 +1069,6 @@
 
   </div>
 
-  <script src="./app.js?v=38" defer></script>
+  <script src="./app.js?v=39" defer></script>
 </body>
 </html>

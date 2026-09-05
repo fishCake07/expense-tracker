@@ -39,6 +39,9 @@ const state = {
   analysisGranularity: "month",
   autoSweepSurplus: false,
   loans: [],
+  creditCards: [],
+  notifications: [],
+  activeNotifTab: "all",
   attachedReceipt: null,
   editAttachedReceipt: null
 };
@@ -51,6 +54,9 @@ const STORAGE_KEYS = {
   theme: "expense_tracker_theme_v1",
   autoSweep: "expense_tracker_auto_sweep_v1",
   loans: "expense_tracker_loans_v1",
+  cards: "expense_tracker_credit_cards_v1",
+  notifications: "expense_tracker_notifications_v1",
+  lastSeenRelease: "expense_tracker_last_seen_release_v1",
   fabPos: "expense_tracker_fab_pos_v1"
 };
 
@@ -202,6 +208,35 @@ const dom = {
   settingsImportBtn: $("settings-import-btn"),
   settingsFileInput: $("settings-file-input"),
   toggleSurplusSweep: $("toggle-surplus-sweep"),
+  // Header Notification Bell DOM
+  openNotificationsBtn: $("open-notifications-btn"),
+  notifBadgeCount: $("notif-badge-count"),
+  // Credit Cards Section DOM
+  cardsTotalCommitment: $("cards-total-commitment"),
+  creditCardsGrid: $("credit-cards-grid"),
+  openAddCardBtn: $("open-add-card-btn"),
+  cardDialog: $("card-dialog"),
+  closeCardModalBtn: $("close-card-modal-btn"),
+  cancelCardBtn: $("cancel-card-btn"),
+  cardForm: $("card-form"),
+  cardEditId: $("card-edit-id"),
+  cardName: $("card-name"),
+  cardBank: $("card-bank"),
+  cardStatementDay: $("card-statement-day"),
+  cardDueDay: $("card-due-day"),
+  cardLimit: $("card-limit"),
+  cardBilled: $("card-billed"),
+  cardUnbilled: $("card-unbilled"),
+  cardPayInFull: $("card-pay-in-full"),
+  // Notification Center DOM
+  notifCenterDialog: $("notification-center-dialog"),
+  closeNotifCenterBtn: $("close-notif-center-btn"),
+  notificationsList: $("notifications-list"),
+  clearAllNotifsBtn: $("clear-all-notifs-btn"),
+  // Release Guide DOM
+  releaseGuideDialog: $("release-guide-dialog"),
+  closeReleaseGuideBtn: $("close-release-guide-btn"),
+  confirmReleaseGuideBtn: $("confirm-release-guide-btn"),
   // Sub 3-Wallet DOM
   subSelectedWallet: $("sub-selected-wallet"),
   // Receipt Attachment DOM
@@ -249,7 +284,9 @@ function init() {
   scheduleMidnightRollover();
   initDateLifecycleListeners();
   processAutoDeductions();
+  processCreditCardCycles();
   checkMonthEndSweepNotification();
+  checkReleaseOnboardingGuide();
   populateCategorySelects();
   populateFilterCategories();
   dom.currencySelect.value = state.currency;
@@ -327,6 +364,10 @@ function loadStorage() {
     if (swp !== null) state.autoSweepSurplus = (swp === "true");
     const ln = localStorage.getItem(STORAGE_KEYS.loans);
     if (ln) state.loans = JSON.parse(ln);
+    const cd = localStorage.getItem(STORAGE_KEYS.cards);
+    if (cd) state.creditCards = JSON.parse(cd);
+    const nt = localStorage.getItem(STORAGE_KEYS.notifications);
+    if (nt) state.notifications = JSON.parse(nt);
   } catch (e) {
     state.transactions = [];
   }
@@ -341,6 +382,8 @@ function saveStorage() {
     localStorage.setItem(STORAGE_KEYS.theme, state.theme);
     localStorage.setItem(STORAGE_KEYS.autoSweep, state.autoSweepSurplus ? "true" : "false");
     localStorage.setItem(STORAGE_KEYS.loans, JSON.stringify(state.loans));
+    localStorage.setItem(STORAGE_KEYS.cards, JSON.stringify(state.creditCards));
+    localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(state.notifications));
   } catch (e) {}
 }
 
@@ -809,6 +852,81 @@ function bindEvents() {
 
   dom.loadSampleBtn.addEventListener("click", loadSampleData);
 
+  // Header Notification Bell Click
+  if (dom.openNotificationsBtn) {
+    dom.openNotificationsBtn.addEventListener("click", () => {
+      renderNotificationsFeed();
+      dom.notifCenterDialog?.showModal ? dom.notifCenterDialog.showModal() : alert("Notification Center");
+    });
+  }
+
+  if (dom.closeNotifCenterBtn) {
+    dom.closeNotifCenterBtn.addEventListener("click", () => dom.notifCenterDialog.close());
+  }
+
+  // Notification Filter Tabs
+  document.querySelectorAll(".notif-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".notif-tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.activeNotifTab = btn.dataset.notifTab;
+      renderNotificationsFeed();
+    });
+  });
+
+  if (dom.clearAllNotifsBtn) {
+    dom.clearAllNotifsBtn.addEventListener("click", () => {
+      state.notifications.forEach(n => n.isRead = true);
+      saveStorage();
+      updateNotificationBadge();
+      renderNotificationsFeed();
+      showToast("Marked all notifications as read.");
+    });
+  }
+
+  // Credit Card Modal Handlers
+  if (dom.openAddCardBtn) {
+    dom.openAddCardBtn.addEventListener("click", () => {
+      dom.cardEditId.value = "";
+      dom.cardName.value = "";
+      dom.cardBank.value = "Maybank";
+      dom.cardStatementDay.value = "25";
+      dom.cardDueDay.value = "15";
+      dom.cardLimit.value = "10000";
+      dom.cardBilled.value = "0.00";
+      dom.cardUnbilled.value = "0.00";
+      dom.cardPayInFull.checked = true;
+      $("card-modal-title").textContent = "Add New Credit Card";
+      dom.cardDialog?.showModal ? dom.cardDialog.showModal() : alert("Add card dialog");
+    });
+  }
+
+  if (dom.closeCardModalBtn) dom.closeCardModalBtn.addEventListener("click", () => dom.cardDialog.close());
+  if (dom.cancelCardBtn) dom.cancelCardBtn.addEventListener("click", () => dom.cardDialog.close());
+  if (dom.cardForm) dom.cardForm.addEventListener("submit", handleSaveCreditCard);
+
+  // Release Guide Modal Handlers
+  const closeGuide = () => {
+    localStorage.setItem(STORAGE_KEYS.lastSeenRelease, "v39-credit-cards-and-notifications");
+    // Archive release guide into notifications feed
+    if (!state.notifications.some(n => n.id === "notif_release_v39")) {
+      state.notifications.push({
+        id: "notif_release_v39",
+        type: "guide",
+        title: "🎉 Version Release Guide",
+        time: new Date().toISOString(),
+        isRead: true,
+        body: "Credit Card management (cut-offs, unbilled cycles, and 5% CCRIS rule) and Notification Center are now live!"
+      });
+      saveStorage();
+      updateNotificationBadge();
+    }
+    dom.releaseGuideDialog?.close();
+  };
+
+  if (dom.confirmReleaseGuideBtn) dom.confirmReleaseGuideBtn.addEventListener("click", closeGuide);
+  if (dom.closeReleaseGuideBtn) dom.closeReleaseGuideBtn.addEventListener("click", closeGuide);
+
   // Rolling Navigation Bar Carousel Clicks
   if (dom.rollerPrev) {
     dom.rollerPrev.addEventListener("click", () => {
@@ -1156,6 +1274,12 @@ function handleAddTransaction(e) {
   if (!amt || amt <= 0 || !cat || !dt || cat === "__ADD_CUSTOM__") return;
 
   const chosenWallet = dom.selectedWalletInput ? dom.selectedWalletInput.value : "Bank Account";
+  
+  // Auto-accumulate unbilled spending on credit card
+  if (chosenWallet === "Credit Card" && state.currentFormType === "expense" && state.creditCards && state.creditCards.length > 0) {
+    state.creditCards[0].unbilledBalance = Number((state.creditCards[0].unbilledBalance + amt).toFixed(2));
+  }
+
   state.transactions.unshift({
     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     type: state.currentFormType,
@@ -1496,12 +1620,14 @@ function render() {
   dom.editCurrency.textContent = state.currency;
   renderHeroSpendableGaugeAndMetrics();
   renderSubscriptions();
+  renderCreditCards();
   renderLoans();
   renderDashboardInstallments();
   renderBreakdown();
   renderTransactionList();
   renderAnalysisPieChart();
   updateRollingNavBar();
+  updateNotificationBadge();
 }
 
 // Hero Two-Tone Spendable Gauge & Monthly Metrics (Prevents Wealth Illusion)
@@ -1717,6 +1843,377 @@ function toggleCategory(cat) {
 // Upgraded Donut Chart Engine (Period-Synced & Interactive Category Tiles)
 
 // Malaysian Loans & Installments Engine (June 2026 Reform & BNM SBR Guidelines)
+
+// ================= CREDIT CARD & NOTIFICATION CENTER ENGINES =================
+function processCreditCardCycles() {
+  if (!state.creditCards || !state.creditCards.length) return;
+
+  const now = new Date();
+  const todayDay = now.getDate();
+  const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  state.creditCards.forEach(card => {
+    // 1. Statement Cut-Off Cycle: Freeze unbilled into billed
+    if (todayDay >= card.statementDay && card.lastStatementRolledMonth !== currentYm) {
+      if (card.unbilledBalance > 0) {
+        card.currentBilled = Number((card.currentBilled + card.unbilledBalance).toFixed(2));
+        card.unbilledBalance = 0.00;
+
+        // Push statement notification
+        state.notifications.unshift({
+          id: "notif_stmt_" + card.id + "_" + currentYm,
+          type: "statement",
+          cardId: card.id,
+          title: `📅 ${card.name} Statement Ready`,
+          time: new Date().toISOString(),
+          isRead: false,
+          body: `Statement closed on Day ${card.statementDay}. Total statement bill due: ${formatCurrency(card.currentBilled)} by Day ${card.dueDay}.`
+        });
+      }
+      card.lastStatementRolledMonth = currentYm;
+    }
+
+    // 2. Payment Due Date Cycle: Push actionable settlement card
+    if (todayDay >= card.dueDay && card.currentBilled > 0 && card.lastDuePromptedMonth !== currentYm) {
+      const minDue = Math.max(Number((card.currentBilled * 0.05).toFixed(2)), 50.00);
+
+      state.notifications.unshift({
+        id: "notif_due_" + card.id + "_" + currentYm,
+        type: "action_due",
+        cardId: card.id,
+        cardName: card.name,
+        billedAmount: card.currentBilled,
+        minDue: minDue,
+        title: `🔔 Payment Due: ${card.name}`,
+        time: new Date().toISOString(),
+        isRead: false,
+        decision: null,
+        body: `Your statement balance of ${formatCurrency(card.currentBilled)} is due on Day ${card.dueDay}. Minimum payment (5% CCRIS rule): ${formatCurrency(minDue)}.`
+      });
+
+      card.lastDuePromptedMonth = currentYm;
+    }
+  });
+
+  saveStorage();
+  updateNotificationBadge();
+}
+
+function updateNotificationBadge() {
+  if (!dom.notifBadgeCount) return;
+  const unreadCount = state.notifications.filter(n => !n.isRead).length;
+  if (unreadCount > 0) {
+    dom.notifBadgeCount.style.display = "inline-block";
+    dom.notifBadgeCount.textContent = unreadCount > 9 ? "9+" : unreadCount;
+  } else {
+    dom.notifBadgeCount.style.display = "none";
+  }
+}
+
+function renderNotificationsFeed() {
+  if (!dom.notificationsList) return;
+
+  const tab = state.activeNotifTab || "all";
+  let list = state.notifications;
+
+  if (tab === "action") {
+    list = list.filter(n => n.type === "action_due" && !n.decision);
+  } else if (tab === "statements") {
+    list = list.filter(n => n.type === "statement" || n.type === "guide");
+  }
+
+  if (!list.length) {
+    dom.notificationsList.innerHTML = `<p class="empty-state">No notifications right now. You're all caught up!</p>`;
+    return;
+  }
+
+  dom.notificationsList.innerHTML = list.map(n => {
+    let actionHtml = "";
+    if (n.type === "action_due") {
+      if (n.decision) {
+        actionHtml = `<div class="btn-decision-stamped">✓ ${escapeHtml(n.decision)}</div>`;
+      } else {
+        actionHtml = `
+          <div class="notif-decision-actions">
+            <button type="button" class="btn-notif-action btn-action-settle" onclick="settleCardBillInFull('${n.id}', '${n.cardId}')">✓ Pay in Full (${formatCurrency(n.billedAmount)})</button>
+            <button type="button" class="btn-notif-action btn-action-partial" onclick="settleCardBillPartial('${n.id}', '${n.cardId}')">⚡ Partial</button>
+            <button type="button" class="btn-text" style="font-size:0.72rem;" onclick="dismissNotification('${n.id}')">Later</button>
+          </div>
+        `;
+      }
+    }
+
+    const timeStr = new Date(n.time).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+    return `
+      <div class="notif-card ${!n.isRead ? "unread" : ""}" data-id="${n.id}">
+        <div class="notif-card-header">
+          <span class="notif-card-title">${escapeHtml(n.title)}</span>
+          <span class="notif-time-badge">${timeStr}</span>
+        </div>
+        <p class="notif-card-body">${escapeHtml(n.body)}</p>
+        ${actionHtml}
+      </div>
+    `;
+  }).join("");
+}
+
+function settleCardBillInFull(notifId, cardId) {
+  const card = state.creditCards.find(c => c.id === cardId);
+  const notif = state.notifications.find(n => n.id === notifId);
+
+  if (card) {
+    const paidAmt = card.currentBilled;
+    card.currentBilled = 0.00;
+    card.payInFull = true;
+
+    if (notif) {
+      notif.decision = `Settled in Full (${formatCurrency(paidAmt)}) on ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+      notif.isRead = true;
+    }
+
+    saveStorage();
+    render();
+    renderNotificationsFeed();
+    showToast(`Settled ${card.name} bill in full!`);
+  }
+}
+
+function settleCardBillPartial(notifId, cardId) {
+  const card = state.creditCards.find(c => c.id === cardId);
+  const notif = state.notifications.find(n => n.id === notifId);
+
+  if (card) {
+    const amtStr = prompt(`Enter amount paid for ${card.name} (Current Bill: ${formatCurrency(card.currentBilled)}):`);
+    const paid = parseFloat(amtStr);
+    if (!isNaN(paid) && paid > 0) {
+      card.currentBilled = Math.max(0, Number((card.currentBilled - paid).toFixed(2)));
+      card.payInFull = (card.currentBilled === 0);
+
+      if (notif) {
+        notif.decision = `Paid ${formatCurrency(paid)} (Remaining: ${formatCurrency(card.currentBilled)}) on ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+        notif.isRead = true;
+      }
+
+      saveStorage();
+      render();
+      renderNotificationsFeed();
+      showToast(`Recorded partial payment of ${formatCurrency(paid)}!`);
+    }
+  }
+}
+
+function dismissNotification(notifId) {
+  const notif = state.notifications.find(n => n.id === notifId);
+  if (notif) {
+    notif.isRead = true;
+    saveStorage();
+    updateNotificationBadge();
+    renderNotificationsFeed();
+  }
+}
+
+function renderCreditCards() {
+  if (!dom.creditCardsGrid) return;
+
+  let totalCardDebt = 0;
+  let totalDsrCommitment = 0;
+
+  state.creditCards.forEach(c => {
+    const totalBal = c.currentBilled + c.unbilledBalance;
+    totalCardDebt += totalBal;
+
+    // BNM 5% CCRIS Rule: If carrying balance or unpaid bill, 5% of balance or RM50
+    if (!c.payInFull || c.currentBilled > 0) {
+      const card5Pct = Math.max(Number((totalBal * 0.05).toFixed(2)), 50.00);
+      totalDsrCommitment += card5Pct;
+    }
+  });
+
+  if (dom.cardsTotalCommitment) {
+    dom.cardsTotalCommitment.textContent = `Total Card Debt: ${formatCurrency(totalCardDebt)} • 5% CCRIS: ${formatCurrency(totalDsrCommitment)}`;
+  }
+
+  if (!state.creditCards.length) {
+    dom.creditCardsGrid.innerHTML = `<p class="empty-state">No credit cards added. Click "+ Add Card" to track billing cycles, unbilled spends, and DSR impact.</p>`;
+    return;
+  }
+
+  dom.creditCardsGrid.innerHTML = state.creditCards.map(c => {
+    const totalBal = c.currentBilled + c.unbilledBalance;
+    const limit = c.creditLimit || 0;
+    const utilPct = limit > 0 ? ((totalBal / limit) * 100).toFixed(1) : 0;
+    const isOver30 = utilPct > 30;
+
+    let dsrBadgeHtml = "";
+    if (c.payInFull && c.currentBilled === 0) {
+      dsrBadgeHtml = `<span style="color:#059669; font-weight:700;">🟢 Pay in Full (0% DSR impact)</span>`;
+    } else {
+      const minDsr = Math.max(Number((totalBal * 0.05).toFixed(2)), 50.00);
+      dsrBadgeHtml = `<span style="color:#ef4444; font-weight:700;">⚠️ 5% CCRIS: ${formatCurrency(minDsr)} (~15-18% p.a.)</span>`;
+    }
+
+    return `
+      <div class="credit-card-item" data-bank="${escapeHtml(c.bank)}" data-id="${c.id}">
+        <div class="card-top-row">
+          <div class="card-identity">
+            <div class="card-chip-box">💳</div>
+            <div>
+              <div class="card-title-text">${escapeHtml(c.name)}</div>
+              <div class="card-bank-sub">${escapeHtml(c.bank)} • Cut-off: Day ${c.statementDay} • Due: Day ${c.dueDay}</div>
+            </div>
+          </div>
+          <button type="button" class="btn-delete" title="Delete card" onclick="deleteCreditCard('${c.id}')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </button>
+        </div>
+
+        <div class="card-balances-row">
+          <div class="card-balance-col">
+            <span class="stat-mini-label">Current Bill (Due Soon)</span>
+            <strong class="card-balance-val ${c.currentBilled > 0 ? "text-danger" : ""}">${formatCurrency(c.currentBilled)}</strong>
+          </div>
+          <div class="card-balance-col">
+            <span class="stat-mini-label">Unbilled Spends (Next Mo)</span>
+            <strong class="card-balance-val">${formatCurrency(c.unbilledBalance)}</strong>
+          </div>
+        </div>
+
+        ${limit > 0 ? `
+          <div class="card-utilization-wrapper">
+            <div class="card-util-legend">
+              <span>Utilization: ${utilPct}%</span>
+              <span>Limit: ${formatCurrency(limit)}</span>
+            </div>
+            <div class="card-util-track">
+              <div class="card-util-fill ${isOver30 ? "danger" : ""}" style="width: ${Math.min(100, utilPct)}%;"></div>
+            </div>
+          </div>
+        ` : ""}
+
+        <div class="card-dsr-row">
+          <span>DSR Status:</span>
+          ${dsrBadgeHtml}
+        </div>
+
+        <div class="card-actions-row">
+          <button type="button" class="btn-outline-sm" onclick="openEditCardModal('${c.id}')">
+            ✏️ Edit Card / Balances
+          </button>
+          ${c.currentBilled > 0 ? `
+            <button type="button" class="btn-primary-sm" onclick="quickSettleCardPrompt('${c.id}')">
+              ⚡ Settle Bill
+            </button>
+          ` : `<span style="font-size:0.72rem; color:var(--text-muted);">✓ Bill settled</span>`}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function openEditCardModal(cardId) {
+  const card = state.creditCards.find(c => c.id === cardId);
+  if (!card) return;
+
+  dom.cardEditId.value = card.id;
+  dom.cardName.value = card.name;
+  dom.cardBank.value = card.bank;
+  dom.cardStatementDay.value = card.statementDay;
+  dom.cardDueDay.value = card.dueDay;
+  dom.cardLimit.value = card.creditLimit || "";
+  dom.cardBilled.value = card.currentBilled;
+  dom.cardUnbilled.value = card.unbilledBalance;
+  dom.cardPayInFull.checked = !!card.payInFull;
+
+  $("card-modal-title").textContent = "Edit Credit Card & Balances";
+  dom.cardDialog?.showModal ? dom.cardDialog.showModal() : alert("Edit card dialog");
+}
+
+function quickSettleCardPrompt(cardId) {
+  const card = state.creditCards.find(c => c.id === cardId);
+  if (!card) return;
+
+  if (confirm(`Mark statement bill of ${formatCurrency(card.currentBilled)} for ${card.name} as Paid in Full?`)) {
+    card.currentBilled = 0.00;
+    card.payInFull = true;
+    saveStorage();
+    render();
+    showToast(`Marked ${card.name} as paid in full!`);
+  }
+}
+
+function deleteCreditCard(cardId) {
+  const idx = state.creditCards.findIndex(c => c.id === cardId);
+  if (idx === -1) return;
+  const deleted = state.creditCards.splice(idx, 1)[0];
+  saveStorage();
+  render();
+  showToast(`Deleted card "${deleted.name}"`);
+}
+
+function handleSaveCreditCard(e) {
+  e.preventDefault();
+  const name = dom.cardName.value.trim();
+  const bank = dom.cardBank.value;
+  const statementDay = parseInt(dom.cardStatementDay.value, 10);
+  const dueDay = parseInt(dom.cardDueDay.value, 10);
+  const limit = parseFloat(dom.cardLimit.value) || 0;
+  const billed = parseFloat(dom.cardBilled.value) || 0;
+  const unbilled = parseFloat(dom.cardUnbilled.value) || 0;
+  const payInFull = dom.cardPayInFull.checked;
+
+  if (!name || isNaN(statementDay) || isNaN(dueDay)) {
+    return showToast("Please enter valid card details.");
+  }
+
+  const editId = dom.cardEditId.value;
+  if (editId) {
+    const card = state.creditCards.find(c => c.id === editId);
+    if (card) {
+      card.name = name;
+      card.bank = bank;
+      card.statementDay = statementDay;
+      card.dueDay = dueDay;
+      card.creditLimit = limit;
+      card.currentBilled = billed;
+      card.unbilledBalance = unbilled;
+      card.payInFull = payInFull;
+      showToast(`Updated "${name}"!`);
+    }
+  } else {
+    state.creditCards.push({
+      id: "card_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+      name,
+      bank,
+      statementDay,
+      dueDay,
+      creditLimit: limit,
+      currentBilled: billed,
+      unbilledBalance: unbilled,
+      payInFull,
+      lastStatementRolledMonth: null,
+      lastDuePromptedMonth: null,
+      createdAt: Date.now()
+    });
+    showToast(`Added credit card "${name}"!`);
+  }
+
+  saveStorage();
+  render();
+  dom.cardDialog.close();
+}
+
+function checkReleaseOnboardingGuide() {
+  const CURRENT_RELEASE = "v39-credit-cards-and-notifications";
+  const lastSeen = localStorage.getItem(STORAGE_KEYS.lastSeenRelease);
+
+  if (lastSeen !== CURRENT_RELEASE && dom.releaseGuideDialog) {
+    setTimeout(() => {
+      dom.releaseGuideDialog?.showModal ? dom.releaseGuideDialog.showModal() : null;
+    }, 600);
+  }
+}
+
 function calculateLoanSpecs(principal, annualRate, tenureMonths, type) {
   let monthly = 0;
   let totalInterest = 0;
@@ -1769,6 +2266,17 @@ function renderLoans() {
     totalDebt += (ln.remainingPrincipal || ln.principal);
     totalMonthly += ln.monthlyInstallment;
   });
+
+  // Incorporate Malaysian 5% / RM 50 CCRIS Rule for Credit Cards
+  if (state.creditCards) {
+    state.creditCards.forEach(c => {
+      if (!c.payInFull || c.currentBilled > 0) {
+        const bal = c.currentBilled + c.unbilledBalance;
+        const card5Pct = Math.max(Number((bal * 0.05).toFixed(2)), 50.00);
+        totalMonthly += card5Pct;
+      }
+    });
+  }
 
   if (dom.totalLoanDebt) dom.totalLoanDebt.textContent = formatCurrency(totalDebt);
   if (dom.totalLoanMonthly) dom.totalLoanMonthly.textContent = `${formatCurrency(totalMonthly)} / mo`;
@@ -2992,6 +3500,50 @@ function loadSampleData() {
   // Populate active subscriptions list for Malaysian worker
   const today = new Date();
   const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  // Sample Credit Cards: Maybank Visa Signature
+  state.creditCards = [
+    {
+      id: "card_maybank",
+      name: "Maybank Visa Signature",
+      bank: "Maybank",
+      statementDay: 25,
+      dueDay: 15,
+      creditLimit: 10000.00,
+      currentBilled: 450.00,
+      unbilledBalance: 135.00,
+      payInFull: true,
+      lastStatementRolledMonth: "2026-08",
+      lastDuePromptedMonth: "2026-08",
+      createdAt: Date.now()
+    }
+  ];
+
+  // Sample Notifications
+  state.notifications = [
+    {
+      id: "notif_due_maybank_sep",
+      type: "action_due",
+      cardId: "card_maybank",
+      cardName: "Maybank Visa Signature",
+      billedAmount: 450.00,
+      minDue: 50.00,
+      title: "🔔 Payment Due: Maybank Visa Signature",
+      time: new Date().toISOString(),
+      isRead: false,
+      decision: null,
+      body: "Your statement balance of RM 450.00 is due on Day 15. Minimum payment (5% CCRIS rule): RM 50.00."
+    },
+    {
+      id: "notif_stmt_aug",
+      type: "statement",
+      cardId: "card_maybank",
+      title: "📅 Maybank Visa Statement Ready",
+      time: new Date().toISOString(),
+      isRead: true,
+      body: "Statement closed on Aug 25. Total statement bill: RM 450.00 due on Sep 15."
+    }
+  ];
 
   // Sample Active Loans: Perodua Bezza Hire Purchase (Started Jan 2026, 8 months repaid)
   state.loans = [

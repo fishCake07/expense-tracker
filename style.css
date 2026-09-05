@@ -3252,3 +3252,345 @@ body {
 .nav-roller-center.scale-animate {
   animation: rollerScaleIn 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
+
+
+/* ================= NOTIFICATION BELL & HEADER CONTROLS ================= */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-icon-header {
+  position: relative;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-main);
+  transition: var(--transition);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-icon-header:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 1px 5px;
+  min-width: 17px;
+  text-align: center;
+  border: 2px solid var(--bg-surface);
+  line-height: 1.2;
+}
+
+/* ================= CREDIT CARD WIDGETS (COMMITMENTS PAGE) ================= */
+.credit-cards-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.credit-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.credit-card-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.15rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  position: relative;
+  border-left: 5px solid var(--primary);
+}
+
+.credit-card-item[data-bank="Maybank"] { border-left-color: #fbbf24; }
+.credit-card-item[data-bank="CIMB"] { border-left-color: #ef4444; }
+.credit-card-item[data-bank="Public Bank"] { border-left-color: #dc2626; }
+.credit-card-item[data-bank="Hong Leong"] { border-left-color: #0284c7; }
+.credit-card-item[data-bank="RHB"] { border-left-color: #2563eb; }
+.credit-card-item[data-bank="AmBank"] { border-left-color: #e11d48; }
+
+.card-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.card-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.card-chip-box {
+  width: 36px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.card-title-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.25;
+}
+
+.card-bank-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.card-balances-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  background: var(--bg-subtle);
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.card-balance-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.card-balance-val {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.card-utilization-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.card-util-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.card-util-track {
+  height: 7px;
+  background: var(--bg-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.card-util-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+  transition: width 0.4s ease;
+}
+
+.card-util-fill.warning { background: #f59e0b; }
+.card-util-fill.danger { background: #ef4444; }
+
+.card-dsr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-color);
+}
+
+.card-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.65rem;
+}
+
+/* ================= NOTIFICATION CENTER MODAL ================= */
+.notif-center-dialog {
+  max-width: 480px !important;
+  width: 92% !important;
+  padding: 1.25rem !important;
+}
+
+.notif-tabs-row {
+  display: flex;
+  gap: 0.35rem;
+  background: var(--bg-subtle);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.85rem;
+}
+
+.notif-tab-btn {
+  flex: 1;
+  padding: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+}
+
+.notif-tab-btn.active {
+  background: var(--bg-surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.notifications-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.notif-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  transition: var(--transition);
+  position: relative;
+}
+
+.notif-card.unread {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.notif-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.notif-card-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.notif-time-badge {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.notif-card-body {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.notif-decision-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.btn-notif-action {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.btn-action-settle {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.btn-action-settle:hover {
+  background: var(--primary-hover);
+}
+
+.btn-action-partial {
+  background: var(--bg-subtle);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+.btn-decision-stamped {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ================= RELEASE ONBOARDING GUIDE MODAL ================= */
+.release-dialog {
+  max-width: 440px !important;
+  padding: 1.35rem !important;
+}
+
+.guide-feature-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.85rem;
+}
+
+.guide-feature-box strong {
+  font-size: 0.85rem;
+  color: var(--text-main);
+}

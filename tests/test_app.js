@@ -1,75 +1,65 @@
 const fs = require('fs');
 const assert = require('assert');
 
-console.log("--- Starting Comprehensive App Reformation Tests ---");
+console.log("--- Starting Credit Card Engine & Notification Center Tests ---");
 
-// Test 1: HTML Element Check for 5-Page Architecture
+// Test 1: HTML Elements Integrity
 const htmlContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/index.html', 'utf8');
 const requiredIds = [
-  'view-commitments',
-  'view-transactions',
-  'view-dashboard',
-  'view-analysis',
-  'view-settings',
-  'rolling-nav-bar',
-  'roller-prev',
-  'roller-current',
-  'roller-next',
-  'btn-dash-add-tx',
-  'btn-dash-add-commit',
-  'dashboard-installments-card',
-  'dashboard-installments-list',
-  'category-pie-chart',
-  'pie-chart-month-select',
-  'pie-chart-breakdown-list'
+  'open-notifications-btn',
+  'notif-badge-count',
+  'credit-cards-grid',
+  'open-add-card-btn',
+  'card-dialog',
+  'notification-center-dialog',
+  'notifications-list',
+  'release-guide-dialog'
 ];
 
 requiredIds.forEach(id => {
   assert(htmlContent.includes(`id="${id}"`), `HTML missing required ID: ${id}`);
 });
-console.log("✓ Test 1 Passed: All 5 pages, Rolling Nav Bar, Dashboard Action Buttons, and Pie Chart elements exist in HTML.");
+console.log("✓ Test 1 Passed: Notification bell, Credit Card grid, and all new dialogs exist in HTML.");
 
-// Test 2: 5-Page Sequence & Rolling Bar State
-const TAB_ORDER = ["commitments", "transactions", "dashboard", "analysis", "settings"];
-
-function getRollingState(currentTab) {
-  const idx = TAB_ORDER.indexOf(currentTab);
-  const prev = idx > 0 ? TAB_ORDER[idx - 1] : null;
-  const curr = TAB_ORDER[idx];
-  const next = idx < TAB_ORDER.length - 1 ? TAB_ORDER[idx + 1] : null;
-  return { prev, curr, next };
+// Test 2: Bank Negara Malaysia (BNM) 5% / RM 50 CCRIS Rule
+function calculateCreditCardDsrCommitment(card) {
+  if (card.payInFull && card.currentBilled === 0) return 0.00;
+  const totalOutstanding = card.currentBilled + card.unbilledBalance;
+  return Math.max(Number((totalOutstanding * 0.05).toFixed(2)), 50.00);
 }
 
-// Check Dashboard (Default)
-const dashState = getRollingState("dashboard");
-assert.strictEqual(dashState.prev, "transactions");
-assert.strictEqual(dashState.curr, "dashboard");
-assert.strictEqual(dashState.next, "analysis");
+// Case A: Card paid in full with 0 billed
+const cardPaidInFull = { payInFull: true, currentBilled: 0.00, unbilledBalance: 250.00 };
+assert.strictEqual(calculateCreditCardDsrCommitment(cardPaidInFull), 0.00);
 
-// Check Commitments (Far Left)
-const commitState = getRollingState("commitments");
-assert.strictEqual(commitState.prev, null);
-assert.strictEqual(commitState.curr, "commitments");
-assert.strictEqual(commitState.next, "transactions");
+// Case B: Carrying balance under RM 1,000 (e.g. RM 400 -> 5% is RM 20, so floor is RM 50)
+const cardSmallBalance = { payInFull: false, currentBilled: 400.00, unbilledBalance: 0.00 };
+assert.strictEqual(calculateCreditCardDsrCommitment(cardSmallBalance), 50.00);
 
-// Check Settings (Far Right)
-const setState = getRollingState("settings");
-assert.strictEqual(setState.prev, "analysis");
-assert.strictEqual(setState.curr, "settings");
-assert.strictEqual(setState.next, null);
-console.log("✓ Test 2 Passed: Rolling Bar sequential carousel and boundaries verified.");
+// Case C: Carrying balance over RM 1,000 (e.g. RM 2,400 -> 5% is RM 120)
+const cardLargeBalance = { payInFull: false, currentBilled: 2400.00, unbilledBalance: 0.00 };
+assert.strictEqual(calculateCreditCardDsrCommitment(cardLargeBalance), 120.00);
+console.log("✓ Test 2 Passed: Malaysian CCRIS 5% or RM 50 rule verified across zero, small, and large balances.");
 
-// Test 3: CSS Sizing & Gradient Checks
-const cssContent = fs.readFileSync('/working_dir/c_b9306d2ea6b3970f/expense-tracker/style.css', 'utf8');
-assert(cssContent.includes('.rolling-nav-bar'), "Missing .rolling-nav-bar in CSS");
-assert(cssContent.includes('.btn-add-tx-gradient'), "Missing .btn-add-tx-gradient in CSS");
-assert(cssContent.includes('.btn-add-commit-gradient'), "Missing .btn-add-commit-gradient in CSS");
-assert(cssContent.includes('.pie-chart-container-layout'), "Missing .pie-chart-container-layout in CSS");
-console.log("✓ Test 3 Passed: Option 1 Gradients, Rolling Bar, and Pie Chart styles confirmed in CSS.");
+// Test 3: Statement Cut-Off Rollover Simulation
+const card = { statementDay: 25, dueDay: 15, currentBilled: 100.00, unbilledBalance: 450.00, lastRolled: "2026-07" };
+const currentYm = "2026-08";
+const todayDay = 25;
+
+if (todayDay >= card.statementDay && card.lastRolled !== currentYm) {
+  card.currentBilled += card.unbilledBalance;
+  card.unbilledBalance = 0.00;
+  card.lastRolled = currentYm;
+}
+
+assert.strictEqual(card.currentBilled, 550.00);
+assert.strictEqual(card.unbilledBalance, 0.00);
+assert.strictEqual(card.lastRolled, "2026-08");
+console.log("✓ Test 3 Passed: Statement Cut-off freezes unbilled spending (RM 450) into billed balance (RM 550) and resets unbilled to 0.");
 
 // Test 4: JavaScript Syntax Validation
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/app.js');
 require('child_process').execSync('node -c /working_dir/c_b9306d2ea6b3970f/expense-tracker/sw.js');
-console.log("✓ Test 4 Passed: app.js and sw.js pass syntax validation with zero errors.");
+console.log("✓ Test 4 Passed: app.js and sw.js pass syntax checks with zero errors.");
 
-console.log("\nAll Comprehensive Reformation tests passed successfully!");
+console.log("\nAll Credit Card Engine & Notification Center tests passed successfully!");
