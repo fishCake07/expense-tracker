@@ -1733,6 +1733,85 @@ function handleAddTransaction(e) {
   showToast(`${state.currentFormType === "income" ? "Income" : "Expense"} added!`);
 }
 
+
+function populateEditWalletSelect(tx) {
+  if (!dom.editWallet) return;
+
+  let html = "";
+
+  // 1. Bank Accounts Optgroup
+  if (state.bankAccounts && state.bankAccounts.length) {
+    html += '<optgroup label="🏦 Bank Accounts (Direct Transfers & Salary)">';
+    state.bankAccounts.forEach(b => {
+      html += `<option value="bank:${b.id}">🏦 ${escapeHtml(b.name)} (${escapeHtml(b.bank)})</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  // 2. Credit Cards Optgroup
+  if (state.creditCards && state.creditCards.length) {
+    html += '<optgroup label="💳 Credit Cards (5% CCRIS DSR)">';
+    state.creditCards.forEach(c => {
+      html += `<option value="credit:${c.id}">💳 ${escapeHtml(c.name)} (${escapeHtml(c.bank)})</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  // 3. Debit Cards Optgroup
+  if (state.debitCards && state.debitCards.length) {
+    html += '<optgroup label="💳 Debit Cards (0% DSR • Direct Debit)">';
+    state.debitCards.forEach(dc => {
+      html += `<option value="debit:${dc.id}">💳 ${escapeHtml(dc.name)} (${escapeHtml(dc.bank)})</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  // 4. Digital Wallets & Cash
+  html += '<optgroup label="Cash & Digital Wallets">';
+  html += '<option value="ewallet:ewallet">📱 E-Wallet</option>';
+  html += '<option value="cash:cash">💵 Cash</option>';
+  html += '<option value="other:other">📦 Other</option>';
+  html += '</optgroup>';
+
+  dom.editWallet.innerHTML = html;
+
+  // Determine matching selection
+  let selectedVal = "";
+  if (tx) {
+    if (tx.cardId) {
+      if (state.bankAccounts.some(b => b.id === tx.cardId)) selectedVal = `bank:${tx.cardId}`;
+      else if (state.creditCards.some(c => c.id === tx.cardId)) selectedVal = `credit:${tx.cardId}`;
+      else if (state.debitCards.some(dc => dc.id === tx.cardId)) selectedVal = `debit:${tx.cardId}`;
+    }
+
+    if (!selectedVal && tx.cardName) {
+      const matchBank = state.bankAccounts.find(b => b.name === tx.cardName || b.bank === tx.cardName);
+      const matchCredit = state.creditCards.find(c => c.name === tx.cardName);
+      const matchDebit = state.debitCards.find(dc => dc.name === tx.cardName);
+
+      if (matchBank) selectedVal = `bank:${matchBank.id}`;
+      else if (matchCredit) selectedVal = `credit:${matchCredit.id}`;
+      else if (matchDebit) selectedVal = `debit:${matchDebit.id}`;
+    }
+
+    if (!selectedVal) {
+      if (tx.wallet === "Cash") selectedVal = "cash:cash";
+      else if (tx.wallet === "E-Wallet") selectedVal = "ewallet:ewallet";
+      else if (tx.wallet === "Credit Card" && state.creditCards.length) selectedVal = `credit:${state.creditCards[0].id}`;
+      else if (tx.wallet === "Debit Card" && state.debitCards.length) selectedVal = `debit:${state.debitCards[0].id}`;
+      else if ((tx.wallet === "Bank Transfer" || tx.wallet === "Bank Account") && state.bankAccounts.length) {
+        const matchByNote = state.bankAccounts.find(b => tx.note && tx.note.toLowerCase().includes(b.bank.toLowerCase()));
+        selectedVal = `bank:${matchByNote ? matchByNote.id : state.bankAccounts[0].id}`;
+      } else {
+        selectedVal = "other:other";
+      }
+    }
+  }
+
+  if (selectedVal) {
+    dom.editWallet.value = selectedVal;
+  }
+}
 // Edit Transaction Functions
 function openEditModal(id) {
   const tx = state.transactions.find(t => t.id === id);
@@ -1742,11 +1821,11 @@ function openEditModal(id) {
   dom.editTxId.value = tx.id;
   dom.editType.value = isIncome ? "income" : "expense";
   populateCategorySelects(isIncome, dom.editCategory);
+  populateEditWalletSelect(tx);
 
   dom.editAmount.value = tx.amount;
   dom.editCategory.value = tx.category;
   dom.editDate.value = tx.date;
-  if (dom.editWallet) dom.editWallet.value = tx.wallet || "Bank Account";
   dom.editNote.value = tx.note === tx.category ? "" : tx.note;
 
   state.editAttachedReceipt = tx.receiptImage || null;
@@ -1793,10 +1872,117 @@ function handleSaveEdit(e) {
 
   if (!amt || amt <= 0 || !cat || !dt || cat === "__ADD_CUSTOM__") return;
 
+  const rawVal = dom.editWallet ? dom.editWallet.value : "";
+  const [sourceCategory, sourceId] = rawVal.split(":");
+
+  let newWallet = tx.wallet || "Bank Transfer";
+  let newCardId = null;
+  let newCardName = null;
+  let newCardType = null;
+
+  if (sourceCategory === "bank") {
+    newWallet = "Bank Transfer";
+    const b = state.bankAccounts.find(acc => acc.id === sourceId);
+    if (b) {
+      newCardId = b.id;
+      newCardName = b.name;
+    }
+  } else if (sourceCategory === "credit") {
+    newWallet = "Credit Card";
+    newCardType = "credit";
+    const c = state.creditCards.find(card => card.id === sourceId);
+    if (c) {
+      newCardId = c.id;
+      newCardName = c.name;
+    }
+  } else if (sourceCategory === "debit") {
+    newWallet = "Debit Card";
+    newCardType = "debit";
+    const dc = state.debitCards.find(card => card.id === sourceId);
+    if (dc) {
+      newCardId = dc.id;
+      newCardName = dc.name;
+    }
+  } else if (sourceCategory === "ewallet") {
+    newWallet = "E-Wallet";
+  } else if (sourceCategory === "cash") {
+    newWallet = "Cash";
+  } else if (sourceCategory === "other") {
+    newWallet = "Other";
+  }
+
+  // ================= RECONCILE BALANCES ON EDIT =================
+  // 1. Revert effect of old transaction
+  if (tx.type === "expense") {
+    if (tx.wallet === "Credit Card" || tx.cardType === "credit") {
+      const oldCredit = state.creditCards.find(c => c.id === tx.cardId || c.name === tx.cardName) || state.creditCards[0];
+      if (oldCredit) {
+        oldCredit.unbilledBalance = Math.max(0, Number(((oldCredit.unbilledBalance || 0) - tx.amount).toFixed(2)));
+      }
+    } else if (tx.wallet === "Debit Card" || tx.cardType === "debit") {
+      const oldDebit = state.debitCards.find(dc => dc.id === tx.cardId || dc.name === tx.cardName) || state.debitCards[0];
+      if (oldDebit) {
+        oldDebit.totalSpentThisMonth = Math.max(0, Number(((oldDebit.totalSpentThisMonth || 0) - tx.amount).toFixed(2)));
+      }
+      const oldBank = state.bankAccounts.find(b => (oldDebit && b.id === oldDebit.bankAccountId) || (oldDebit && b.bank === oldDebit.bank) || b.id === tx.cardId || b.name === tx.cardName) || state.bankAccounts[0];
+      if (oldBank) {
+        oldBank.balance = Number(((oldBank.balance || 0) + tx.amount).toFixed(2));
+      }
+    } else if (tx.wallet === "Bank Transfer" || tx.wallet === "Bank Account") {
+      const oldBank = state.bankAccounts.find(b => b.id === tx.cardId || b.name === tx.cardName || b.bank === tx.cardName) || state.bankAccounts[0];
+      if (oldBank) {
+        oldBank.balance = Number(((oldBank.balance || 0) + tx.amount).toFixed(2));
+      }
+    }
+  } else if (tx.type === "income") {
+    if (tx.wallet === "Bank Transfer" || tx.wallet === "Bank Account") {
+      const oldBank = state.bankAccounts.find(b => b.id === tx.cardId || b.name === tx.cardName || b.bank === tx.cardName);
+      if (oldBank) {
+        oldBank.balance = Math.max(0, Number(((oldBank.balance || 0) - tx.amount).toFixed(2)));
+      }
+    }
+  }
+
+  // 2. Apply effect of updated transaction
+  const newAmt = Number(amt.toFixed(2));
+  if (type === "expense") {
+    if (newWallet === "Credit Card" || newCardType === "credit") {
+      const targetCredit = state.creditCards.find(c => c.id === newCardId || c.name === newCardName) || state.creditCards[0];
+      if (targetCredit) {
+        targetCredit.unbilledBalance = Number(((targetCredit.unbilledBalance || 0) + newAmt).toFixed(2));
+      }
+    } else if (newWallet === "Debit Card" || newCardType === "debit") {
+      const targetDebit = state.debitCards.find(dc => dc.id === newCardId || dc.name === newCardName) || state.debitCards[0];
+      if (targetDebit) {
+        targetDebit.totalSpentThisMonth = Number(((targetDebit.totalSpentThisMonth || 0) + newAmt).toFixed(2));
+      }
+      const targetBank = state.bankAccounts.find(b => (targetDebit && b.id === targetDebit.bankAccountId) || (targetDebit && b.bank === targetDebit.bank) || b.id === newCardId || b.name === newCardName) || state.bankAccounts[0];
+      if (targetBank) {
+        targetBank.balance = Number(((targetBank.balance || 0) - newAmt).toFixed(2));
+      }
+    } else if (newWallet === "Bank Transfer") {
+      const targetBank = state.bankAccounts.find(b => b.id === newCardId || b.name === newCardName || b.bank === newCardName) || state.bankAccounts[0];
+      if (targetBank) {
+        targetBank.balance = Number(((targetBank.balance || 0) - newAmt).toFixed(2));
+      }
+    }
+  } else if (type === "income") {
+    if (newWallet === "Bank Transfer") {
+      const targetBank = state.bankAccounts.find(b => b.id === newCardId || b.name === newCardName || b.bank === newCardName);
+      if (targetBank) {
+        targetBank.balance = Number(((targetBank.balance || 0) + newAmt).toFixed(2));
+      }
+    }
+  }
+
+  // 3. Update transaction object
   tx.type = type;
-  tx.amount = Number(amt.toFixed(2));
+  tx.amount = newAmt;
   tx.category = cat;
-  tx.wallet = dom.editWallet ? dom.editWallet.value : (tx.wallet || "Bank Account");
+  tx.wallet = newWallet;
+  tx.cardId = newCardId;
+  tx.cardName = newCardName;
+  tx.cardType = newCardType;
   tx.receiptImage = state.editAttachedReceipt || null;
   tx.date = dt;
   tx.note = nt || cat;

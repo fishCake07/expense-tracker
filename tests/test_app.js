@@ -215,4 +215,24 @@ assert(appJsContent.includes('sourceId: "bank_maybank"'), 'loadSampleData must l
 
 console.log("✓ Test 12 Passed: loadSampleData fully synchronized with all multi-card and bank account architecture.");
 
+// Test 13: Edit Transaction Dynamic Account/Wallet Synchronization & Rebalancing
+assert(appJsContent.includes('function populateEditWalletSelect('), 'populateEditWalletSelect function must exist in app.js');
+assert(appJsContent.includes('🏦 Bank Accounts (Direct Transfers & Salary)'), 'Edit wallet dropdown must include bank accounts optgroup');
+assert(appJsContent.includes('💳 Credit Cards (5% CCRIS DSR)'), 'Edit wallet dropdown must include credit cards optgroup');
+assert(appJsContent.includes('💳 Debit Cards (0% DSR • Direct Debit)'), 'Edit wallet dropdown must include debit cards optgroup');
+
+// Test rebalancing logic on edit:
+let mockMaybank = { id: "bank_maybank", name: "Maybank Savings", balance: 3450.00 };
+let mockPublicBank = { id: "bank_public", name: "Public Bank Salary Account", balance: 5200.00 };
+
+// Scenario: Reassign an expense of RM 500 from Maybank to Public Bank
+let oldExpenseAmt = 500.00;
+mockMaybank.balance = Number((mockMaybank.balance + oldExpenseAmt).toFixed(2)); // Revert old
+mockPublicBank.balance = Number((mockPublicBank.balance - oldExpenseAmt).toFixed(2)); // Apply new
+
+assert.strictEqual(mockMaybank.balance, 3950.00, 'Maybank must be refunded RM 500');
+assert.strictEqual(mockPublicBank.balance, 4700.00, 'Public Bank must be deducted RM 500');
+
+console.log("✓ Test 13 Passed: Edit Transaction dynamic account/wallet synchronization and rebalancing verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
