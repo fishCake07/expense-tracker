@@ -361,6 +361,7 @@ const dom = {
   cardBilled: $("card-billed"),
   cardUnbilled: $("card-unbilled"),
   cardPayInFull: $("card-pay-in-full"),
+  cardLinkedBank: $("card-linked-bank"),
   // Debit Cards Section DOM
   debitCardsTotalSpend: $("debit-cards-total-spend"),
   debitCardsGrid: $("debit-cards-grid"),
@@ -1140,6 +1141,20 @@ function bindEvents() {
     });
   }
 
+
+function populateCardLinkedBankSelect(selectedBankId) {
+  const sel = document.getElementById("card-linked-bank");
+  if (!sel) return;
+  if (!state.bankAccounts || !state.bankAccounts.length) {
+    sel.innerHTML = '<option value="">(No bank accounts configured)</option>';
+    return;
+  }
+  sel.innerHTML = state.bankAccounts.map(b => {
+    const isSel = selectedBankId ? (selectedBankId === b.id || selectedBankId === b.bank) : false;
+    const bal = getReconciledBankBalance(b);
+    return `<option value="${b.id}" ${isSel ? "selected" : ""}>🏦 ${escapeHtml(b.name)} (Balance: ${formatCurrency(bal)})</option>`;
+  }).join("");
+}
   // Credit Card Modal Handlers
   if (dom.openAddCardBtn) {
     dom.openAddCardBtn.addEventListener("click", () => {
@@ -1152,6 +1167,7 @@ function bindEvents() {
       dom.cardBilled.value = "0.00";
       dom.cardUnbilled.value = "0.00";
       dom.cardPayInFull.checked = true;
+      populateCardLinkedBankSelect();
       $("card-modal-title").textContent = "Add New Credit Card";
       dom.cardDialog?.showModal ? dom.cardDialog.showModal() : alert("Add card dialog");
     });
@@ -2725,20 +2741,18 @@ function settleCardBillInFull(notifId, cardId) {
   const card = state.creditCards.find(c => c.id === cardId);
   const notif = state.notifications.find(n => n.id === notifId);
 
-  if (card) {
+  if (card && card.currentBilled > 0) {
     const paidAmt = card.currentBilled;
-    card.currentBilled = 0.00;
-    card.payInFull = true;
-
-    if (notif) {
-      notif.decision = `Settled in Full (${formatCurrency(paidAmt)}) on ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-      notif.isRead = true;
+    if (executeBillSettlement(card, paidAmt)) {
+      if (notif) {
+        notif.decision = `Settled in Full (${formatCurrency(paidAmt)}) on ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+        notif.isRead = true;
+      }
+      saveStorage();
+      render();
+      renderNotificationsFeed();
+      showToast(`Settled ${card.name} bill in full!`);
     }
-
-    saveStorage();
-    render();
-    renderNotificationsFeed();
-    showToast(`Settled ${card.name} bill in full!`);
   }
 }
 
@@ -2746,22 +2760,21 @@ function settleCardBillPartial(notifId, cardId) {
   const card = state.creditCards.find(c => c.id === cardId);
   const notif = state.notifications.find(n => n.id === notifId);
 
-  if (card) {
-    const amtStr = prompt(`Enter amount paid for ${card.name} (Current Bill: ${formatCurrency(card.currentBilled)}):`);
+  if (card && card.currentBilled > 0) {
+    const amtStr = prompt(`Enter amount to pay for ${card.name} (Current Bill: ${formatCurrency(card.currentBilled)}):`);
     const paid = parseFloat(amtStr);
     if (!isNaN(paid) && paid > 0) {
-      card.currentBilled = Math.max(0, Number((card.currentBilled - paid).toFixed(2)));
-      card.payInFull = (card.currentBilled === 0);
-
-      if (notif) {
-        notif.decision = `Paid ${formatCurrency(paid)} (Remaining: ${formatCurrency(card.currentBilled)}) on ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-        notif.isRead = true;
+      const settleAmt = Math.min(paid, card.currentBilled);
+      if (executeBillSettlement(card, settleAmt)) {
+        if (notif) {
+          notif.decision = `Paid ${formatCurrency(settleAmt)} (Remaining: ${formatCurrency(card.currentBilled)}) on ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+          notif.isRead = true;
+        }
+        saveStorage();
+        render();
+        renderNotificationsFeed();
+        showToast(`Recorded partial payment of ${formatCurrency(settleAmt)}!`);
       }
-
-      saveStorage();
-      render();
-      renderNotificationsFeed();
-      showToast(`Recorded partial payment of ${formatCurrency(paid)}!`);
     }
   }
 }
@@ -3416,21 +3429,100 @@ function openEditCardModal(cardId) {
   dom.cardBilled.value = card.currentBilled;
   dom.cardUnbilled.value = card.unbilledBalance;
   dom.cardPayInFull.checked = !!card.payInFull;
+  populateCardLinkedBankSelect(card.linkedBankAccountId || card.bank);
 
   $("card-modal-title").textContent = "Edit Credit Card & Balances";
   dom.cardDialog?.showModal ? dom.cardDialog.showModal() : alert("Edit card dialog");
 }
 
+function executeBillSettlement(card, settleAmt, sourceBank) {
+  const bank = sourceBank || state.bankAccounts.find(b => b.id === card.linkedBankAccountId || b.bank === card.bank) || state.bankAccounts[0];
+  const bankName = bank ? bank.name : "Bank Account";
+  const bankBal = bank ? getReconciledBankBalance(bank) : 0;
+
+  if (bank && settleAmt > bankBal) {
+    const shortfall = (settleAmt - bankBal).toFixed(2);
+    if (!confirm(`⚠️ Insufficient Funds in ${bankName}!
+
+Available Balance: ${formatCurrency(bankBal)}
+Settlement Amount: ${formatCurrency(settleAmt)}
+Shortfall: ${formatCurrency(shortfall)}
+
+Proceed anyway (Account will become overdrawn)?`)) {
+      return false;
+    }
+  }
+
+  // 1. Deduct bill from credit card
+  card.currentBilled = Math.max(0, Number((card.currentBilled - settleAmt).toFixed(2)));
+  card.payInFull = (card.currentBilled === 0);
+
+  // 2. Deduct funds from linked bank account
+  if (bank) {
+    bank.balance = Number(((bank.balance || 0) - settleAmt).toFixed(2));
+  }
+
+  // 3. Log settlement expense into ledger
+  state.transactions.unshift({
+    id: "tx_settle_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+    type: "expense",
+    amount: settleAmt,
+    category: "Bills & Utilities",
+    wallet: "Bank Transfer",
+    cardId: bank ? bank.id : null,
+    cardName: bank ? bank.name : "Bank Transfer",
+    cardType: null,
+    date: getLocalDateString(),
+    note: `Credit Card Settlement: ${card.name}`,
+    createdAt: Date.now()
+  });
+
+  return true;
+}
+
 function quickSettleCardPrompt(cardId) {
   const card = state.creditCards.find(c => c.id === cardId);
   if (!card) return;
+  if (card.currentBilled <= 0) return showToast("No current bill to settle.");
 
-  if (confirm(`Mark statement bill of ${formatCurrency(card.currentBilled)} for ${card.name} as Paid in Full?`)) {
-    card.currentBilled = 0.00;
-    card.payInFull = true;
+  const bank = state.bankAccounts.find(b => b.id === card.linkedBankAccountId || b.bank === card.bank) || state.bankAccounts[0];
+  const bankBal = bank ? getReconciledBankBalance(bank) : 0;
+  const bankName = bank ? bank.name : "Bank Account";
+
+  const choice = prompt(
+    `⚡ Settle Credit Card Bill: ${card.name}
+` +
+    `Current Bill Due: ${formatCurrency(card.currentBilled)}
+` +
+    `Default Payment Source: ${bankName} (Available Balance: ${formatCurrency(bankBal)})
+
+` +
+    `Choose repayment option:
+` +
+    `• Enter "F" or press OK to Pay in Full (${formatCurrency(card.currentBilled)})
+` +
+    `• Enter partial amount (e.g. 100 or 50 for minimum)
+` +
+    `• Press Cancel to abort`,
+    "F"
+  );
+
+  if (choice === null) return;
+
+  let settleAmt = 0;
+  const trimmed = choice.trim().toUpperCase();
+  if (trimmed === "F" || trimmed === "" || trimmed === "FULL") {
+    settleAmt = card.currentBilled;
+  } else {
+    const parsed = parseFloat(choice);
+    if (isNaN(parsed) || parsed <= 0) return showToast("Invalid payment amount.");
+    settleAmt = Math.min(parsed, card.currentBilled);
+  }
+
+  if (executeBillSettlement(card, settleAmt, bank)) {
     saveStorage();
     render();
-    showToast(`Marked ${card.name} as paid in full!`);
+    showToast(`Paid ${formatCurrency(settleAmt)} from ${bankName}! Bill updated.`);
   }
 }
 
@@ -3466,6 +3558,7 @@ function handleSaveCreditCard(e) {
     return showToast("Please enter valid card details.");
   }
 
+  const linkedBankId = dom.cardLinkedBank ? dom.cardLinkedBank.value : "";
   const editId = dom.cardEditId.value;
   if (editId) {
     const card = state.creditCards.find(c => c.id === editId);
@@ -3478,6 +3571,7 @@ function handleSaveCreditCard(e) {
       card.currentBilled = billed;
       card.unbilledBalance = unbilled;
       card.payInFull = payInFull;
+      card.linkedBankAccountId = linkedBankId || card.linkedBankAccountId || null;
       showToast(`Updated "${name}"!`);
     }
   } else {
@@ -3491,6 +3585,7 @@ function handleSaveCreditCard(e) {
       currentBilled: billed,
       unbilledBalance: unbilled,
       payInFull,
+      linkedBankAccountId: linkedBankId || null,
       lastStatementRolledMonth: null,
       lastDuePromptedMonth: null,
       createdAt: Date.now()
@@ -4896,6 +4991,7 @@ function loadSampleData() {
       id: "card_maybank",
       name: "Maybank Visa Signature",
       bank: "Maybank",
+      linkedBankAccountId: "bank_maybank",
       statementDay: 25,
       dueDay: 15,
       creditLimit: 10000.00,

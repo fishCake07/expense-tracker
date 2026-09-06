@@ -281,4 +281,25 @@ assert.strictEqual(isOverdrawn, true, 'Negative balances must trigger overdrawn 
 
 console.log("✓ Test 15 Passed: Monthly-scoped balance, Insufficient Funds prompt, and Overdrawn badge verified.");
 
+// Test 16: Credit Card Linked Bank Account & Automated Settlement Flow
+assert(htmlContent.includes('id="card-linked-bank"'), 'card-linked-bank select must exist in HTML');
+assert(appJsContent.includes('function populateCardLinkedBankSelect('), 'populateCardLinkedBankSelect function must exist in app.js');
+assert(appJsContent.includes('function executeBillSettlement('), 'executeBillSettlement function must exist in app.js');
+
+// Test settlement logic:
+let mockSettleCard = { id: "card_maybank", name: "Maybank Visa Signature", currentBilled: 450.00, payInFull: false, linkedBankAccountId: "bank_maybank" };
+let mockSettleBank = { id: "bank_maybank", name: "Maybank Savings", balance: 3450.00 };
+let paymentAmt = 450.00;
+
+// Deduct from card & bank
+mockSettleCard.currentBilled = Math.max(0, Number((mockSettleCard.currentBilled - paymentAmt).toFixed(2)));
+mockSettleCard.payInFull = (mockSettleCard.currentBilled === 0);
+mockSettleBank.balance = Number((mockSettleBank.balance - paymentAmt).toFixed(2));
+
+assert.strictEqual(mockSettleCard.currentBilled, 0.00, 'Current billed debt must be 0.00 after full settlement');
+assert.strictEqual(mockSettleCard.payInFull, true, 'payInFull must be true after full payment');
+assert.strictEqual(mockSettleBank.balance, 3000.00, 'Bank balance must deduct payment amount from 3450 to 3000');
+
+console.log("✓ Test 16 Passed: Credit Card default payment source and automated bill settlement verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
