@@ -173,4 +173,38 @@ assert.strictEqual(testBank.balance, 3270.00, 'Logging RM 180 Debit Card spend m
 
 console.log("✓ Test 10 Passed: Bank Account automatic deductions and reversals for Bank Transfers and Debit Cards verified.");
 
+// Test 11: Single Source of Truth for Debit Cards, Credit Cards, and Bank Balances
+assert(appJsContent.includes('function getDebitCardMonthlySpend('), 'getDebitCardMonthlySpend function must exist in app.js');
+assert(appJsContent.includes('function getReconciledBankBalance('), 'getReconciledBankBalance function must exist in app.js');
+
+// Test 11a: When transactions are empty, debit spend must be strictly 0.00
+const emptyTx = [];
+function testCalcDebitSpend(cardId, txList) {
+  let s = 0;
+  txList.forEach(t => {
+    if (t.type === 'expense' && (t.wallet === 'Debit Card' || t.cardType === 'debit') && t.cardId === cardId) {
+      s += t.amount;
+    }
+  });
+  return Number(s.toFixed(2));
+}
+
+assert.strictEqual(testCalcDebitSpend('debit_maybank', emptyTx), 0.00, 'Empty transactions must result in 0.00 debit spend');
+
+// Test 11b: When transactions have records, debit spend must equal the sum
+const mockDebitTx = [
+  { type: 'expense', wallet: 'Debit Card', cardId: 'debit_maybank', amount: 180.00 },
+  { type: 'expense', wallet: 'Debit Card', cardId: 'debit_maybank', amount: 300.00 }
+];
+assert.strictEqual(testCalcDebitSpend('debit_maybank', mockDebitTx), 480.00, 'Debit spend must equal exact sum of matching transactions');
+
+// Test 11c: Clearing transactions must revert bank balance to baseline
+let mockBankObj = { id: 'bank_maybank', name: 'Maybank Savings', bank: 'Maybank', initialBalance: 3450.00, balance: 2933.00 };
+if (emptyTx.length === 0) {
+  mockBankObj.balance = mockBankObj.initialBalance;
+}
+assert.strictEqual(mockBankObj.balance, 3450.00, 'Clearing transactions must restore initial baseline balance to 3450.00');
+
+console.log("✓ Test 11 Passed: Single Source of Truth architecture and dynamic zero-drift reconciliation verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

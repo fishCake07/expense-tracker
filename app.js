@@ -31,10 +31,51 @@ function reconcileCreditCardUnbilled() {
       }
     });
 
-    if (foundMatchingTx) {
-      card.unbilledBalance = Number(cycleSpend.toFixed(2));
+    card.unbilledBalance = foundMatchingTx ? Number(cycleSpend.toFixed(2)) : 0.00;
+  });
+}
+
+// Single Source of Truth Helpers for Debit Cards and Bank Accounts
+function getDebitCardMonthlySpend(cardId, cardName, bank) {
+  const currentYm = getLocalDateString().substring(0, 7);
+  let spend = 0;
+  state.transactions.forEach(t => {
+    if (t.type === "expense" && (t.wallet === "Debit Card" || t.cardType === "debit")) {
+      const isMatch = (cardId && t.cardId === cardId) ||
+                      (cardName && t.cardName === cardName) ||
+                      (!t.cardId && !t.cardName && t.note && t.note.toLowerCase().includes(bank.toLowerCase()));
+      if (isMatch && t.date && t.date.startsWith(currentYm)) {
+        spend += t.amount;
+      }
     }
   });
+  return Number(spend.toFixed(2));
+}
+
+function getReconciledBankBalance(bank) {
+  const initial = (bank.initialBalance !== undefined && bank.initialBalance !== null)
+    ? Number(bank.initialBalance)
+    : Number(bank.balance || 0);
+
+  let netChange = 0;
+  state.transactions.forEach(t => {
+    const isThisBank = (t.cardId && t.cardId === bank.id) ||
+                       (t.cardName && t.cardName === bank.name) ||
+                       (!t.cardId && !t.cardName && t.note && t.note.toLowerCase().includes(bank.bank.toLowerCase()));
+
+    const isLinkedDebit = (t.wallet === "Debit Card" || t.cardType === "debit") &&
+      state.debitCards.some(dc => (dc.bankAccountId === bank.id || dc.bank === bank.bank) && ((t.cardId && t.cardId === dc.id) || (t.cardName && t.cardName === dc.name)));
+
+    if (isThisBank || isLinkedDebit) {
+      if (t.type === "income") {
+        netChange += t.amount;
+      } else if (t.type === "expense" && (t.wallet === "Bank Transfer" || t.wallet === "Debit Card" || t.cardType === "debit")) {
+        netChange -= t.amount;
+      }
+    }
+  });
+
+  return Number((initial + netChange).toFixed(2));
 }
 
 // Category Presets
@@ -488,7 +529,14 @@ function loadStorage() {
     const dcd = localStorage.getItem(STORAGE_KEYS.debitCards);
     if (dcd) state.debitCards = JSON.parse(dcd);
     const bks = localStorage.getItem(STORAGE_KEYS.banks);
-    if (bks) state.bankAccounts = JSON.parse(bks);
+    if (bks) {
+      state.bankAccounts = JSON.parse(bks);
+      state.bankAccounts.forEach(b => {
+        if (b.initialBalance === undefined || b.initialBalance === null) {
+          b.initialBalance = b.balance || 0;
+        }
+      });
+    }
     const nt = localStorage.getItem(STORAGE_KEYS.notifications);
     if (nt) state.notifications = JSON.parse(nt);
   } catch (e) {
@@ -983,10 +1031,18 @@ function bindEvents() {
     if (!state.transactions.length) return showToast("No records to clear.");
     if (confirm("Delete all logged transactions? This cannot be undone.")) {
       state.transactions = [];
+      // Synchronize all sources to Single Source of Truth
+      state.debitCards.forEach(dc => { dc.totalSpentThisMonth = 0.00; });
+      state.creditCards.forEach(c => { c.unbilledBalance = 0.00; });
+      state.bankAccounts.forEach(b => {
+        if (b.initialBalance !== undefined && b.initialBalance !== null) {
+          b.balance = b.initialBalance;
+        }
+      });
       deselectCategory();
       saveStorage();
       render();
-      showToast("All records cleared.");
+      showToast("All records cleared and balances reconciled.");
     }
   });
 
@@ -2595,6 +2651,9 @@ function renderBankAccounts() {
   }
 
   dom.bankAccountsGrid.innerHTML = state.bankAccounts.map(b => {
+    // Reconcile live balance dynamically from baseline and transactions
+    b.balance = getReconciledBankBalance(b);
+
     // 1. Calculate Bank Transfer Outflow for this account in the active month
     let transferOutflow = 0;
     state.transactions.forEach(t => {
@@ -2605,9 +2664,12 @@ function renderBankAccounts() {
       }
     });
 
-    // 2. Find Attached Debit Card (Parent-Child)
+    // 2. Find Attached Debit Card (Parent-Child) and calculate dynamic monthly spend
     const attachedDebit = state.debitCards.find(dc => dc.bankAccountId === b.id || dc.bank === b.bank || (dc.name && dc.name.toLowerCase().includes(b.bank.toLowerCase())));
-    const debitSpent = attachedDebit ? (attachedDebit.totalSpentThisMonth || 0) : 0;
+    const debitSpent = attachedDebit ? getDebitCardMonthlySpend(attachedDebit.id, attachedDebit.name, attachedDebit.bank) : 0;
+    if (attachedDebit) {
+      attachedDebit.totalSpentThisMonth = debitSpent;
+    }
     const totalOutflow = transferOutflow + debitSpent;
 
     let attachedCardHtml = "";
@@ -2739,6 +2801,7 @@ function handleSaveBankAccount(e) {
     if (bank) {
       bank.name = name;
       bank.bank = provider;
+      bank.initialBalance = Number(balance.toFixed(2));
       bank.balance = Number(balance.toFixed(2));
       showToast(`Updated "${name}"!`);
     }
@@ -2747,6 +2810,7 @@ function handleSaveBankAccount(e) {
       id: "bank_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
       name,
       bank: provider,
+      initialBalance: Number(balance.toFixed(2)),
       balance: Number(balance.toFixed(2)),
       createdAt: Date.now()
     });
@@ -2877,6 +2941,8 @@ function openCardPicker() {
           ? (dom.subSelectedSourceId ? dom.subSelectedSourceId.value : "")
           : (state.selectedCardId || (dom.selectedSourceId ? dom.selectedSourceId.value : ""));
         const isSel = activeId === dc.id;
+        const currentDebitSpend = getDebitCardMonthlySpend(dc.id, dc.name, dc.bank);
+        dc.totalSpentThisMonth = currentDebitSpend;
         return `
           <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectPaymentCard('debit', '${dc.id}', '${escapeHtml(dc.name)}')">
             <div class="picker-card-left">
@@ -2887,7 +2953,7 @@ function openCardPicker() {
               </div>
             </div>
             <div class="picker-card-right">
-              <span class="picker-card-balance">${formatCurrency(dc.totalSpentThisMonth || 0)}</span>
+              <span class="picker-card-balance">${formatCurrency(currentDebitSpend)}</span>
               <span class="picker-card-tag">Spent This Month</span>
             </div>
           </div>
@@ -4481,6 +4547,7 @@ function loadSampleData() {
       id: "bank_maybank",
       name: "Maybank Savings",
       bank: "Maybank",
+      initialBalance: 3450.00,
       balance: 3450.00,
       createdAt: Date.now()
     },
@@ -4488,6 +4555,7 @@ function loadSampleData() {
       id: "bank_public",
       name: "Public Bank Salary Account",
       bank: "Public Bank",
+      initialBalance: 5200.00,
       balance: 5200.00,
       createdAt: Date.now()
     }
