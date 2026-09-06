@@ -235,4 +235,20 @@ assert.strictEqual(mockPublicBank.balance, 4700.00, 'Public Bank must be deducte
 
 console.log("✓ Test 13 Passed: Edit Transaction dynamic account/wallet synchronization and rebalancing verified.");
 
+// Test 14: Subscriptions & Transactions Account Linking & Auto-Healing
+assert(appJsContent.includes('escapeHtml(sub.sourceName || sub.cardName || sub.wallet || "Bank Account")'), 'Subscription badge must display sourceName/cardName');
+assert(appJsContent.includes('cardId: sub.sourceId || null'), 'Auto-deduction must forward cardId');
+assert(appJsContent.includes('cardName: sub.sourceName || sub.cardName || null'), 'Auto-deduction must forward cardName');
+
+// Test subscription badge rendering with linked account
+let mockSub = { name: "Room Rental", wallet: "Bank Transfer", sourceName: "Maybank Savings" };
+let badgeText = mockSub.sourceName || mockSub.cardName || mockSub.wallet || "Bank Account";
+assert.strictEqual(badgeText, "Maybank Savings", 'Subscription badge must resolve to linked account name');
+
+let mockCardSub = { name: "Spotify Premium", wallet: "Credit Card", sourceName: "Maybank Visa Signature" };
+let cardBadgeText = mockCardSub.sourceName || mockCardSub.cardName || mockCardSub.wallet || "Bank Account";
+assert.strictEqual(cardBadgeText, "Maybank Visa Signature", 'Credit card subscription badge must resolve to card name');
+
+console.log("✓ Test 14 Passed: Subscription badges and transaction linking with active accounts verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

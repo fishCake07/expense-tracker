@@ -511,11 +511,66 @@ function initDateLifecycleListeners() {
 function loadStorage() {
   try {
     const tx = localStorage.getItem(STORAGE_KEYS.tx);
-    if (tx) state.transactions = JSON.parse(tx);
+    if (tx) {
+      state.transactions = JSON.parse(tx);
+      // Auto-heal legacy sample transactions to link to specific accounts
+      state.transactions.forEach(t => {
+        const noteLower = (t.note || "").toLowerCase();
+        if (t.wallet === "Bank Account") t.wallet = "Bank Transfer";
+        if (!t.cardName && !t.cardId) {
+          if (noteLower.includes("salary")) {
+            t.wallet = "Bank Transfer";
+            t.cardId = "bank_public";
+            t.cardName = "Public Bank Salary Account";
+          } else if (noteLower.includes("rent") || noteLower.includes("fibre") || noteLower.includes("deposit")) {
+            t.wallet = "Bank Transfer";
+            t.cardId = "bank_maybank";
+            t.cardName = "Maybank Savings";
+          } else if (noteLower.includes("car loan")) {
+            t.wallet = "Bank Transfer";
+            t.cardId = "bank_public";
+            t.cardName = "Public Bank Salary Account";
+          } else if (noteLower.includes("petrol") || noteLower.includes("spotify") || noteLower.includes("cafe")) {
+            t.wallet = "Credit Card";
+            t.cardId = "card_maybank";
+            t.cardName = "Maybank Visa Signature";
+            t.cardType = "credit";
+          } else if (noteLower.includes("lotus")) {
+            t.wallet = "Debit Card";
+            t.cardId = "debit_maybank";
+            t.cardName = "Maybank Visa Debit";
+            t.cardType = "debit";
+          }
+        }
+      });
+    }
     const curr = localStorage.getItem(STORAGE_KEYS.currency);
     if (curr) state.currency = curr;
     const subs = localStorage.getItem(STORAGE_KEYS.subs);
-    if (subs) state.subscriptions = JSON.parse(subs);
+    if (subs) {
+      state.subscriptions = JSON.parse(subs);
+      // Auto-heal legacy subscriptions to link them to specific accounts
+      state.subscriptions.forEach(sub => {
+        if (!sub.sourceName && sub.cardName) sub.sourceName = sub.cardName;
+        if (sub.wallet === "Bank Account") sub.wallet = "Bank Transfer";
+        const nameLower = (sub.name || "").toLowerCase();
+        if (!sub.sourceName) {
+          if (sub.id === "sub_rent" || nameLower.includes("rent") || sub.id === "sub_wifi" || nameLower.includes("fibre")) {
+            sub.wallet = "Bank Transfer";
+            sub.sourceId = "bank_maybank";
+            sub.sourceName = "Maybank Savings";
+          } else if (sub.id === "sub_car" || nameLower.includes("car loan")) {
+            sub.wallet = "Bank Transfer";
+            sub.sourceId = "bank_public";
+            sub.sourceName = "Public Bank Salary Account";
+          } else if (sub.id === "sub_spotify" || nameLower.includes("spotify") || nameLower.includes("netifli") || nameLower.includes("netflix")) {
+            sub.wallet = "Credit Card";
+            sub.sourceId = "card_maybank";
+            sub.sourceName = "Maybank Visa Signature";
+          }
+        }
+      });
+    }
     const cats = localStorage.getItem(STORAGE_KEYS.customCats);
     if (cats) state.customCategories = JSON.parse(cats);
     const th = localStorage.getItem(STORAGE_KEYS.theme);
@@ -2055,12 +2110,17 @@ function processAutoDeductions() {
       const dayStr = String(sub.billingDay).padStart(2, "0");
       const autoDate = `${currentYm}-${dayStr}`;
 
+      const autoCardType = sub.wallet === "Credit Card" ? "credit" : (sub.wallet === "Debit Card" ? "debit" : null);
+      const autoWallet = sub.wallet === "Credit Card" ? "Credit Card" : (sub.wallet === "Debit Card" ? "Debit Card" : (sub.wallet === "E-Wallet" ? "E-Wallet" : "Bank Transfer"));
       const newTx = {
         id: "tx_auto_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
         type: "expense",
         amount: sub.amount,
         category: sub.category,
-        wallet: sub.wallet || "Bank Account",
+        wallet: autoWallet,
+        cardId: sub.sourceId || null,
+        cardName: sub.sourceName || sub.cardName || null,
+        cardType: autoCardType,
         date: autoDate,
         note: `${sub.name} (Auto-debited)`,
         createdAt: Date.now()
@@ -2153,12 +2213,17 @@ function logSubscriptionNow(id) {
   const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const today = getLocalDateString();
 
+  const autoCardType = sub.wallet === "Credit Card" ? "credit" : (sub.wallet === "Debit Card" ? "debit" : null);
+  const autoWallet = sub.wallet === "Credit Card" ? "Credit Card" : (sub.wallet === "Debit Card" ? "Debit Card" : (sub.wallet === "E-Wallet" ? "E-Wallet" : "Bank Transfer"));
   state.transactions.unshift({
     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     type: "expense",
     amount: sub.amount,
     category: sub.category,
-    wallet: sub.wallet || "Bank Account",
+    wallet: autoWallet,
+    cardId: sub.sourceId || null,
+    cardName: sub.sourceName || sub.cardName || null,
+    cardType: autoCardType,
     date: today,
     note: `${sub.name} (Monthly Bill)`,
     createdAt: Date.now()
@@ -2216,7 +2281,7 @@ function renderSubscriptions() {
             <div class="sub-meta">
               <span>Day ${sub.billingDay}</span>
               <span>•</span>
-              <span class="tx-badge-wallet">${getWalletIcon(sub.wallet)} ${escapeHtml(sub.wallet || "Bank Account")}</span>
+              <span class="tx-badge-wallet">${getWalletIcon(sub.wallet)} ${escapeHtml(sub.sourceName || sub.cardName || sub.wallet || "Bank Account")}</span>
               ${dueBadge ? `<span>•</span>${dueBadge}` : ""}
               ${autoTag ? `<span>•</span>${autoTag}` : ""}
             </div>
