@@ -5183,20 +5183,7 @@ function loadSampleData() {
         createdAt: cur.getTime() + 1000
       });
 
-      // Room Rental on Day 1 (Transferred from Maybank)
-      simulatedTransactions.push({
-        id: "tx_sim_" + (idCount++),
-        type: "expense",
-        amount: 550.00,
-        category: "Bills & Utilities",
-        wallet: "Bank Transfer",
-        cardId: "bank_maybank",
-        cardName: "Maybank Savings",
-        cardType: null,
-        date: dateStr,
-        note: `Room Rental (${cur.toLocaleString(undefined, { month: "short" })})`,
-        createdAt: cur.getTime() + 2000
-      });
+
     }
 
     // 2. Monthly Savings Deposit on Day 2 (Transferred to Maybank Savings)
@@ -5231,22 +5218,7 @@ function loadSampleData() {
       });
     }
 
-    // 3. Monthly Car Loan Installment on Day 5 (Paid from Public Bank)
-    if (dayOfMonth === 5) {
-      simulatedTransactions.push({
-        id: "tx_sim_" + (idCount++),
-        type: "expense",
-        amount: 480.00,
-        category: "Bills & Utilities",
-        wallet: "Bank Transfer",
-        cardId: "bank_public",
-        cardName: "Public Bank Salary Account",
-        cardType: null,
-        date: dateStr,
-        note: "Car Loan Installment (Hire Purchase)",
-        createdAt: cur.getTime() + 5000
-      });
-    }
+
 
     // 4. CelcomDigi Postpaid Bill on Day 15 (Paid via E-Wallet)
     if (dayOfMonth === 15) {
@@ -5483,9 +5455,7 @@ function loadSampleData() {
   ];
 
   state.subscriptions = [
-    { id: "sub_rent", name: "Room Rental", amount: 550.00, category: "Bills & Utilities", billingDay: 1, wallet: "Bank Transfer", sourceId: "bank_maybank", sourceName: "Maybank Savings", cardName: "Maybank Savings", autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
     { id: "sub_spotify", name: "Spotify Premium", amount: 15.90, category: "Entertainment", billingDay: 2, wallet: "Credit Card", sourceId: "card_maybank", sourceName: "Maybank Visa Signature", cardName: "Maybank Visa Signature", autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
-    { id: "sub_car", name: "Car Loan Installment", amount: 480.00, category: "Bills & Utilities", billingDay: 5, wallet: "Bank Transfer", sourceId: "bank_public", sourceName: "Public Bank Salary Account", cardName: "Public Bank Salary Account", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() },
     { id: "sub_mobile", name: "CelcomDigi Postpaid", amount: 45.00, category: "Bills & Utilities", billingDay: 15, wallet: "E-Wallet", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() },
     { id: "sub_wifi", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, wallet: "Bank Transfer", sourceId: "bank_maybank", sourceName: "Maybank Savings", cardName: "Maybank Savings", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() }
   ];
