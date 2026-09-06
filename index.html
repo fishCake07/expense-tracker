@@ -99,21 +99,45 @@
           </button>
         </div>
 
-        <div class="loan-stats-grid">
-          <div class="loan-stat-box">
-            <span class="stat-mini-label">Total Outstanding Debt</span>
-            <span class="loan-stat-value text-danger" id="total-loan-debt">RM 0.00</span>
-            <span class="stat-mini-sub" id="total-loan-count">0 active loans</span>
+        <!-- Dual-Perspective Summary: Personal Budget vs Official CCRIS/DSR View -->
+        <div class="loan-dual-perspective-grid">
+          <!-- Card 1: Total Monthly Commitment (Personal Cash Flow / Budget View) -->
+          <div class="dual-perspective-card budget-view">
+            <div class="dual-card-header">
+              <span class="dual-card-tag">PERSONAL CASH FLOW / BUDGET VIEW</span>
+              <strong class="dual-card-title">TOTAL MONTHLY COMMITMENT</strong>
+            </div>
+            <div class="dual-card-sum" id="dual-budget-sum">Sum: RM 0.00</div>
+            <div class="dual-card-dsr-sub">DSR: N/A <span class="dual-muted-tag">(Personal Budget View)</span></div>
+            <p class="dual-card-note">*(Loans + Cards + Bills &amp; Subs)*</p>
+            
+            <details class="dual-breakdown-details" id="budget-breakdown-details">
+              <summary class="dual-breakdown-summary">View Breakdown by Category ▾</summary>
+              <div class="dual-breakdown-content" id="dual-budget-breakdown-list">
+                <!-- Dynamically populated -->
+              </div>
+            </details>
           </div>
-          <div class="loan-stat-box">
-            <span class="stat-mini-label">Monthly Commitments</span>
-            <span class="loan-stat-value" id="total-loan-monthly">RM 0.00 / mo</span>
-            <span class="stat-mini-sub" id="loan-monthly-sub">Auto-linked to bills</span>
-          </div>
-          <div class="loan-stat-box">
-            <span class="stat-mini-label">Debt Service Ratio (DSR)</span>
-            <span class="loan-stat-value" id="loan-dsr-badge">0.0%</span>
-            <span class="stat-mini-sub" id="loan-dsr-status">Healthy (&lt; 40%)</span>
+
+          <!-- Card 2: Total Monthly Installment (Bank Underwriting / Official CCRIS View) -->
+          <div class="dual-perspective-card ccris-view">
+            <div class="dual-card-header">
+              <span class="dual-card-tag" style="color: #2563eb;">BANK UNDERWRITING / CCRIS VIEW</span>
+              <strong class="dual-card-title">TOTAL MONTHLY INSTALLMENT</strong>
+            </div>
+            <div class="dual-card-sum" id="dual-ccris-sum">Sum: RM 0.00</div>
+            <div class="dual-card-dsr-sub">
+              DSR: <strong id="dual-ccris-dsr-val">0.0%</strong>
+              <span class="badge-dsr-healthy" id="dual-ccris-dsr-badge">Healthy (&lt; 40%)</span>
+            </div>
+            <p class="dual-card-note">*(Formal Bank Loans &amp; 5% CCRIS Cards)*</p>
+
+            <details class="dual-breakdown-details" id="ccris-breakdown-details">
+              <summary class="dual-breakdown-summary">View Active Loan Facilities ▾</summary>
+              <div class="dual-breakdown-content" id="dual-ccris-breakdown-list">
+                <!-- Dynamically populated -->
+              </div>
+            </details>
           </div>
         </div>
       </section>

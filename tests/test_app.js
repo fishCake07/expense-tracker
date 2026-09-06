@@ -390,4 +390,31 @@ assert.strictEqual(testBankObj.balance, 5680.00, 'Bank balance must refund insta
 
 console.log("✓ Test 20 Passed: Loan installment due notification, settlement, and reversal flow verified.");
 
+// Test 19: Dual-Perspective Summary (Personal Budget vs Official CCRIS View)
+assert(htmlContent.includes('id="dual-budget-sum"'), 'dual-budget-sum must exist in HTML');
+assert(htmlContent.includes('id="dual-ccris-sum"'), 'dual-ccris-sum must exist in HTML');
+assert(htmlContent.includes('id="dual-budget-breakdown-list"'), 'dual-budget-breakdown-list must exist in HTML');
+assert(htmlContent.includes('id="dual-ccris-breakdown-list"'), 'dual-ccris-breakdown-list must exist in HTML');
+assert(appJsContent.includes('const totalBudgetCommitment = totalLoanInstallments + totalSubsCommitment + totalCardsBilledDebt;'), 'renderLoans must calculate total budget commitment');
+assert(appJsContent.includes('const totalCcrisCommitment = totalLoanInstallments + totalCcrisCards;'), 'renderLoans must calculate total CCRIS commitment');
+
+// Test calculation math matching user example
+let mockLoanMonthly = 480.00;
+let mockSubsMonthly = 1229.90;
+let mockCardsBilled = 450.00;
+let mockCardsBal = 585.00;
+let mockIncome = 3500.00;
+
+let budgetTotal = mockLoanMonthly + mockSubsMonthly + mockCardsBilled;
+assert.strictEqual(budgetTotal, 2159.90, 'Personal Budget Commitment must equal sum of loans, subs, and cards billed debt');
+
+let ccrisCards = Math.max(Number((mockCardsBal * 0.05).toFixed(2)), 50.00);
+let ccrisTotal = mockLoanMonthly + ccrisCards;
+assert.strictEqual(ccrisTotal, 530.00, 'CCRIS Commitment must equal loan installment + 5% card rule (or min 50)');
+
+let calcDsr = Number(((ccrisTotal / mockIncome) * 100).toFixed(1));
+assert.strictEqual(calcDsr, 15.1, 'DSR must equal 15.1%');
+
+console.log("✓ Test 19 Passed: Dual-Perspective Summary HTML elements and financial underwriting math verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

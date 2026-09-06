@@ -4322,3 +4322,121 @@ input[type="date"]::-webkit-date-and-time-value {
   text-align: left;
   min-height: 1.4em;
 }
+
+/* ================= DUAL-PERSPECTIVE LOAN SUMMARY ================= */
+.loan-dual-perspective-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.dual-perspective-card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.dual-perspective-card.budget-view {
+  border-left: 5px solid #6366f1; /* Indigo accent: Personal Budget */
+}
+
+.dual-perspective-card.ccris-view {
+  border-left: 5px solid #2563eb; /* Royal Blue accent: Bank Underwriting */
+}
+
+.dual-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.dual-card-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #6366f1;
+}
+
+.dual-card-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.dual-card-sum {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+
+.dual-card-dsr-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.dual-muted-tag {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.dual-card-note {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+.dual-breakdown-details {
+  margin-top: 0.35rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.45rem;
+}
+
+.dual-breakdown-summary {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.dual-breakdown-summary::-webkit-details-marker {
+  display: none;
+}
+
+.dual-breakdown-content {
+  margin-top: 0.45rem;
+  padding: 0.6rem;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+}
+
+.dual-breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  border-bottom: 1px dashed var(--border-color);
+}
+.dual-breakdown-row:last-child {
+  border-bottom: none;
+}

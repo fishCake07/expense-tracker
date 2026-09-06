@@ -487,6 +487,13 @@ const dom = {
   totalLoanCount: $("total-loan-count"),
   loanDsrBadge: $("loan-dsr-badge"),
   loanDsrStatus: $("loan-dsr-status"),
+  // Dual-Perspective Summary DOM
+  dualBudgetSum: $("dual-budget-sum"),
+  dualBudgetBreakdownList: $("dual-budget-breakdown-list"),
+  dualCcrisSum: $("dual-ccris-sum"),
+  dualCcrisDsrVal: $("dual-ccris-dsr-val"),
+  dualCcrisDsrBadge: $("dual-ccris-dsr-badge"),
+  dualCcrisBreakdownList: $("dual-ccris-breakdown-list"),
   loansList: $("loans-list"),
   openAddLoanBtn: $("open-add-loan-btn"),
   loanDialog: $("loan-dialog"),
@@ -4074,25 +4081,98 @@ function renderLoans() {
     });
   }
 
+  // Backward-compatible updates if legacy IDs exist
   if (dom.totalLoanDebt) dom.totalLoanDebt.textContent = formatCurrency(totalDebt);
   if (dom.totalLoanMonthly) dom.totalLoanMonthly.textContent = `${formatCurrency(totalMonthly)} / mo`;
   if (dom.totalLoanCount) dom.totalLoanCount.textContent = `${state.loans.length} active commitments`;
 
-  // Calculate Debt Service Ratio (DSR)
-  const dsr = ((totalMonthly / monthIncomeAmt) * 100).toFixed(1);
-  if (dom.loanDsrBadge) dom.loanDsrBadge.textContent = `${dsr}%`;
+  // ================= DUAL-PERSPECTIVE SUMMARY CALCULATIONS =================
+  // 1. Total Monthly Commitment (Personal Cash Flow / Budget View)
+  let totalLoanInstallments = 0;
+  state.loans.forEach(ln => { totalLoanInstallments += (ln.monthlyInstallment || 0); });
 
-  if (dom.loanDsrStatus) {
+  let totalSubsCommitment = 0;
+  if (state.subscriptions) {
+    totalSubsCommitment = state.subscriptions.reduce((s, sub) => s + (sub.amount || 0), 0);
+  }
+
+  let totalCardsBilledDebt = 0;
+  let totalCcrisCards = 0;
+  if (state.creditCards) {
+    state.creditCards.forEach(c => {
+      totalCardsBilledDebt += (c.currentBilled || 0);
+      if (!c.payInFull || c.currentBilled > 0) {
+        const bal = (c.currentBilled || 0) + (c.unbilledBalance || 0);
+        const card5Pct = Math.max(Number((bal * 0.05).toFixed(2)), 50.00);
+        totalCcrisCards += card5Pct;
+      }
+    });
+  }
+
+  const totalBudgetCommitment = totalLoanInstallments + totalSubsCommitment + totalCardsBilledDebt;
+
+  if (dom.dualBudgetSum) {
+    dom.dualBudgetSum.textContent = `Sum: ${formatCurrency(totalBudgetCommitment)}`;
+  }
+  if (dom.dualBudgetBreakdownList) {
+    dom.dualBudgetBreakdownList.innerHTML = `
+      <div class="dual-breakdown-row">
+        <span>🚗 / 🏠 Loans &amp; Financing</span>
+        <strong>${formatCurrency(totalLoanInstallments)} / mo</strong>
+      </div>
+      <div class="dual-breakdown-row">
+        <span>⚡ Bills &amp; Subscriptions</span>
+        <strong>${formatCurrency(totalSubsCommitment)} / mo</strong>
+      </div>
+      <div class="dual-breakdown-row">
+        <span>💳 Credit Card Billed Debt</span>
+        <strong>${formatCurrency(totalCardsBilledDebt)}</strong>
+      </div>
+    `;
+  }
+
+  // 2. Total Monthly Installment (Bank Underwriting / Official CCRIS DSR View)
+  const totalCcrisCommitment = totalLoanInstallments + totalCcrisCards;
+  const dsr = ((totalCcrisCommitment / monthIncomeAmt) * 100).toFixed(1);
+
+  if (dom.dualCcrisSum) {
+    dom.dualCcrisSum.textContent = `Sum: ${formatCurrency(totalCcrisCommitment)}`;
+  }
+  if (dom.dualCcrisDsrVal) {
+    dom.dualCcrisDsrVal.textContent = `${dsr}%`;
+  }
+  if (dom.dualCcrisDsrBadge) {
     if (dsr < 40) {
-      dom.loanDsrStatus.className = "stat-mini-sub badge-dsr-healthy";
-      dom.loanDsrStatus.textContent = "Healthy (< 40% DSR)";
+      dom.dualCcrisDsrBadge.className = "badge-dsr-healthy";
+      dom.dualCcrisDsrBadge.textContent = "Healthy (< 40%)";
     } else if (dsr <= 60) {
-      dom.loanDsrStatus.className = "stat-mini-sub badge-dsr-moderate";
-      dom.loanDsrStatus.textContent = "Moderate (40-60% DSR)";
+      dom.dualCcrisDsrBadge.className = "badge-dsr-moderate";
+      dom.dualCcrisDsrBadge.textContent = "Moderate (40-60%)";
     } else {
-      dom.loanDsrStatus.className = "stat-mini-sub badge-dsr-high";
-      dom.loanDsrStatus.textContent = "High Risk (> 60% DSR)";
+      dom.dualCcrisDsrBadge.className = "badge-dsr-high";
+      dom.dualCcrisDsrBadge.textContent = "High (> 60%)";
     }
+  }
+
+  if (dom.dualCcrisBreakdownList) {
+    let facilitiesHtml = "";
+    if (state.loans && state.loans.length) {
+      facilitiesHtml += state.loans.map(ln => `
+        <div class="dual-breakdown-row">
+          <span>${escapeHtml(ln.name)} (${escapeHtml(ln.bank || "Bank")})</span>
+          <strong>${formatCurrency(ln.monthlyInstallment)} / mo</strong>
+        </div>
+      `).join("");
+    } else {
+      facilitiesHtml += `<div class="dual-breakdown-row" style="color:var(--text-muted);"><span>No active loans</span><span>RM 0.00</span></div>`;
+    }
+    facilitiesHtml += `
+      <div class="dual-breakdown-row" style="border-top:1px dashed var(--border-color); padding-top:0.35rem; margin-top:0.25rem;">
+        <span>💳 Credit Cards (5% CCRIS Rule)</span>
+        <strong>${formatCurrency(totalCcrisCards)} / mo</strong>
+      </div>
+    `;
+    dom.dualCcrisBreakdownList.innerHTML = facilitiesHtml;
   }
 
   // Render Loans Cards List
