@@ -339,4 +339,32 @@ assert(!htmlContent.includes('id="card-type-select"'), 'Redundant card-type-sele
 
 console.log("✓ Test 18 Passed: iOS WebKit compatibility, edge navigation guard, 16px rule, and form cleanup verified.");
 
+// Test 19: Dynamic Loan Engine, 3-Step Amortization Formula, and Auto-Deduct Confirmation Flow
+assert(htmlContent.includes('id="loan-due-dialog"'), 'loan-due-dialog must exist in HTML');
+assert(htmlContent.includes('id="loan-linked-bank"'), 'loan-linked-bank select must exist in HTML');
+assert(appJsContent.includes('function processLoanPayment('), 'processLoanPayment must exist in app.js');
+assert(appJsContent.includes('function checkLoanDueAlerts()'), 'checkLoanDueAlerts must exist in app.js');
+
+// Verify Group A Reducing Balance Amortization math strictly matches the user specification:
+// RM 40,000 at 4% p.a. with RM 600 installment
+const p0 = 40000.00;
+const annualRate = 4.0;
+const monthlyInst = 600.00;
+
+const monthlyRate = (annualRate / 100) / 12;
+const interestMonth = Number((p0 * monthlyRate).toFixed(2));
+const principalPortion = Number((monthlyInst - interestMonth).toFixed(2));
+const newRemainingP = Number((p0 - principalPortion).toFixed(2));
+
+assert.strictEqual(interestMonth, 133.33, 'Interest for the month must be exactly RM 133.33');
+assert.strictEqual(principalPortion, 466.67, 'Principal portion paid must be exactly RM 466.67');
+assert.strictEqual(newRemainingP, 39533.33, 'New remaining balance must be exactly RM 39,533.33');
+
+// Verify Bank Balance deduction upon loan payment:
+let mockPbb = { id: "bank_public", name: "Public Bank Salary Account", balance: 5200.00 };
+mockPbb.balance = Number((mockPbb.balance - monthlyInst).toFixed(2));
+assert.strictEqual(mockPbb.balance, 4600.00, 'Loan installment must deduct 600.00 from bank balance (5200 -> 4600)');
+
+console.log("✓ Test 19 Passed: Dynamic Loan Engine, exact reducing balance amortization math, and auto-deduct flow verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

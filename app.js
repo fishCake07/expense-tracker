@@ -1,4 +1,148 @@
 
+// ================= LOAN AMORTIZATION & PAYMENT ENGINE =================
+function processLoanPayment(loan, paymentAmt, sourceBank) {
+  const bank = sourceBank || state.bankAccounts.find(b => b.id === loan.linkedBankAccountId || b.bank === loan.bank) || state.bankAccounts[0];
+  const bankName = bank ? bank.name : "Bank Account";
+  const bankBal = bank ? getReconciledBankBalance(bank) : 0;
+
+  if (bank && paymentAmt > bankBal) {
+    const shortfall = (paymentAmt - bankBal).toFixed(2);
+    if (!confirm(`⚠️ Insufficient Funds in ${bankName}!
+
+Available Balance: ${formatCurrency(bankBal)}
+Installment Due: ${formatCurrency(paymentAmt)}
+Shortfall: ${formatCurrency(shortfall)}
+
+Proceed anyway (Account will become overdrawn)?`)) {
+      return false;
+    }
+  }
+
+  let monthlyInterest = 0;
+  let principalPaid = 0;
+
+  if (loan.type === "CAR_EIR" || loan.type === "HOME_SBR" || loan.type === "PERSONAL") {
+    // Group A: Exact 3-step reducing balance formula
+    const monthlyRate = (loan.rate / 100) / 12;
+    monthlyInterest = Number(((loan.remainingPrincipal || loan.originalPrincipal) * monthlyRate).toFixed(2));
+    principalPaid = Math.max(0, Number((paymentAmt - monthlyInterest).toFixed(2)));
+    loan.remainingPrincipal = Math.max(0, Number(((loan.remainingPrincipal || loan.originalPrincipal) - principalPaid).toFixed(2)));
+  } else if (loan.type === "CAR_FLAT") {
+    // Group B: Rule of 78 frontloaded interest calculation
+    const n = loan.tenureMonths || 84;
+    const k = Math.min(n, (loan.tenureMonths - (loan.remainingMonths || n) + 1));
+    const sumOfDigits = (n * (n + 1)) / 2;
+    const totalInterest = loan.totalInterest || (loan.originalPrincipal * (loan.rate / 100) * (n / 12));
+    const factor = Math.max(0, (n - k + 1)) / sumOfDigits;
+    monthlyInterest = Number((totalInterest * factor).toFixed(2));
+    principalPaid = Math.max(0, Number((paymentAmt - monthlyInterest).toFixed(2)));
+    loan.remainingPrincipal = Math.max(0, Number(((loan.remainingPrincipal || loan.originalPrincipal) - principalPaid).toFixed(2)));
+  } else {
+    // Group C: PTPTN (1% flat Ujrah) & 0% IPP
+    monthlyInterest = loan.type === "PTPTN" ? Number(((loan.originalPrincipal * 0.01) / 12).toFixed(2)) : 0;
+    principalPaid = Math.max(0, Number((paymentAmt - monthlyInterest).toFixed(2)));
+    loan.remainingPrincipal = Math.max(0, Number(((loan.remainingPrincipal || loan.originalPrincipal) - principalPaid).toFixed(2)));
+  }
+
+  loan.remainingMonths = Math.max(0, (loan.remainingMonths !== undefined ? loan.remainingMonths : loan.tenureMonths) - 1);
+  loan.totalInterestPaid = Number(((loan.totalInterestPaid || 0) + monthlyInterest).toFixed(2));
+  const currentYm = getLocalDateString().substring(0, 7);
+  loan.lastPaidMonth = currentYm;
+
+  // 1. Deduct funds from linked bank account
+  if (bank) {
+    bank.balance = Number(((bank.balance || 0) - paymentAmt).toFixed(2));
+  }
+
+  // 2. Log transaction into ledger
+  state.transactions.unshift({
+    id: "tx_loan_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+    type: "expense",
+    amount: paymentAmt,
+    category: "Bills & Utilities",
+    wallet: "Bank Transfer",
+    cardId: bank ? bank.id : null,
+    cardName: bank ? bank.name : "Bank Transfer",
+    cardType: null,
+    isLoanPayment: true,
+    loanId: loan.id,
+    loanName: loan.name,
+    date: getLocalDateString(),
+    note: `Loan Installment: ${loan.name} (Principal: ${formatCurrency(principalPaid)}, Interest: ${formatCurrency(monthlyInterest)})`,
+    createdAt: Date.now()
+  });
+
+  // 3. Record decision in notifications
+  state.notifications.unshift({
+    id: "notif_loan_" + loan.id + "_" + currentYm,
+    type: "statement",
+    cardId: loan.id,
+    title: `✓ Paid: ${loan.name}`,
+    time: new Date().toISOString(),
+    isRead: true,
+    decision: `Paid ${formatCurrency(paymentAmt)} (Principal: ${formatCurrency(principalPaid)} • Interest: ${formatCurrency(monthlyInterest)})`,
+    body: `Installment confirmed for ${currentYm}. Remaining balance: ${formatCurrency(loan.remainingPrincipal)} (${loan.remainingMonths} mos left).`
+  });
+
+  saveStorage();
+  render();
+  showToast(`Paid ${formatCurrency(paymentAmt)} for ${loan.name}! (Principal: ${formatCurrency(principalPaid)}, Interest: ${formatCurrency(monthlyInterest)})`);
+  return true;
+}
+
+function promptManualLoanPayment(loanId) {
+  const loan = state.loans.find(l => l.id === loanId);
+  if (!loan) return;
+  const currentYm = getLocalDateString().substring(0, 7);
+
+  if (loan.lastPaidMonth === currentYm) {
+    if (!confirm(`The installment for ${loan.name} was already debited for this month (${currentYm}). Make an extra payment?`)) {
+      return;
+    }
+  }
+
+  processLoanPayment(loan, loan.monthlyInstallment);
+}
+
+let activeDueLoan = null;
+
+function checkLoanDueAlerts() {
+  if (!state.loans || !state.loans.length) return;
+  const now = new Date();
+  const todayDay = now.getDate();
+  const currentYm = getLocalDateString().substring(0, 7);
+  const monthName = now.toLocaleString(undefined, { month: "long" });
+
+  const dueLoan = state.loans.find(l => {
+    const due = l.dueDay || 1;
+    const isDue = todayDay >= due;
+    const notPaidThisMonth = l.lastPaidMonth !== currentYm;
+    const hasDebt = (l.remainingPrincipal > 0 || l.remainingMonths > 0);
+    return isDue && notPaidThisMonth && hasDebt;
+  });
+
+  if (!dueLoan || !dom.loanDueDialog) return;
+
+  // If dismissed during this immediate session, keep in notification center and remind again on next reload
+  if (sessionStorage.getItem("dismissed_loan_prompt_" + dueLoan.id + "_" + currentYm)) return;
+
+  activeDueLoan = dueLoan;
+  const bank = state.bankAccounts.find(b => b.id === dueLoan.linkedBankAccountId || b.bank === dueLoan.bank) || state.bankAccounts[0];
+  const bankBal = bank ? getReconciledBankBalance(bank) : 0;
+  const bankName = bank ? bank.name : "Bank Account";
+
+  if (dom.loanDueTitle) dom.loanDueTitle.textContent = dueLoan.name;
+  if (dom.loanDueSubtitle) dom.loanDueSubtitle.textContent = `${monthName} installment confirmation.`;
+  if (dom.loanDueAmount) dom.loanDueAmount.textContent = formatCurrency(dueLoan.monthlyInstallment);
+  if (dom.loanDueSource) dom.loanDueSource.textContent = `🏦 ${bankName}`;
+  if (dom.loanDueSourceBalance) dom.loanDueSourceBalance.textContent = `Available Balance: ${formatCurrency(bankBal)}`;
+
+  setTimeout(() => {
+    dom.loanDueDialog?.showModal ? dom.loanDueDialog.showModal() : null;
+  }, 600);
+}
+
+
 // Reconcile Credit Card Unbilled Spends against logged transactions
 function reconcileCreditCardUnbilled() {
   if (!state.creditCards || !state.creditCards.length) return;
@@ -328,16 +472,34 @@ const dom = {
   openAddLoanBtn: $("open-add-loan-btn"),
   loanDialog: $("loan-dialog"),
   loanForm: $("loan-form"),
+  loanEditId: $("loan-edit-id"),
   loanTypeSelect: $("loan-type-select"),
   loanName: $("loan-name"),
   loanBank: $("loan-bank"),
   loanPrincipal: $("loan-principal"),
   loanRate: $("loan-rate"),
   loanRateLabel: $("loan-rate-label"),
+  loanRateGroup: $("loan-rate-group"),
+  rule78Callout: $("rule78-callout"),
   loanTenure: $("loan-tenure"),
+  loanTenureHelper: $("loan-tenure-helper"),
+  loanInstallment: $("loan-installment"),
+  loanDueDay: $("loan-due-day"),
+  loanLinkedBank: $("loan-linked-bank"),
   previewInstallment: $("preview-installment"),
   previewInterest: $("preview-interest"),
+  previewTotalRepayable: $("preview-total-repayable"),
   cancelLoanBtn: $("cancel-loan-btn"),
+  // Loan Due Dialog DOM
+  loanDueDialog: $("loan-due-dialog"),
+  closeLoanDueBtn: $("close-loan-due-btn"),
+  loanDueTitle: $("loan-due-title"),
+  loanDueSubtitle: $("loan-due-subtitle"),
+  loanDueAmount: $("loan-due-amount"),
+  loanDueSource: $("loan-due-source"),
+  loanDueSourceBalance: $("loan-due-source-balance"),
+  loanDueYesBtn: $("loan-due-yes-btn"),
+  loanDueNoBtn: $("loan-due-no-btn"),
   simulatorDialog: $("simulator-dialog"),
   closeSimBtn: $("close-sim-btn"),
   simLoanTitle: $("sim-loan-title"),
@@ -452,6 +614,7 @@ function init() {
   processCreditCardCycles();
   checkMonthEndSweepNotification();
   checkReleaseOnboardingGuide();
+  checkLoanDueAlerts();
   populateCategorySelects();
   populateFilterCategories();
   dom.currencySelect.value = state.currency;
@@ -502,7 +665,8 @@ function initDateLifecycleListeners() {
     if (document.visibilityState === "visible") {
       setDefaultDate();
       processAutoDeductions();
-  checkMonthEndSweepNotification();
+      checkMonthEndSweepNotification();
+      checkLoanDueAlerts();
       renderHeroSpendableGaugeAndMetrics();
       renderSubscriptions();
     }
@@ -1070,24 +1234,41 @@ function bindEvents() {
   // Loans Modal & Simulator Event Listeners
   if (dom.openAddLoanBtn) {
     dom.openAddLoanBtn.addEventListener("click", () => {
-      dom.loanName.value = "";
-      dom.loanBank.value = "";
-      dom.loanPrincipal.value = "";
-      dom.loanRate.value = "3.50";
-      dom.loanTenure.value = "84";
-      updateLoanLivePreview();
-      dom.loanDialog?.showModal ? dom.loanDialog.showModal() : alert("Add loan modal");
+      openAddLoanModal();
     });
   }
 
   if (dom.cancelLoanBtn) dom.cancelLoanBtn.addEventListener("click", () => dom.loanDialog.close());
+  const closeLoanModalBtn = document.getElementById("close-loan-modal-btn");
+  if (closeLoanModalBtn) closeLoanModalBtn.addEventListener("click", () => dom.loanDialog.close());
   if (dom.loanForm) dom.loanForm.addEventListener("submit", handleSaveNewLoan);
   if (dom.closeSimBtn) dom.closeSimBtn.addEventListener("click", () => dom.simulatorDialog.close());
 
   if (dom.loanPrincipal) dom.loanPrincipal.addEventListener("input", updateLoanLivePreview);
   if (dom.loanRate) dom.loanRate.addEventListener("input", updateLoanLivePreview);
   if (dom.loanTenure) dom.loanTenure.addEventListener("input", updateLoanLivePreview);
-  if (dom.loanTypeSelect) dom.loanTypeSelect.addEventListener("change", updateLoanLivePreview);
+  if (dom.loanTypeSelect) dom.loanTypeSelect.addEventListener("change", updateLoanFormMechanismConditioning);
+
+  // Loan Due Dialog Listeners (Yes / No Flow)
+  if (dom.closeLoanDueBtn) dom.closeLoanDueBtn.addEventListener("click", () => dom.loanDueDialog?.close());
+  if (dom.loanDueNoBtn) {
+    dom.loanDueNoBtn.addEventListener("click", () => {
+      if (activeDueLoan) {
+        const currentYm = getLocalDateString().substring(0, 7);
+        sessionStorage.setItem("dismissed_loan_prompt_" + activeDueLoan.id + "_" + currentYm, "true");
+      }
+      dom.loanDueDialog?.close();
+      showToast("Installment reminder kept in Notification Center.");
+    });
+  }
+  if (dom.loanDueYesBtn) {
+    dom.loanDueYesBtn.addEventListener("click", () => {
+      if (activeDueLoan) {
+        processLoanPayment(activeDueLoan, activeDueLoan.monthlyInstallment);
+        dom.loanDueDialog?.close();
+      }
+    });
+  }
   if (dom.simExtraPayment) dom.simExtraPayment.addEventListener("input", calculateSimResults);
 
   dom.clearAllBtn.addEventListener("click", () => {
@@ -3698,6 +3879,102 @@ function calculateLoanSpecs(principal, annualRate, tenureMonths, type) {
   };
 }
 
+
+function populateLoanLinkedBankSelect(selectedBankId) {
+  const sel = document.getElementById("loan-linked-bank");
+  if (!sel) return;
+  if (!state.bankAccounts || !state.bankAccounts.length) {
+    sel.innerHTML = '<option value="">(No bank accounts configured)</option>';
+    return;
+  }
+  sel.innerHTML = state.bankAccounts.map(b => {
+    const isSel = selectedBankId ? (selectedBankId === b.id || selectedBankId === b.bank) : false;
+    const bal = getReconciledBankBalance(b);
+    return `<option value="${b.id}" ${isSel ? "selected" : ""}>🏦 ${escapeHtml(b.name)} (Balance: ${formatCurrency(bal)})</option>`;
+  }).join("");
+}
+
+function updateLoanFormMechanismConditioning() {
+  const type = dom.loanTypeSelect ? dom.loanTypeSelect.value : "CAR_EIR";
+  const rateGroup = dom.loanRateGroup;
+  const rule78 = dom.rule78Callout;
+  const rateInput = dom.loanRate;
+  const rateLabel = dom.loanRateLabel;
+
+  if (type === "CAR_FLAT") {
+    if (rateGroup) rateGroup.style.display = "block";
+    if (rule78) rule78.style.display = "block";
+    if (rateLabel) rateLabel.textContent = "Flat Interest Rate (% p.a.) *";
+    if (rateInput) {
+      rateInput.disabled = false;
+      if (rateInput.value === "1.00" || rateInput.value === "0.00" || !rateInput.value) rateInput.value = "3.20";
+    }
+  } else if (type === "PTPTN") {
+    if (rateGroup) rateGroup.style.display = "block";
+    if (rule78) rule78.style.display = "none";
+    if (rateLabel) rateLabel.textContent = "PTPTN Fixed Ujrah Fee (1.0% p.a.)";
+    if (rateInput) {
+      rateInput.value = "1.00";
+      rateInput.disabled = true;
+    }
+  } else if (type === "IPP_0") {
+    if (rateGroup) rateGroup.style.display = "none";
+    if (rule78) rule78.style.display = "none";
+    if (rateInput) {
+      rateInput.value = "0.00";
+      rateInput.disabled = true;
+    }
+  } else {
+    // CAR_EIR, HOME_SBR, PERSONAL
+    if (rateGroup) rateGroup.style.display = "block";
+    if (rule78) rule78.style.display = "none";
+    if (rateLabel) rateLabel.textContent = type === "HOME_SBR" ? "Mortgage Rate (SBR + Spread % p.a.) *" : "Annual Interest Rate (% p.a.) *";
+    if (rateInput) {
+      rateInput.disabled = false;
+      if (rateInput.value === "1.00" || rateInput.value === "0.00" || !rateInput.value) rateInput.value = "3.50";
+    }
+  }
+
+  updateLoanLivePreview();
+}
+
+function openAddLoanModal() {
+  if (dom.loanEditId) dom.loanEditId.value = "";
+  if (dom.loanName) dom.loanName.value = "";
+  if (dom.loanBank) dom.loanBank.value = "";
+  if (dom.loanPrincipal) dom.loanPrincipal.value = "";
+  if (dom.loanRate) dom.loanRate.value = "3.50";
+  if (dom.loanTenure) dom.loanTenure.value = "84";
+  if (dom.loanInstallment) dom.loanInstallment.value = "";
+  if (dom.loanDueDay) dom.loanDueDay.value = "5";
+  const titleEl = document.getElementById("loan-modal-title");
+  if (titleEl) titleEl.textContent = "Add Loan Facility";
+  populateLoanLinkedBankSelect();
+  updateLoanFormMechanismConditioning();
+  dom.loanDialog?.showModal ? dom.loanDialog.showModal() : alert("Add loan modal");
+}
+
+function openEditLoanModal(loanId) {
+  const loan = state.loans.find(l => l.id === loanId);
+  if (!loan) return;
+
+  if (dom.loanEditId) dom.loanEditId.value = loan.id;
+  if (dom.loanName) dom.loanName.value = loan.name;
+  if (dom.loanBank) dom.loanBank.value = loan.bank || "";
+  if (dom.loanTypeSelect) dom.loanTypeSelect.value = loan.type || "CAR_EIR";
+  if (dom.loanPrincipal) dom.loanPrincipal.value = loan.originalPrincipal || loan.principal || "";
+  if (dom.loanRate) dom.loanRate.value = loan.rate !== undefined ? loan.rate : 3.50;
+  if (dom.loanTenure) dom.loanTenure.value = loan.tenureMonths || "";
+  if (dom.loanInstallment) dom.loanInstallment.value = loan.monthlyInstallment || "";
+  if (dom.loanDueDay) dom.loanDueDay.value = loan.dueDay || 5;
+
+  const titleEl = document.getElementById("loan-modal-title");
+  if (titleEl) titleEl.textContent = "Edit Loan Facility";
+  populateLoanLinkedBankSelect(loan.linkedBankAccountId || loan.bank);
+  updateLoanFormMechanismConditioning();
+  dom.loanDialog?.showModal ? dom.loanDialog.showModal() : alert("Edit loan modal");
+}
+
 let activeSimLoan = null;
 
 function renderLoans() {
@@ -3797,23 +4074,33 @@ function renderLoans() {
           </div>
           <div class="loan-metric-cell">
             <span class="stat-mini-label">Remaining Tenure</span>
-            <strong>${ln.remainingMonths} of ${ln.tenureMonths} mos</strong>
+            <strong>${ln.remainingMonths || ln.tenureMonths} of ${ln.tenureMonths} mos (${Math.floor((ln.remainingMonths || ln.tenureMonths) / 12)}y ${(ln.remainingMonths || ln.tenureMonths) % 12}m)</strong>
           </div>
           <div class="loan-metric-cell">
-            <span class="stat-mini-label">Rate (% p.a.)</span>
-            <strong>${ln.rate.toFixed(2)}%</strong>
+            <span class="stat-mini-label">Rate / Mechanism</span>
+            <strong>${ln.type === 'CAR_FLAT' ? `${ln.rate.toFixed(2)}% Flat` : (ln.type === 'PTPTN' ? '1% Ujrah' : (ln.type === 'IPP_0' ? '0% IPP' : `${ln.rate.toFixed(2)}% EIR`))}</strong>
           </div>
           <div class="loan-metric-cell">
-            <span class="stat-mini-label">Total Interest Paid</span>
+            <span class="stat-mini-label">Total Interest</span>
             <strong class="text-danger">${formatCurrency(ln.totalInterest)}</strong>
           </div>
         </div>
 
-        <div class="loan-card-actions">
-          <button type="button" class="btn-outline-sm" onclick="openLoanSimulator('${ln.id}')">
-            ⚡ Prepayment Simulator
+        <div class="loan-card-dsr-row" style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between;">
+          <span>🏦 Auto-Deduct: <strong>${escapeHtml(state.bankAccounts.find(b => b.id === ln.linkedBankAccountId)?.name || ln.bank || 'Bank Account')}</strong> (Day ${ln.dueDay || 5})</span>
+          ${ln.lastPaidMonth === currentYm ? '<span style="color:#059669; font-weight:700;">✓ Paid for this month</span>' : '<span style="color:var(--danger); font-weight:700;">⚠️ Payment Due</span>'}
+        </div>
+
+        <div class="loan-card-actions" style="margin-top: 0.75rem;">
+          <button type="button" class="btn-primary-sm" onclick="promptManualLoanPayment('${ln.id}')">
+            ⚡ Pay Installment
           </button>
-          <span style="font-size: 0.72rem; color: var(--text-muted);">Auto-reduces when bill is debited</span>
+          <button type="button" class="btn-outline-sm" onclick="openLoanSimulator('${ln.id}')">
+            ⚡ Simulator
+          </button>
+          <button type="button" class="btn-outline-sm" onclick="openEditLoanModal('${ln.id}')">
+            ✏️ Edit
+          </button>
         </div>
       </div>
     `;
@@ -3835,13 +4122,28 @@ function updateLoanLivePreview() {
   const tenure = parseInt(dom.loanTenure?.value, 10) || 0;
   const type = dom.loanTypeSelect?.value || "CAR_EIR";
 
+  if (dom.loanTenureHelper) {
+    if (tenure > 0) {
+      const y = Math.floor(tenure / 12);
+      const m = tenure % 12;
+      const yStr = y > 0 ? `${y} yr${y > 1 ? 's' : ''}` : '';
+      const mStr = m > 0 ? `${m} mo${m > 1 ? 's' : ''}` : '';
+      dom.loanTenureHelper.textContent = `${tenure} months = ${[yStr, mStr].filter(Boolean).join(' ')} total`;
+    } else {
+      dom.loanTenureHelper.textContent = 'e.g. 84 months = 7 years';
+    }
+  }
+
   if (principal > 0 && tenure > 0) {
     const specs = calculateLoanSpecs(principal, rate, tenure, type);
-    if (dom.previewInstallment) dom.previewInstallment.textContent = `${formatCurrency(specs.monthly)} / mo`;
+    if (dom.loanInstallment && !dom.loanInstallment.value) {
+      dom.loanInstallment.value = specs.monthly.toFixed(2);
+    }
     if (dom.previewInterest) dom.previewInterest.textContent = formatCurrency(specs.totalInterest);
+    if (dom.previewTotalRepayable) dom.previewTotalRepayable.textContent = formatCurrency(specs.totalRepayable);
   } else {
-    if (dom.previewInstallment) dom.previewInstallment.textContent = "RM 0.00 / mo";
     if (dom.previewInterest) dom.previewInterest.textContent = "RM 0.00";
+    if (dom.previewTotalRepayable) dom.previewTotalRepayable.textContent = "RM 0.00";
   }
 }
 
@@ -3853,33 +4155,57 @@ function handleSaveNewLoan(e) {
   const principal = parseFloat(dom.loanPrincipal.value);
   const rate = parseFloat(dom.loanRate.value) || 0;
   const tenureMonths = parseInt(dom.loanTenure.value, 10);
+  const installment = parseFloat(dom.loanInstallment.value) || 0;
+  const dueDay = parseInt(dom.loanDueDay.value, 10) || 5;
+  const linkedBankId = dom.loanLinkedBank ? dom.loanLinkedBank.value : "";
 
-  if (!name || isNaN(principal) || principal <= 0 || isNaN(tenureMonths) || tenureMonths <= 0) {
+  if (!name || isNaN(principal) || principal <= 0 || isNaN(tenureMonths) || tenureMonths <= 0 || isNaN(installment) || installment <= 0) {
     return showToast("Please enter valid loan details.");
   }
 
   const specs = calculateLoanSpecs(principal, rate, tenureMonths, type);
+  const editId = dom.loanEditId ? dom.loanEditId.value : "";
 
-  const newLoan = {
-    id: "loan_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
-    name,
-    bank: bank || "Bank Financing",
-    type,
-    originalPrincipal: principal,
-    remainingPrincipal: principal,
-    rate,
-    tenureMonths,
-    remainingMonths: tenureMonths,
-    monthlyInstallment: specs.monthly,
-    totalInterest: specs.totalInterest,
-    createdAt: Date.now()
-  };
+  if (editId) {
+    const existing = state.loans.find(l => l.id === editId);
+    if (existing) {
+      existing.name = name;
+      existing.bank = bank || existing.bank;
+      existing.type = type;
+      existing.originalPrincipal = principal;
+      existing.rate = rate;
+      existing.tenureMonths = tenureMonths;
+      existing.monthlyInstallment = installment;
+      existing.totalInterest = specs.totalInterest;
+      existing.dueDay = dueDay;
+      existing.linkedBankAccountId = linkedBankId;
+      showToast(`Updated loan "${name}"!`);
+    }
+  } else {
+    const newLoan = {
+      id: "loan_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+      name,
+      bank: bank || "Bank Financing",
+      type,
+      originalPrincipal: principal,
+      remainingPrincipal: principal,
+      rate,
+      tenureMonths,
+      remainingMonths: tenureMonths,
+      monthlyInstallment: installment,
+      totalInterest: specs.totalInterest,
+      dueDay,
+      linkedBankAccountId: linkedBankId,
+      lastPaidMonth: null,
+      createdAt: Date.now()
+    };
+    state.loans.push(newLoan);
+    showToast(`Added loan "${name}"!`);
+  }
 
-  state.loans.push(newLoan);
   saveStorage();
-  renderLoans();
+  render();
   dom.loanDialog.close();
-  showToast(`Added loan "${name}"!`);
 }
 
 function openLoanSimulator(loanId) {
@@ -5076,6 +5402,9 @@ function loadSampleData() {
       remainingMonths: 76,
       monthlyInstallment: 480.00,
       totalInterest: 4320.00,
+      dueDay: 5,
+      linkedBankAccountId: "bank_public",
+      lastPaidMonth: "2026-08",
       createdAt: Date.now()
     }
   ];

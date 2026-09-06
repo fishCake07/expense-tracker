@@ -828,13 +828,22 @@
       </form>
     </dialog>
 
-    <!-- Add Loan / Financing Modal -->
+    <!-- Add / Edit Loan & Financing Modal (Matches Dynamic Conditioned Wireframe) -->
     <dialog id="loan-dialog" class="custom-dialog">
       <form method="dialog" id="loan-form">
-        <h3>Add Loan / Financing</h3>
-        <p class="dialog-sub">Supports car loans (EIR/Flat), housing mortgages (SBR), PTPTN &amp; 0% IPP.</p>
+        <div class="receipt-dialog-header">
+          <h3 id="loan-modal-title">Add / Edit Loan &amp; Financing</h3>
+          <button type="button" id="close-loan-modal-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+        </div>
+        <p class="dialog-sub">Configure loan details, monthly commitments, and auto-debit.</p>
+        <input type="hidden" id="loan-edit-id">
 
         <div class="form-group" style="margin-top: 1rem;">
+          <label for="loan-name">Loan Name *</label>
+          <input type="text" id="loan-name" placeholder="e.g. Perodua Bezza 1.3X, Maybank Housing Loan" required maxlength="50">
+        </div>
+
+        <div class="form-group">
           <label for="loan-type-select">Financing Mechanism *</label>
           <select id="loan-type-select" required>
             <option value="CAR_EIR">🚗 Car Loan — 2026 Reform (Reducing Balance EIR)</option>
@@ -847,49 +856,114 @@
         </div>
 
         <div class="form-group">
-          <label for="loan-name">Loan / Asset Name *</label>
-          <input type="text" id="loan-name" placeholder="e.g. Perodua Bezza Loan" required maxlength="50">
-        </div>
-
-        <div class="form-group">
           <label for="loan-bank">Bank / Financing Provider</label>
           <input type="text" id="loan-bank" placeholder="e.g. Public Bank, Maybank, CIMB" maxlength="40">
         </div>
 
-        <div class="form-group">
-          <label for="loan-principal">Financed Amount (Principal) *</label>
-          <div class="input-prefix-wrapper">
-            <span class="currency-prefix" id="loan-currency-display">RM</span>
-            <input type="number" id="loan-principal" step="100" min="100" placeholder="e.g. 38000" required inputmode="decimal">
+        <!-- Dynamic Section: Changes based on financing mechanism -->
+        <div class="loan-dynamic-section" style="border-top: 1px dashed var(--border-color); padding-top: 0.85rem; margin-top: 0.85rem;">
+          <div class="form-group">
+            <label for="loan-principal">Original Principal (Loan Amount) *</label>
+            <div class="input-prefix-wrapper">
+              <span class="currency-prefix" id="loan-currency-display">RM</span>
+              <input type="number" id="loan-principal" step="100" min="100" placeholder="e.g. 45000" required inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="form-group" id="loan-rate-group">
+            <label for="loan-rate" id="loan-rate-label">Interest Rate (% p.a.) *</label>
+            <input type="number" id="loan-rate" step="0.01" min="0" max="30" placeholder="e.g. 3.25" required inputmode="decimal">
+          </div>
+
+          <!-- Rule of 78 Callout for Pre-2026 Car Loans -->
+          <div id="rule78-callout" class="loan-calc-rule78-box" style="display:none; margin-bottom: 0.85rem; padding: 0.65rem 0.85rem; background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.35); border-radius: var(--radius-sm); font-size: 0.76rem; color: var(--text-main);">
+            <strong>Calculation Method:</strong> Rule of 78 (Frontloaded Interest Penalty)
+          </div>
+
+          <div class="form-group">
+            <label for="loan-tenure">Total Tenure (Months) *</label>
+            <input type="number" id="loan-tenure" min="1" max="420" placeholder="e.g. 108" required inputmode="numeric">
+            <small id="loan-tenure-helper" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">e.g. 84 months = 7 years</small>
+          </div>
+
+          <div class="form-group">
+            <label for="loan-installment">Monthly Installment (RM) *</label>
+            <div class="input-prefix-wrapper">
+              <span class="currency-prefix">RM</span>
+              <input type="number" id="loan-installment" step="0.01" min="1" placeholder="0.00" required inputmode="decimal">
+            </div>
+            <small style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Auto-computed by formula; editable for fine-tuning.</small>
+          </div>
+
+          <div class="loan-calc-preview-box" id="loan-calc-preview">
+            <div class="preview-row">
+              <span>Est. Total Interest:</span>
+              <strong id="preview-interest" class="text-danger">RM 0.00</strong>
+            </div>
+            <div class="preview-row">
+              <span>Total Repayable:</span>
+              <strong id="preview-total-repayable">RM 0.00</strong>
+            </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="loan-rate" id="loan-rate-label">Interest Rate (% p.a.) *</label>
-          <input type="number" id="loan-rate" step="0.01" min="0" max="30" placeholder="e.g. 3.20" required inputmode="decimal">
-        </div>
+        <!-- Schedule & Automation Section -->
+        <div class="loan-schedule-section" style="border-top: 1px dashed var(--border-color); padding-top: 0.85rem; margin-top: 0.85rem;">
+          <h4 style="font-size: 0.82rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.65rem;">Schedule &amp; Automation</h4>
 
-        <div class="form-group">
-          <label for="loan-tenure">Tenure (Months) *</label>
-          <input type="number" id="loan-tenure" min="1" max="420" placeholder="e.g. 84 (7 years) or 360 (30 years)" required inputmode="numeric">
-        </div>
-
-        <div class="loan-calc-preview-box" id="loan-calc-preview">
-          <div class="preview-row">
-            <span>Est. Monthly Installment:</span>
-            <strong id="preview-installment">RM 0.00 / mo</strong>
+          <div class="form-group">
+            <label for="loan-due-day">Auto-Deduct Day of Month (1 - 31) *</label>
+            <input type="number" id="loan-due-day" min="1" max="31" placeholder="e.g. 1 or 28" required inputmode="numeric">
           </div>
-          <div class="preview-row">
-            <span>Est. Total Interest:</span>
-            <strong id="preview-interest" class="text-danger">RM 0.00</strong>
+
+          <div class="form-group">
+            <label for="loan-linked-bank">Linked Payment Source (Auto-Deduct Account) *</label>
+            <select id="loan-linked-bank" required></select>
+            <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+              *(Note: Auto-deducts monthly installment from this bank account upon confirmation)*
+            </small>
           </div>
         </div>
 
         <div class="dialog-actions">
           <button type="button" id="cancel-loan-btn" class="btn-secondary">Cancel</button>
-          <button type="submit" id="save-loan-btn" class="btn-primary-sm">Save Loan</button>
+          <button type="submit" id="save-loan-btn" class="btn-primary-sm">Save Loan Facility</button>
         </div>
       </form>
+    </dialog>
+
+    <!-- Monthly Loan Installment Due Confirmation Dialog (Yes / No Flow) -->
+    <dialog id="loan-due-dialog" class="custom-dialog">
+      <div class="receipt-dialog-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.3rem;">📅</span>
+          <h3>Loan Installment Due</h3>
+        </div>
+        <button type="button" id="close-loan-due-btn" class="btn-circle-close" title="Close">✕</button>
+      </div>
+      <p class="dialog-sub" id="loan-due-subtitle">Monthly financing installment reminder.</p>
+
+      <div class="loan-due-body" style="margin: 1rem 0; padding: 0.85rem; background: var(--bg-subtle); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+        <h4 id="loan-due-title" style="font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.4rem;">Loan Name</h4>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; font-size: 0.85rem;">
+          <span style="color: var(--text-muted);">Installment Due:</span>
+          <strong id="loan-due-amount" style="color: var(--danger); font-size: 1rem;">RM 0.00</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.82rem;">
+          <span style="color: var(--text-muted);">Payment Source:</span>
+          <strong id="loan-due-source">🏦 Bank Account</strong>
+        </div>
+        <div id="loan-due-source-balance" style="font-size: 0.75rem; color: var(--text-muted); text-align: right; margin-top: 2px;">Available Balance: RM 0.00</div>
+      </div>
+
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Have you paid this month's installment? Clicking <strong>Yes</strong> will deduct from your linked bank account, update your loan payoff progress, and record the payment in your ledger.
+      </p>
+
+      <div class="dialog-actions" style="justify-content: space-between;">
+        <button type="button" id="loan-due-no-btn" class="btn-secondary">✕ No, Remind Later</button>
+        <button type="button" id="loan-due-yes-btn" class="btn-primary-sm">✓ Yes, Deduct &amp; Record</button>
+      </div>
     </dialog>
 
     <!-- Prepayment & Early Settlement Simulator Modal -->
