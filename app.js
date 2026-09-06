@@ -1609,7 +1609,7 @@ function handleAddTransaction(e) {
   const isCredit = (chosenWallet === "Credit Card" || rawCardType === "credit" || rawCardType === "Credit Card" || (cardName && state.creditCards.some(c => c.name === cardName || c.id === cardId)));
   const isDebit = (chosenWallet === "Debit Card" || rawCardType === "debit" || rawCardType === "Debit Card" || (cardName && state.debitCards.some(dc => dc.name === cardName || dc.id === cardId)));
 
-  // Automation for Credit Card vs Debit Card: Immediately update balances
+  // Automation for Credit Card vs Debit Card vs Bank Transfer: Immediately update balances
   if (isCredit) {
     const targetCard = state.creditCards.find(c => c.id === cardId || c.name === cardName) || state.creditCards[0];
     if (targetCard && state.currentFormType === "expense") {
@@ -1619,6 +1619,17 @@ function handleAddTransaction(e) {
     const targetDebit = state.debitCards.find(dc => dc.id === cardId || dc.name === cardName) || state.debitCards[0];
     if (targetDebit && state.currentFormType === "expense") {
       targetDebit.totalSpentThisMonth = Number(((targetDebit.totalSpentThisMonth || 0) + amt).toFixed(2));
+      // Deduct from parent bank account
+      const parentBank = state.bankAccounts.find(b => b.id === targetDebit.bankAccountId || b.bank === targetDebit.bank || (targetDebit.name && b.name.toLowerCase().includes(targetDebit.bank.toLowerCase()))) || state.bankAccounts[0];
+      if (parentBank) {
+        parentBank.balance = Number(((parentBank.balance || 0) - amt).toFixed(2));
+      }
+    }
+  } else if (chosenWallet === "Bank Transfer") {
+    // Deduct from bank account directly
+    const targetBank = state.bankAccounts.find(b => b.id === cardId || b.name === cardName || (!cardId && !cardName && b.bank === cardName)) || state.bankAccounts[0];
+    if (targetBank && state.currentFormType === "expense") {
+      targetBank.balance = Number(((targetBank.balance || 0) - amt).toFixed(2));
     }
   }
 
@@ -1753,7 +1764,7 @@ function deleteExpense(id) {
     }
   }
 
-  // Revert card balances if deleted item was an expense charged to a card
+  // Revert card and bank balances if deleted item was an expense
   if (deleted && deleted.type === "expense") {
     if (deleted.wallet === "Credit Card" || deleted.cardType === "credit") {
       const card = state.creditCards.find(c => c.id === deleted.cardId || c.name === deleted.cardName) || state.creditCards[0];
@@ -1764,6 +1775,15 @@ function deleteExpense(id) {
       const dc = state.debitCards.find(c => c.id === deleted.cardId || c.name === deleted.cardName) || state.debitCards[0];
       if (dc) {
         dc.totalSpentThisMonth = Math.max(0, Number(((dc.totalSpentThisMonth || 0) - deleted.amount).toFixed(2)));
+      }
+      const parentBank = state.bankAccounts.find(b => (dc && b.id === dc.bankAccountId) || (dc && b.bank === dc.bank) || b.id === deleted.cardId || b.name === deleted.cardName) || state.bankAccounts[0];
+      if (parentBank) {
+        parentBank.balance = Number(((parentBank.balance || 0) + deleted.amount).toFixed(2));
+      }
+    } else if (deleted.wallet === "Bank Transfer") {
+      const targetBank = state.bankAccounts.find(b => b.id === deleted.cardId || b.name === deleted.cardName || b.bank === deleted.cardName) || state.bankAccounts[0];
+      if (targetBank) {
+        targetBank.balance = Number(((targetBank.balance || 0) + deleted.amount).toFixed(2));
       }
     }
   }

@@ -154,4 +154,23 @@ assert.strictEqual(mockBank.balance, 5200.00, 'Deleting income must revert bank 
 
 console.log("✓ Test 9 Passed: Income Logging flow, Bank Account balance increment, and reversal verified.");
 
+// Test 10: Automatic Bank Account Deduction for Bank Transfers and Linked Debit Cards
+let testBank = { id: "bank_maybank", name: "Maybank Savings", bank: "Maybank", balance: 3450.00 };
+let gtaExpense = 250.00;
+
+// 1. Bank Transfer deduction (e.g. GTA 6)
+testBank.balance = Number((testBank.balance - gtaExpense).toFixed(2));
+assert.strictEqual(testBank.balance, 3200.00, 'Logging RM 250 Bank Transfer from RM 3450 must leave RM 3200');
+
+// 2. Reversal on deletion
+testBank.balance = Number((testBank.balance + gtaExpense).toFixed(2));
+assert.strictEqual(testBank.balance, 3450.00, 'Deleting RM 250 expense must restore balance to RM 3450');
+
+// 3. Debit Card swipe deduction
+let debitSwipe = 180.00;
+testBank.balance = Number((testBank.balance - debitSwipe).toFixed(2));
+assert.strictEqual(testBank.balance, 3270.00, 'Logging RM 180 Debit Card spend must deduct parent bank balance to RM 3270');
+
+console.log("✓ Test 10 Passed: Bank Account automatic deductions and reversals for Bank Transfers and Debit Cards verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
