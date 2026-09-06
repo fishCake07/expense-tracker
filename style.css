@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --bg-main: #f8fafc;
   --bg-surface: #ffffff;
@@ -24,6 +25,7 @@
 
 /* Option 7: Dark Theme (OLED-friendly) */
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg-main: #0b0f19;
   --bg-surface: #151d2f;
   --bg-subtle: #1e293b;
@@ -1342,14 +1344,22 @@ body {
   max-width: 380px;
   width: 90%;
   margin: auto;
+  max-height: 85vh; /* Fallback for iOS < 15.4 */
   max-height: calc(88dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; /* Prevents iOS Safari background scroll bleed */
+  cursor: pointer; /* Ensures WebKit dispatches click events reliably on backdrop */
+}
+
+.custom-dialog > * {
+  cursor: default; /* Reset cursor inside dialog content */
 }
 
 .custom-dialog::backdrop {
   background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(4px); /* Required for iOS Safari */
+  backdrop-filter: blur(4px);
 }
 
 .dialog-sub {
@@ -1696,7 +1706,7 @@ body {
   .form-group input,
   .form-group select {
     padding: 0.45rem 0.6rem !important;
-    font-size: 0.82rem !important;
+    font-size: 16px !important; /* Strictly 16px to prevent iOS Safari auto-zoom */
     width: 100% !important;
   }
 
@@ -1995,6 +2005,9 @@ body {
 
 #spending-donut {
   transform: rotate(-90deg);
+  -webkit-transform: rotate(-90deg);
+  transform-origin: center;
+  -webkit-transform-origin: center;
   overflow: visible;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.06));
 }
@@ -2629,7 +2642,9 @@ body {
   justify-content: center;
   box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
   cursor: pointer; /* Crucial for iOS Safari WebKit synthetic click dispatching */
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none; /* Prevents iOS magnifying loupe during 1.5s long-press */
   touch-action: none;
   z-index: 1500;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -2661,7 +2676,6 @@ body {
   inset: 0;
   background: rgba(15, 23, 42, 0.55);
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  -webkit--webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   z-index: 2000;
   display: flex;
   align-items: center;
@@ -4292,4 +4306,19 @@ a,
   color: #ef4444;
   border: 1px solid rgba(239, 68, 68, 0.25);
   line-height: 1.2;
+}
+
+/* iOS WebKit Select Appearance Normalization */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem !important;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.4em;
 }

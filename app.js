@@ -976,9 +976,11 @@ function initSwipeGestures() {
     touchStartY = t.clientY;
     touchStartTime = Date.now();
 
-    // Ignore touches starting inside inputs, charts with horizontal scroll, or open dialogs
+    // Ignore touches starting inside inputs, charts with horizontal scroll, open dialogs,
+    // or within 25px of the screen edge to preserve native iOS Safari Back/Forward navigation
+    const isNearEdge = touchStartX < 25 || touchStartX > (window.innerWidth - 25);
     const target = e.target;
-    isIgnoredTarget = !!target.closest("input, select, textarea, dialog[open], .emoji-btn, .color-swatch-btn, .movable-menu-fab");
+    isIgnoredTarget = isNearEdge || !!target.closest("input, select, textarea, dialog[open], .emoji-btn, .color-swatch-btn, .movable-menu-fab, .wallet-pill-group");
   }, { passive: true });
 
   document.addEventListener("touchend", (e) => {

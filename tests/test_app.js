@@ -326,4 +326,17 @@ assert.strictEqual(revertCardTarget.payInFull, false, 'payInFull must revert to 
 
 console.log("✓ Test 17 Passed: Edit card modal scoping and settlement deletion debt restoration verified.");
 
+// Test 18: iOS WebKit Compatibility, Edge-Guard, and Form Optimization
+const styleCssContent = fs.readFileSync(__dirname + '/../style.css', 'utf8');
+assert(styleCssContent.includes('color-scheme: light;'), 'style.css must declare color-scheme: light');
+assert(styleCssContent.includes('color-scheme: dark;'), 'style.css must declare color-scheme: dark');
+assert(styleCssContent.includes('font-size: 16px !important;'), 'style.css must enforce 16px rule on mobile inputs to stop iOS zoom');
+assert(styleCssContent.includes('-webkit-backdrop-filter: blur'), 'style.css must provide -webkit-backdrop-filter for iOS Safari');
+assert(styleCssContent.includes('-webkit-touch-callout: none;'), 'style.css must suppress iOS magnifying loupe on FAB');
+
+assert(appJsContent.includes('touchStartX < 25 || touchStartX > (window.innerWidth - 25)'), 'initSwipeGestures must guard against iOS Safari edge navigation');
+assert(!htmlContent.includes('id="card-type-select"'), 'Redundant card-type-select must be removed from #card-dialog');
+
+console.log("✓ Test 18 Passed: iOS WebKit compatibility, edge navigation guard, 16px rule, and form cleanup verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
