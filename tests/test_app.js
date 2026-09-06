@@ -24,7 +24,12 @@ const requiredIds = [
 requiredIds.forEach(id => {
   assert(htmlContent.includes(`id="${id}"`), `HTML missing required ID: ${id}`);
 });
-console.log("✓ Test 1 Passed: Credit card section, Debit card section, and Card Picker dialog exist in HTML.");
+// Ensure no duplicate debit-cards-grid or open-add-debit-card-btn IDs exist
+const debitGridMatches = (htmlContent.match(/id="debit-cards-grid"/g) || []).length;
+const addDebitBtnMatches = (htmlContent.match(/id="open-add-debit-card-btn"/g) || []).length;
+assert.strictEqual(debitGridMatches, 1, 'There must be exactly one debit-cards-grid');
+assert.strictEqual(addDebitBtnMatches, 1, 'There must be exactly one open-add-debit-card-btn');
+console.log("✓ Test 1 Passed: Credit card section, single Debit card section, and Card Picker dialog exist in HTML with zero duplicates.");
 
 // Test 2: Core Logic: Debit Card vs Credit Card DSR and Balance Behavior
 const debitCard = { id: "debit_1", name: "Maybank Visa Debit", bank: "Maybank", type: "DEBIT" };
