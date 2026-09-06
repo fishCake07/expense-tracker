@@ -4335,7 +4335,7 @@ function loadSampleData() {
     { note: "Food court Char Kway Teow with cockles", amt: 11.50, cat: "Food & Dining", wallet: "Cash" },
     { note: "Tom Yam Fried Rice & Lemon Tea", amt: 13.50, cat: "Food & Dining", wallet: "E-Wallet" },
     { note: "Claypot Chicken Rice dinner", amt: 14.00, cat: "Food & Dining", wallet: "Cash" },
-    { note: "Weekend Cafe Dinner & Cake treat", amt: 35.00, cat: "Food & Dining", wallet: "Credit Card", hasReceipt: true },
+    { note: "Weekend Cafe Dinner & Cake treat", amt: 35.00, cat: "Food & Dining", wallet: "Credit Card", cardId: "card_maybank", cardName: "Maybank Visa Signature", cardType: "credit", hasReceipt: true },
     { note: "Texas Chicken Combo Dinner", amt: 24.50, cat: "Food & Dining", wallet: "E-Wallet" }
   ];
 
@@ -4354,73 +4354,88 @@ function loadSampleData() {
     const dayOfMonth = cur.getDate();
     const dayOfWeek = cur.getDay();
 
-    // 1. Monthly Employment Salary on Day 1
+    // 1. Monthly Employment Salary on Day 1 (Deposited to Public Bank)
     if (dayOfMonth === 1) {
       simulatedTransactions.push({
         id: "tx_sim_" + (idCount++),
         type: "income",
         amount: 3500.00,
         category: "Salary & Wages",
-        wallet: "Bank Account",
+        wallet: "Bank Transfer",
+        cardId: "bank_public",
+        cardName: "Public Bank Salary Account",
+        cardType: null,
         date: dateStr,
         note: `Employment Salary (${cur.toLocaleString(undefined, { month: "short" })})`,
         createdAt: cur.getTime() + 1000
       });
 
-      // Room Rental on Day 1
+      // Room Rental on Day 1 (Transferred from Maybank)
       simulatedTransactions.push({
         id: "tx_sim_" + (idCount++),
         type: "expense",
         amount: 550.00,
         category: "Bills & Utilities",
-        wallet: "Bank Account",
+        wallet: "Bank Transfer",
+        cardId: "bank_maybank",
+        cardName: "Maybank Savings",
+        cardType: null,
         date: dateStr,
         note: `Room Rental (${cur.toLocaleString(undefined, { month: "short" })})`,
         createdAt: cur.getTime() + 2000
       });
     }
 
-    // 2. Monthly Savings Deposit on Day 2
+    // 2. Monthly Savings Deposit on Day 2 (Transferred to Maybank Savings)
     if (dayOfMonth === 2) {
       simulatedTransactions.push({
         id: "tx_sim_" + (idCount++),
         type: "expense",
         amount: 600.00,
         category: "Savings & Investments",
-        wallet: "Bank Account",
+        wallet: "Bank Transfer",
+        cardId: "bank_maybank",
+        cardName: "Maybank Savings",
+        cardType: null,
         date: dateStr,
         note: "Bank Savings Deposit (Pay yourself first)",
         createdAt: cur.getTime() + 3000
       });
 
-      // Spotify Subscription on Day 2
+      // Spotify Subscription on Day 2 (Charged to Maybank Visa Signature Credit Card)
       simulatedTransactions.push({
         id: "tx_sim_" + (idCount++),
         type: "expense",
         amount: 15.90,
         category: "Entertainment",
         wallet: "Credit Card",
+        cardId: "card_maybank",
+        cardName: "Maybank Visa Signature",
+        cardType: "credit",
         date: dateStr,
         note: "Spotify Premium (Auto-debited)",
         createdAt: cur.getTime() + 4000
       });
     }
 
-    // 3. Monthly Car Loan Installment on Day 5
+    // 3. Monthly Car Loan Installment on Day 5 (Paid from Public Bank)
     if (dayOfMonth === 5) {
       simulatedTransactions.push({
         id: "tx_sim_" + (idCount++),
         type: "expense",
         amount: 480.00,
         category: "Bills & Utilities",
-        wallet: "Bank Account",
+        wallet: "Bank Transfer",
+        cardId: "bank_public",
+        cardName: "Public Bank Salary Account",
+        cardType: null,
         date: dateStr,
         note: "Car Loan Installment (Hire Purchase)",
         createdAt: cur.getTime() + 5000
       });
     }
 
-    // 4. CelcomDigi Postpaid Bill on Day 15
+    // 4. CelcomDigi Postpaid Bill on Day 15 (Paid via E-Wallet)
     if (dayOfMonth === 15) {
       simulatedTransactions.push({
         id: "tx_sim_" + (idCount++),
@@ -4428,27 +4443,33 @@ function loadSampleData() {
         amount: 45.00,
         category: "Bills & Utilities",
         wallet: "E-Wallet",
+        cardId: null,
+        cardName: null,
+        cardType: null,
         date: dateStr,
         note: "CelcomDigi Postpaid Bill",
         createdAt: cur.getTime() + 6000
       });
     }
 
-    // 5. Home Fibre Internet on Day 22
+    // 5. Home Fibre Internet on Day 22 (Paid from Maybank)
     if (dayOfMonth === 22) {
       simulatedTransactions.push({
         id: "tx_sim_" + (idCount++),
         type: "expense",
         amount: 89.00,
         category: "Bills & Utilities",
-        wallet: "Bank Account",
+        wallet: "Bank Transfer",
+        cardId: "bank_maybank",
+        cardName: "Maybank Savings",
+        cardType: null,
         date: dateStr,
         note: "Home Fibre Internet 100Mbps",
         createdAt: cur.getTime() + 7000
       });
     }
 
-    // 6. Weekly Shell Petrol RON95 refill on Mondays
+    // 6. Weekly Shell Petrol RON95 refill on Mondays (Charged to Maybank Visa Signature Credit Card)
     if (dayOfWeek === 1) {
       simulatedTransactions.push({
         id: "tx_sim_" + (idCount++),
@@ -4456,6 +4477,9 @@ function loadSampleData() {
         amount: 45.50,
         category: "Transportation",
         wallet: "Credit Card",
+        cardId: "card_maybank",
+        cardName: "Maybank Visa Signature",
+        cardType: "credit",
         date: dateStr,
         note: "Shell RON95 Petrol refill",
         receiptImage: receipts.fuel,
@@ -4463,14 +4487,17 @@ function loadSampleData() {
       });
     }
 
-    // 7. Bi-weekly Hypermarket Groceries at Lotus's
+    // 7. Bi-weekly Hypermarket Groceries at Lotus's on Days 10 & 24 (Paid via Maybank Visa Debit Card)
     if (dayOfMonth === 10 || dayOfMonth === 24) {
       simulatedTransactions.push({
         id: "tx_sim_" + (idCount++),
         type: "expense",
         amount: 142.00,
         category: "Groceries",
-        wallet: "Credit Card",
+        wallet: "Debit Card",
+        cardId: "debit_maybank",
+        cardName: "Maybank Visa Debit",
+        cardType: "debit",
         date: dateStr,
         note: "Lotus's Supermarket groceries",
         receiptImage: receipts.groceries,
@@ -4525,6 +4552,9 @@ function loadSampleData() {
       amount: dn.amt,
       category: dn.cat,
       wallet: dn.wallet,
+      cardId: dn.cardId || null,
+      cardName: dn.cardName || null,
+      cardType: dn.cardType || null,
       date: dateStr,
       note: dn.note,
       receiptImage: dn.hasReceipt ? receipts.dining : null,
@@ -4636,11 +4666,11 @@ function loadSampleData() {
   ];
 
   state.subscriptions = [
-    { id: "sub_rent", name: "Room Rental", amount: 550.00, category: "Bills & Utilities", billingDay: 1, wallet: "Bank Account", autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
-    { id: "sub_spotify", name: "Spotify Premium", amount: 15.90, category: "Entertainment", billingDay: 2, wallet: "Credit Card", autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
-    { id: "sub_car", name: "Car Loan Installment", amount: 480.00, category: "Bills & Utilities", billingDay: 5, wallet: "Bank Account", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() },
+    { id: "sub_rent", name: "Room Rental", amount: 550.00, category: "Bills & Utilities", billingDay: 1, wallet: "Bank Transfer", sourceId: "bank_maybank", sourceName: "Maybank Savings", cardName: "Maybank Savings", autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
+    { id: "sub_spotify", name: "Spotify Premium", amount: 15.90, category: "Entertainment", billingDay: 2, wallet: "Credit Card", sourceId: "card_maybank", sourceName: "Maybank Visa Signature", cardName: "Maybank Visa Signature", autoDeduct: true, lastLoggedMonth: currentYm, createdAt: Date.now() },
+    { id: "sub_car", name: "Car Loan Installment", amount: 480.00, category: "Bills & Utilities", billingDay: 5, wallet: "Bank Transfer", sourceId: "bank_public", sourceName: "Public Bank Salary Account", cardName: "Public Bank Salary Account", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() },
     { id: "sub_mobile", name: "CelcomDigi Postpaid", amount: 45.00, category: "Bills & Utilities", billingDay: 15, wallet: "E-Wallet", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() },
-    { id: "sub_wifi", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, wallet: "Bank Account", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() }
+    { id: "sub_wifi", name: "Home Fibre Internet", amount: 89.00, category: "Bills & Utilities", billingDay: 22, wallet: "Bank Transfer", sourceId: "bank_maybank", sourceName: "Maybank Savings", cardName: "Maybank Savings", autoDeduct: true, lastLoggedMonth: null, createdAt: Date.now() }
   ];
 
   saveStorage();

@@ -207,4 +207,12 @@ assert.strictEqual(mockBankObj.balance, 3450.00, 'Clearing transactions must res
 
 console.log("✓ Test 11 Passed: Single Source of Truth architecture and dynamic zero-drift reconciliation verified.");
 
+// Test 12: Load Sample Synchronization with All Architecture Features
+assert(appJsContent.includes('cardId: "bank_public"'), 'loadSampleData must route salary to bank_public');
+assert(appJsContent.includes('cardId: "debit_maybank"'), 'loadSampleData must route groceries to debit_maybank');
+assert(appJsContent.includes('cardId: "card_maybank"'), 'loadSampleData must route credit purchases to card_maybank');
+assert(appJsContent.includes('sourceId: "bank_maybank"'), 'loadSampleData must link subscriptions to bank sources');
+
+console.log("✓ Test 12 Passed: loadSampleData fully synchronized with all multi-card and bank account architecture.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
