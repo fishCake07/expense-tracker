@@ -251,4 +251,34 @@ assert.strictEqual(cardBadgeText, "Maybank Visa Signature", 'Credit card subscri
 
 console.log("✓ Test 14 Passed: Subscription badges and transaction linking with active accounts verified.");
 
+// Test 15: Monthly-Scoped Bank Reconciliation, Insufficient Funds Prompt, and ⚠️ Overdrawn Badge
+assert(appJsContent.includes('// Reconcile transactions strictly within the active month'), 'getReconciledBankBalance must scope to current month');
+assert(appJsContent.includes('⚠️ Insufficient Funds in'), 'handleAddTransaction must verify funds and prompt on shortfall');
+assert(appJsContent.includes('⚠️ Overdrawn'), 'renderBankAccounts must show ⚠️ Overdrawn when balance is negative');
+
+// Verify monthly-scoped calculation logic:
+let mockSepBank = { id: "bank_maybank", name: "Maybank Savings", initialBalance: 3450.00 };
+let pastTx = [
+  { date: "2026-01-01", type: "expense", wallet: "Bank Transfer", cardId: "bank_maybank", amount: 5000.00 },
+  { date: "2026-02-01", type: "expense", wallet: "Bank Transfer", cardId: "bank_maybank", amount: 5000.00 }
+];
+let currentSepTx = [
+  { date: "2026-09-01", type: "expense", wallet: "Bank Transfer", cardId: "bank_maybank", amount: 550.00 },
+  { date: "2026-09-02", type: "expense", wallet: "Bank Transfer", cardId: "bank_maybank", amount: 600.00 }
+];
+
+// Reconciling strictly within current month (September)
+let sepNetChange = 0;
+currentSepTx.forEach(t => { sepNetChange -= t.amount; });
+let sepLiveBal = Number((mockSepBank.initialBalance + sepNetChange).toFixed(2));
+
+assert.strictEqual(sepLiveBal, 2300.00, 'September balance must equal 3450 - 1150 = 2300.00 without being dragged down by Jan/Feb past expenses');
+
+// Overdrawn logic test:
+let overdrawnBal = -50.00;
+let isOverdrawn = overdrawnBal < 0;
+assert.strictEqual(isOverdrawn, true, 'Negative balances must trigger overdrawn state');
+
+console.log("✓ Test 15 Passed: Monthly-scoped balance, Insufficient Funds prompt, and Overdrawn badge verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

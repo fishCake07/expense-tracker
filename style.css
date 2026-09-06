@@ -4278,3 +4278,18 @@ a,
   background: var(--primary-light);
   border-color: var(--primary);
 }
+
+/* Overdrawn Bank Account Warning Badge */
+.badge-overdrawn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  line-height: 1.2;
+}

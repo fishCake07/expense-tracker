@@ -57,20 +57,25 @@ function getReconciledBankBalance(bank) {
     ? Number(bank.initialBalance)
     : Number(bank.balance || 0);
 
+  const currentYm = getLocalDateString().substring(0, 7);
   let netChange = 0;
+
   state.transactions.forEach(t => {
-    const isThisBank = (t.cardId && t.cardId === bank.id) ||
-                       (t.cardName && t.cardName === bank.name) ||
-                       (!t.cardId && !t.cardName && t.note && t.note.toLowerCase().includes(bank.bank.toLowerCase()));
+    // Reconcile transactions strictly within the active month to mirror real-world monthly baselines
+    if (t.date && t.date.startsWith(currentYm)) {
+      const isThisBank = (t.cardId && t.cardId === bank.id) ||
+                         (t.cardName && t.cardName === bank.name) ||
+                         (!t.cardId && !t.cardName && t.note && t.note.toLowerCase().includes(bank.bank.toLowerCase()));
 
-    const isLinkedDebit = (t.wallet === "Debit Card" || t.cardType === "debit") &&
-      state.debitCards.some(dc => (dc.bankAccountId === bank.id || dc.bank === bank.bank) && ((t.cardId && t.cardId === dc.id) || (t.cardName && t.cardName === dc.name)));
+      const isLinkedDebit = (t.wallet === "Debit Card" || t.cardType === "debit") &&
+        state.debitCards.some(dc => (dc.bankAccountId === bank.id || dc.bank === bank.bank) && ((t.cardId && t.cardId === dc.id) || (t.cardName && t.cardName === dc.name)));
 
-    if (isThisBank || isLinkedDebit) {
-      if (t.type === "income") {
-        netChange += t.amount;
-      } else if (t.type === "expense" && (t.wallet === "Bank Transfer" || t.wallet === "Debit Card" || t.cardType === "debit")) {
-        netChange -= t.amount;
+      if (isThisBank || isLinkedDebit) {
+        if (t.type === "income") {
+          netChange += t.amount;
+        } else if (t.type === "expense" && (t.wallet === "Bank Transfer" || t.wallet === "Debit Card" || t.cardType === "debit")) {
+          netChange -= t.amount;
+        }
       }
     }
   });
@@ -1720,6 +1725,46 @@ function handleAddTransaction(e) {
   const isCredit = (chosenWallet === "Credit Card" || rawCardType === "credit" || rawCardType === "Credit Card" || (cardName && state.creditCards.some(c => c.name === cardName || c.id === cardId)));
   const isDebit = (chosenWallet === "Debit Card" || rawCardType === "debit" || rawCardType === "Debit Card" || (cardName && state.debitCards.some(dc => dc.name === cardName || dc.id === cardId)));
 
+  // Insufficient Funds Pre-Transaction Verification (User Prompt)
+  if (state.currentFormType === "expense") {
+    let checkBank = null;
+    let paymentDesc = "";
+
+    if (isDebit) {
+      const targetDebit = state.debitCards.find(dc => dc.id === cardId || dc.name === cardName) || state.debitCards[0];
+      if (targetDebit) {
+        checkBank = state.bankAccounts.find(b => b.id === targetDebit.bankAccountId || b.bank === targetDebit.bank || (targetDebit.name && b.name.toLowerCase().includes(targetDebit.bank.toLowerCase()))) || state.bankAccounts[0];
+        paymentDesc = `Debit Card (${targetDebit.name})`;
+      }
+    } else if (chosenWallet === "Bank Transfer") {
+      checkBank = state.bankAccounts.find(b => b.id === cardId || b.name === cardName || (!cardId && !cardName && b.bank === cardName)) || state.bankAccounts[0];
+      paymentDesc = `Bank Transfer (${checkBank ? checkBank.name : "Bank"})`;
+    }
+
+    if (checkBank) {
+      const liveBal = getReconciledBankBalance(checkBank);
+      if (amt > liveBal) {
+        const shortfall = (amt - liveBal).toFixed(2);
+        const confirmMsg = `⚠️ Insufficient Funds in ${checkBank.name}!
+
+` +
+          `Available Balance: ${formatCurrency(liveBal)}
+` +
+          `Transaction Amount: ${formatCurrency(amt)}
+` +
+          `Shortfall: ${formatCurrency(shortfall)}
+
+` +
+          `Do you still want to proceed? (The account will show ⚠️ Overdrawn).
+` +
+          `Click Cancel to select another payment account or adjust the amount.`;
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+      }
+    }
+  }
+
   // Automation for Credit Card vs Debit Card vs Bank Transfer: Immediately update balances
   if (isCredit) {
     const targetCard = state.creditCards.find(c => c.id === cardId || c.name === cardName) || state.creditCards[0];
@@ -2975,7 +3020,10 @@ function renderBankAccounts() {
         <div class="card-balances-row">
           <div class="card-balance-col">
             <span class="stat-mini-label">Balance</span>
-            <strong class="card-balance-val" style="color:var(--primary);">${formatCurrency(b.balance || 0)}</strong>
+            <div style="display:flex; align-items:center; flex-wrap:wrap; gap:0.35rem;">
+              <strong class="card-balance-val ${b.balance < 0 ? 'text-danger' : ''}" style="${b.balance >= 0 ? 'color:var(--primary);' : ''}">${formatCurrency(b.balance || 0)}</strong>
+              ${b.balance < 0 ? '<span class="badge-overdrawn">⚠️ Overdrawn</span>' : ''}
+            </div>
           </div>
           <div class="card-balance-col">
             <span class="stat-mini-label">Combined Outflow (${new Date().toLocaleString(undefined, { month: "short" })})</span>
