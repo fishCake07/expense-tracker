@@ -100,4 +100,26 @@ assert(!appJsContent.includes('title: "🎉 Version 41'), 'Release registry titl
 
 console.log("✓ Test 6 Passed: Bugs 2, 3, 4, and 5 validated (Bank Accounts, Pickers, Unselected Defaults, No Duplicate Emoji).");
 
+// Test 7: Commitments Page Reorganization & Bug Prevention
+const loanIdx = htmlContent.indexOf('class="card loan-portfolio-card"');
+const creditIdx = htmlContent.indexOf('class="card credit-cards-section"');
+const subsIdx = htmlContent.indexOf('class="card subscriptions-card"');
+const bankIdx = htmlContent.indexOf('class="card bank-accounts-section"');
+const debitIdx = htmlContent.indexOf('class="card debit-cards-section"');
+
+assert(loanIdx !== -1 && creditIdx !== -1 && subsIdx !== -1 && bankIdx !== -1 && debitIdx !== -1, 'All commitment sections must exist');
+assert(loanIdx < creditIdx, 'Loans & Financing must appear before Credit Cards');
+assert(creditIdx < subsIdx, 'Credit Cards must appear before Subscriptions & Bills');
+assert(subsIdx < bankIdx, 'Subscriptions & Bills must appear before Bank Accounts');
+assert(bankIdx < debitIdx, 'Bank Accounts must appear before Debit Cards');
+
+// Verify obsolete duplicate sub-wallet-pill listener was removed
+assert(!appJsContent.includes('// Subscriptions 3-Wallet Pill Selection (Cash excluded)'), 'Obsolete duplicate sub-wallet-pill listener must be removed');
+
+// Verify exportToJSON includes full asset & liability backup
+assert(appJsContent.includes('loans: state.loans'), 'exportToJSON must back up loans');
+assert(appJsContent.includes('bankAccounts: state.bankAccounts'), 'exportToJSON must back up bank accounts');
+
+console.log("✓ Test 7 Passed: Commitments page section order and backup consistency verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

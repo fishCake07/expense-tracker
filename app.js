@@ -1304,14 +1304,7 @@ function bindEvents() {
     });
   }
 
-  // Subscriptions 3-Wallet Pill Selection (Cash excluded)
-  document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      if (dom.subSelectedWallet) dom.subSelectedWallet.value = btn.dataset.wallet;
-    });
-  });
+
 
   // Receipt Attachment Handlers (Add Form)
   if (dom.attachReceiptBtn) {
@@ -2340,8 +2333,16 @@ function deleteDebitCard(cardId) {
   const idx = state.debitCards.findIndex(c => c.id === cardId);
   if (idx === -1) return;
   const deleted = state.debitCards.splice(idx, 1)[0];
+  if (state.selectedCardId === cardId) {
+    state.selectedCardId = null;
+    state.selectedCardName = null;
+    state.selectedCardType = null;
+    if (dom.selectedSourceId) dom.selectedSourceId.value = "";
+    if (dom.selectedSourceName) dom.selectedSourceName.value = "";
+    if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
+  }
   saveStorage();
-  renderDebitCards();
+  render();
   showToast(`Deleted debit card "${deleted.name}"`);
 }
 
@@ -2447,8 +2448,15 @@ function deleteBankAccount(bankId) {
   const idx = state.bankAccounts.findIndex(b => b.id === bankId);
   if (idx === -1) return;
   const deleted = state.bankAccounts.splice(idx, 1)[0];
+  if (state.selectedBankId === bankId) {
+    state.selectedBankId = null;
+    state.selectedBankName = null;
+    if (dom.selectedSourceId) dom.selectedSourceId.value = "";
+    if (dom.selectedSourceName) dom.selectedSourceName.value = "";
+    if (dom.pillBankTx) dom.pillBankTx.textContent = "🏦 Bank Transfer ▾";
+  }
   saveStorage();
-  renderBankAccounts();
+  render();
   showToast(`Deleted bank account "${deleted.name}"`);
 }
 
@@ -2795,6 +2803,14 @@ function deleteCreditCard(cardId) {
   const idx = state.creditCards.findIndex(c => c.id === cardId);
   if (idx === -1) return;
   const deleted = state.creditCards.splice(idx, 1)[0];
+  if (state.selectedCardId === cardId) {
+    state.selectedCardId = null;
+    state.selectedCardName = null;
+    state.selectedCardType = null;
+    if (dom.selectedSourceId) dom.selectedSourceId.value = "";
+    if (dom.selectedSourceName) dom.selectedSourceName.value = "";
+    if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
+  }
   saveStorage();
   render();
   showToast(`Deleted card "${deleted.name}"`);
@@ -3059,7 +3075,7 @@ function deleteLoan(id) {
   if (idx === -1) return;
   const deleted = state.loans.splice(idx, 1)[0];
   saveStorage();
-  renderLoans();
+  render();
   showToast(`Removed loan "${deleted.name}"`);
 }
 
@@ -3758,7 +3774,11 @@ function exportToJSON() {
     currency: state.currency,
     transactions: state.transactions,
     subscriptions: state.subscriptions,
-    customCategories: state.customCategories
+    customCategories: state.customCategories,
+    loans: state.loans,
+    creditCards: state.creditCards,
+    debitCards: state.debitCards,
+    bankAccounts: state.bankAccounts
   };
 
   const jsonStr = JSON.stringify(backupData, null, 2);
@@ -3821,6 +3841,10 @@ function importJSONData(jsonStr) {
     if (parsed.currency) state.currency = parsed.currency;
     if (Array.isArray(parsed.subscriptions)) state.subscriptions = parsed.subscriptions;
     if (Array.isArray(parsed.customCategories)) state.customCategories = parsed.customCategories;
+    if (Array.isArray(parsed.loans)) state.loans = parsed.loans;
+    if (Array.isArray(parsed.creditCards)) state.creditCards = parsed.creditCards;
+    if (Array.isArray(parsed.debitCards)) state.debitCards = parsed.debitCards;
+    if (Array.isArray(parsed.bankAccounts)) state.bankAccounts = parsed.bankAccounts;
   }
 
   saveStorage();

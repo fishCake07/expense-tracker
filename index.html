@@ -80,70 +80,12 @@
 
     <!-- ================= PAGE 1: COMMITMENTS ================= -->
     <div id="view-commitments" class="app-view">
-      <!-- Subscriptions & Recurring Bills Section -->
-      <section class="card subscriptions-card">
-        <div class="card-header">
-          <div>
-            <h2>Subscriptions &amp; Bills</h2>
-            <span class="sub-total-commitment" id="subs-total-commitment">Fixed Commitments: RM 0.00 / month</span>
-          </div>
-          <button type="button" id="add-sub-btn" class="btn-primary-sm">
-            ➕ Add Bill
-          </button>
-        </div>
-        <div class="subscriptions-list" id="subscriptions-list">
-          <p class="empty-state">No recurring subscriptions added yet. Click "+ Add Bill" to track fixed commitments.</p>
-        </div>
-      </section>
+      <!-- Priority 1 & 2: Liabilities & Monthly Commitments (CCRIS & DSR Impact) -->
+      <div class="commitments-group-header">
+        <span>🛡️ Liabilities &amp; Fixed Commitments (DSR &amp; CCRIS)</span>
+      </div>
 
-      <!-- Credit Cards & Revolving Facilities Section (Option A: Malaysian CCRIS 5% Rule) -->
-      <section class="card credit-cards-section">
-        <div class="card-header">
-          <div>
-            <h2>Credit Cards</h2>
-            <span class="sub-total-commitment" id="cards-total-commitment">Total Card Debt: RM 0.00 • 5% DSR: RM 0.00</span>
-          </div>
-          <button type="button" id="open-add-card-btn" class="btn-primary-sm">
-            ➕ Add Card
-          </button>
-        </div>
-        <div class="credit-cards-grid" id="credit-cards-grid">
-          <p class="empty-state">No credit cards added. Click "+ Add Card" to track billing cycles, unbilled spends, and DSR impact.</p>
-        </div>
-      </section>
-
-      <!-- Debit Cards Section (Direct Bank Deductions • 0% DSR) -->
-      <section class="card debit-cards-section">
-        <div class="card-header">
-          <div>
-            <h2>Debit Cards</h2>
-            <span class="sub-total-commitment" id="debit-cards-total-spend">Monthly Debit Spending: RM 0.00 • 0% DSR</span>
-          </div>
-          <button type="button" id="open-add-debit-card-btn" class="btn-primary-sm">
-            ➕ Add Debit Card
-          </button>
-        </div>
-        <div class="debit-cards-grid" id="debit-cards-grid">
-          <p class="empty-state">No debit cards added. Click "+ Add Debit Card" to track bank card spending.</p>
-        </div>
-      </section>
-
-      <!-- Bank Accounts Section (Direct Bank Transfer Sources) -->
-      <section class="card bank-accounts-section">
-        <div class="card-header">
-          <div>
-            <h2>Bank Accounts</h2>
-            <span class="sub-total-commitment" id="banks-total-summary">Direct transfer &amp; salary accounts</span>
-          </div>
-          <button type="button" id="open-add-bank-account-btn" class="btn-primary-sm">
-            ➕ Add Bank
-          </button>
-        </div>
-        <div class="bank-accounts-grid" id="bank-accounts-grid">
-          <p class="empty-state">No bank accounts added yet.</p>
-        </div>
-      </section>
-
+      <!-- 1. Loans & Financing (Secured & Unsecured Debts • Heaviest DSR Impact) -->
       <!-- Loans & Financing Portfolio Section -->
       <section class="card loan-portfolio-card">
         <div class="card-header">
@@ -179,6 +121,79 @@
       <section class="loans-container" id="loans-list-container">
         <div id="loans-list" class="loans-list">
           <p class="empty-state">No loans or installments added yet. Click "+ Add Loan" to start tracking.</p>
+        </div>
+      </section>
+
+      <!-- 2. Credit Cards (Revolving Debt • 5% CCRIS DSR Rule) -->
+      <!-- Credit Cards & Revolving Facilities Section (Option A: Malaysian CCRIS 5% Rule) -->
+      <section class="card credit-cards-section">
+        <div class="card-header">
+          <div>
+            <h2>Credit Cards</h2>
+            <span class="sub-total-commitment" id="cards-total-commitment">Total Card Debt: RM 0.00 • 5% DSR: RM 0.00</span>
+          </div>
+          <button type="button" id="open-add-card-btn" class="btn-primary-sm">
+            ➕ Add Card
+          </button>
+        </div>
+        <div class="credit-cards-grid" id="credit-cards-grid">
+          <p class="empty-state">No credit cards added. Click "+ Add Card" to track billing cycles, unbilled spends, and DSR impact.</p>
+        </div>
+      </section>
+
+      <!-- 3. Subscriptions & Bills (Fixed Recurring Expenses • NDI Outflows) -->
+      <!-- Subscriptions & Recurring Bills Section -->
+      <section class="card subscriptions-card">
+        <div class="card-header">
+          <div>
+            <h2>Subscriptions &amp; Bills</h2>
+            <span class="sub-total-commitment" id="subs-total-commitment">Fixed Commitments: RM 0.00 / month</span>
+          </div>
+          <button type="button" id="add-sub-btn" class="btn-primary-sm">
+            ➕ Add Bill
+          </button>
+        </div>
+        <div class="subscriptions-list" id="subscriptions-list">
+          <p class="empty-state">No recurring subscriptions added yet. Click "+ Add Bill" to track fixed commitments.</p>
+        </div>
+      </section>
+
+      <!-- Priority 4 & 5: Liquid Assets & Payment Access (0% Debt) -->
+      <div class="commitments-group-header" style="margin-top: 0.75rem;">
+        <span>💼 Liquid Assets &amp; Payment Accounts</span>
+      </div>
+
+      <!-- 4. Bank Accounts (Asset Containers • Core Funds & Salary) -->
+      <!-- Bank Accounts Section (Direct Bank Transfer Sources) -->
+      <section class="card bank-accounts-section">
+        <div class="card-header">
+          <div>
+            <h2>Bank Accounts</h2>
+            <span class="sub-total-commitment" id="banks-total-summary">Direct transfer &amp; salary accounts</span>
+          </div>
+          <button type="button" id="open-add-bank-account-btn" class="btn-primary-sm">
+            ➕ Add Bank
+          </button>
+        </div>
+        <div class="bank-accounts-grid" id="bank-accounts-grid">
+          <p class="empty-state">No bank accounts added yet.</p>
+        </div>
+      </section>
+
+      <!-- 5. Debit Cards (Direct Spending Tools Linked to Bank Accounts • 0% DSR) -->
+      <!-- Debit Cards Section (Direct Bank Deductions • 0% DSR) -->
+      <section class="card debit-cards-section">
+        <div class="card-header">
+          <div>
+            <h2>Debit Cards</h2>
+            <span class="sub-total-commitment" id="debit-cards-total-spend">Monthly Debit Spending: RM 0.00 • 0% DSR</span>
+          </div>
+          <button type="button" id="open-add-debit-card-btn" class="btn-primary-sm">
+            ➕ Add Debit Card
+          </button>
+        </div>
+        <div class="debit-cards-grid" id="debit-cards-grid">
+          <p class="empty-state">No debit cards added. Click "+ Add Debit Card" to track bank card spending.</p>
         </div>
       </section>
     </div>

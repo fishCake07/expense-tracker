@@ -4159,3 +4159,21 @@ a,
   flex-shrink: 0;
   margin-left: 0.5rem;
 }
+
+/* Commitments Visual Hierarchy Groups */
+.commitments-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: -0.65rem;
+  padding: 0 0.35rem;
+}
+
+.commitments-group-header span {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
