@@ -4177,3 +4177,104 @@ a,
   text-transform: uppercase;
   color: var(--text-muted);
 }
+
+/* ================= PARENT-CHILD NESTED DEBIT CARDS ================= */
+.nested-debit-card-box {
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-color);
+  border-left: 4px solid #10b981; /* Emerald accent for Debit */
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.nested-debit-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.nested-debit-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.nested-debit-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.nested-debit-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nested-debit-sub {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.nested-debit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn-outline-xs {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-delete-xs {
+  padding: 0.25rem 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  line-height: 1;
+}
+.btn-delete-xs:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.nested-link-debit-box {
+  margin-top: 0.25rem;
+}
+
+.btn-link-debit {
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border: 1px dashed var(--border-color);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  text-align: center;
+  transition: var(--transition);
+}
+.btn-link-debit:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}

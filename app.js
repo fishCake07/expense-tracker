@@ -2317,6 +2317,29 @@ function renderDebitCards() {
   }).join("");
 }
 
+function populateLinkedBankSelect(selectedBankId) {
+  const sel = document.getElementById("debit-card-linked-bank");
+  if (!sel) return;
+  if (!state.bankAccounts.length) {
+    sel.innerHTML = '<option value="">(No bank accounts configured)</option>';
+    return;
+  }
+  sel.innerHTML = state.bankAccounts.map(b => {
+    const isSel = (selectedBankId && (selectedBankId === b.id || selectedBankId === b.bank));
+    return `<option value="${b.id}" ${isSel ? "selected" : ""}>${escapeHtml(b.name)} (${escapeHtml(b.bank)})</option>`;
+  }).join("");
+}
+
+function openAddDebitCardModalForBank(bankId, bankName, provider) {
+  if (dom.debitCardEditId) dom.debitCardEditId.value = "";
+  if (dom.debitCardName) dom.debitCardName.value = `${provider || bankName} Visa Debit`;
+  if (dom.debitCardBank) dom.debitCardBank.value = provider || "Maybank";
+  populateLinkedBankSelect(bankId);
+  const titleEl = document.getElementById("debit-modal-title");
+  if (titleEl) titleEl.textContent = `Link Debit Card to ${bankName}`;
+  dom.debitCardDialog?.showModal ? dom.debitCardDialog.showModal() : alert("Add debit card");
+}
+
 function openEditDebitCardModal(cardId) {
   const card = state.debitCards.find(c => c.id === cardId);
   if (!card) return;
@@ -2324,6 +2347,7 @@ function openEditDebitCardModal(cardId) {
   dom.debitCardEditId.value = card.id;
   dom.debitCardName.value = card.name;
   dom.debitCardBank.value = card.bank;
+  populateLinkedBankSelect(card.bankAccountId || card.bank);
 
   document.getElementById("debit-modal-title").textContent = "Edit Debit Card";
   dom.debitCardDialog?.showModal ? dom.debitCardDialog.showModal() : alert("Edit debit card");
@@ -2350,6 +2374,7 @@ function handleSaveDebitCard(e) {
   e.preventDefault();
   const name = dom.debitCardName.value.trim();
   const bank = dom.debitCardBank.value;
+  const linkedBankId = document.getElementById("debit-card-linked-bank")?.value || "";
 
   if (!name) return showToast("Please enter a card nickname.");
 
@@ -2359,6 +2384,7 @@ function handleSaveDebitCard(e) {
     if (card) {
       card.name = name;
       card.bank = bank;
+      card.bankAccountId = linkedBankId || card.bankAccountId || null;
       showToast(`Updated "${name}"!`);
     }
   } else {
@@ -2366,6 +2392,7 @@ function handleSaveDebitCard(e) {
       id: "debit_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
       name,
       bank,
+      bankAccountId: linkedBankId || null,
       totalSpentThisMonth: 0.00,
       createdAt: Date.now()
     });
@@ -2373,7 +2400,7 @@ function handleSaveDebitCard(e) {
   }
 
   saveStorage();
-  renderDebitCards();
+  render();
   dom.debitCardDialog?.close();
 }
 
@@ -2382,20 +2409,68 @@ function handleSaveDebitCard(e) {
 function renderBankAccounts() {
   if (!dom.bankAccountsGrid) return;
 
+  const currentYm = getLocalDateString().substring(0, 7);
+
   if (dom.banksTotalSummary) {
     if (state.bankAccounts && state.bankAccounts.length > 0) {
-      dom.banksTotalSummary.textContent = `${state.bankAccounts.length} Active Bank Account${state.bankAccounts.length > 1 ? "s" : ""}`;
+      let totalLiquidBalance = 0;
+      state.bankAccounts.forEach(b => totalLiquidBalance += (b.balance || 0));
+      dom.banksTotalSummary.textContent = `${state.bankAccounts.length} Active Account${state.bankAccounts.length > 1 ? "s" : ""} • Liquid Balance: ${formatCurrency(totalLiquidBalance)}`;
     } else {
-      dom.banksTotalSummary.textContent = "Direct transfer & salary accounts";
+      dom.banksTotalSummary.textContent = "Liquid accounts with attached debit cards";
     }
   }
 
   if (!state.bankAccounts || !state.bankAccounts.length) {
-    dom.bankAccountsGrid.innerHTML = `<p class="empty-state">No bank accounts added yet. Click "+ Add Bank" to configure direct transfer sources.</p>`;
+    dom.bankAccountsGrid.innerHTML = `<p class="empty-state">No bank accounts added yet. Click "+ Add Account" to configure liquid assets.</p>`;
     return;
   }
 
   dom.bankAccountsGrid.innerHTML = state.bankAccounts.map(b => {
+    // 1. Calculate Bank Transfer Outflow for this account in the active month
+    let transferOutflow = 0;
+    state.transactions.forEach(t => {
+      if (t.date && t.date.startsWith(currentYm) && t.type === "expense" && t.wallet === "Bank Transfer") {
+        if (t.cardId === b.id || t.cardName === b.name || (!t.cardId && !t.cardName && t.note && t.note.toLowerCase().includes(b.bank.toLowerCase()))) {
+          transferOutflow += t.amount;
+        }
+      }
+    });
+
+    // 2. Find Attached Debit Card (Parent-Child)
+    const attachedDebit = state.debitCards.find(dc => dc.bankAccountId === b.id || dc.bank === b.bank || (dc.name && dc.name.toLowerCase().includes(b.bank.toLowerCase())));
+    const debitSpent = attachedDebit ? (attachedDebit.totalSpentThisMonth || 0) : 0;
+    const totalOutflow = transferOutflow + debitSpent;
+
+    let attachedCardHtml = "";
+    if (attachedDebit) {
+      attachedCardHtml = `
+        <div class="nested-debit-card-box">
+          <div class="nested-debit-card-header">
+            <div class="nested-debit-left">
+              <span class="nested-debit-icon">💳</span>
+              <div>
+                <div class="nested-debit-title">Attached Debit Card: <strong>${escapeHtml(attachedDebit.name)}</strong></div>
+                <div class="nested-debit-sub">Spent this month: <strong>${formatCurrency(debitSpent)}</strong> | <span class="badge-debit-dsr">0% DSR Direct Debit</span></div>
+              </div>
+            </div>
+            <div class="nested-debit-actions">
+              <button type="button" class="btn-outline-xs" title="Edit debit card" onclick="openEditDebitCardModal('${attachedDebit.id}')">✏️ Edit</button>
+              <button type="button" class="btn-delete-xs" title="Delete debit card" onclick="deleteDebitCard('${attachedDebit.id}')">✕</button>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      attachedCardHtml = `
+        <div class="nested-link-debit-box">
+          <button type="button" class="btn-link-debit" onclick="openAddDebitCardModalForBank('${b.id}', '${escapeHtml(b.name)}', '${escapeHtml(b.bank)}')">
+            ➕ Link a Debit Card to this Account
+          </button>
+        </div>
+      `;
+    }
+
     return `
       <div class="bank-account-item" data-bank="${escapeHtml(b.bank)}" data-id="${b.id}">
         <div class="card-top-row">
@@ -2403,20 +2478,37 @@ function renderBankAccounts() {
             <div class="card-chip-box" style="border-color:#2563eb; color:#2563eb;">🏦</div>
             <div>
               <div class="card-title-text">${escapeHtml(b.name)}</div>
-              <div class="card-bank-sub">${escapeHtml(b.bank)} • Direct Transfer Account</div>
+              <div class="card-bank-sub">${escapeHtml(b.bank)} • Liquid Funds Container</div>
             </div>
           </div>
-          <button type="button" class="btn-delete" title="Delete bank account" onclick="deleteBankAccount('${b.id}')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-          </button>
+          <div style="display:flex; align-items:center; gap:0.4rem;">
+            <button type="button" class="btn-outline-sm" onclick="openEditBankAccountModal('${b.id}')">
+              ✏️ Edit
+            </button>
+            <button type="button" class="btn-delete" title="Delete bank account" onclick="deleteBankAccount('${b.id}')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
+          </div>
         </div>
 
-        <div class="card-actions-row">
-          <button type="button" class="btn-outline-sm" onclick="openEditBankAccountModal('${b.id}')">
-            ✏️ Edit Bank Account
-          </button>
-          <span style="font-size:0.72rem; color:var(--text-muted);">Direct transfer source</span>
+        <div class="card-balances-row">
+          <div class="card-balance-col">
+            <span class="stat-mini-label">Balance</span>
+            <strong class="card-balance-val" style="color:var(--primary);">${formatCurrency(b.balance || 0)}</strong>
+          </div>
+          <div class="card-balance-col">
+            <span class="stat-mini-label">Combined Outflow (${new Date().toLocaleString(undefined, { month: "short" })})</span>
+            <strong class="card-balance-val text-danger">${formatCurrency(totalOutflow)}</strong>
+          </div>
         </div>
+
+        <div class="card-dsr-row" style="font-size:0.75rem;">
+          <span>Outflow Breakdown:</span>
+          <span style="color:var(--text-muted);">Transfers: ${formatCurrency(transferOutflow)} • Debit: ${formatCurrency(debitSpent)}</span>
+        </div>
+
+        <!-- Attached Debit Card (Parent-Child) -->
+        ${attachedCardHtml}
       </div>
     `;
   }).join("");
@@ -2426,6 +2518,8 @@ function openAddBankAccountModal() {
   if (dom.bankAccountEditId) dom.bankAccountEditId.value = "";
   if (dom.bankAccountName) dom.bankAccountName.value = "";
   if (dom.bankAccountProvider) dom.bankAccountProvider.value = "Maybank";
+  const balInput = document.getElementById("bank-account-balance");
+  if (balInput) balInput.value = "";
   const titleEl = document.getElementById("bank-modal-title");
   if (titleEl) titleEl.textContent = "Add Bank Account";
   dom.bankAccountDialog?.showModal ? dom.bankAccountDialog.showModal() : alert("Add bank account");
@@ -2438,6 +2532,8 @@ function openEditBankAccountModal(bankId) {
   if (dom.bankAccountEditId) dom.bankAccountEditId.value = bank.id;
   if (dom.bankAccountName) dom.bankAccountName.value = bank.name;
   if (dom.bankAccountProvider) dom.bankAccountProvider.value = bank.bank;
+  const balInput = document.getElementById("bank-account-balance");
+  if (balInput) balInput.value = (bank.balance !== undefined && bank.balance !== null) ? bank.balance : "";
 
   const titleEl = document.getElementById("bank-modal-title");
   if (titleEl) titleEl.textContent = "Edit Bank Account";
@@ -2464,6 +2560,8 @@ function handleSaveBankAccount(e) {
   e.preventDefault();
   const name = dom.bankAccountName ? dom.bankAccountName.value.trim() : "";
   const provider = dom.bankAccountProvider ? dom.bankAccountProvider.value : "Maybank";
+  const balInput = document.getElementById("bank-account-balance");
+  const balance = balInput ? (parseFloat(balInput.value) || 0) : 0;
 
   if (!name) return showToast("Please enter an account name.");
 
@@ -2473,6 +2571,7 @@ function handleSaveBankAccount(e) {
     if (bank) {
       bank.name = name;
       bank.bank = provider;
+      bank.balance = Number(balance.toFixed(2));
       showToast(`Updated "${name}"!`);
     }
   } else {
@@ -2480,13 +2579,14 @@ function handleSaveBankAccount(e) {
       id: "bank_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
       name,
       bank: provider,
+      balance: Number(balance.toFixed(2)),
       createdAt: Date.now()
     });
     showToast(`Added bank account "${name}"!`);
   }
 
   saveStorage();
-  renderBankAccounts();
+  render();
   dom.bankAccountDialog?.close();
 }
 
@@ -4205,18 +4305,20 @@ function loadSampleData() {
   const today = new Date();
   const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
-  // Sample Bank Accounts (Direct Bank Transfer Sources)
+  // Sample Bank Accounts (Liquid Assets & Payment Accounts)
   state.bankAccounts = [
     {
       id: "bank_maybank",
       name: "Maybank Savings",
       bank: "Maybank",
+      balance: 3450.00,
       createdAt: Date.now()
     },
     {
       id: "bank_public",
       name: "Public Bank Salary Account",
       bank: "Public Bank",
+      balance: 5200.00,
       createdAt: Date.now()
     }
   ];
@@ -4239,12 +4341,13 @@ function loadSampleData() {
     }
   ];
 
-  // Sample Debit Cards: Maybank Visa Debit (Direct Bank Debit)
+  // Sample Debit Cards: Maybank Visa Debit (Linked to Maybank Savings)
   state.debitCards = [
     {
       id: "debit_maybank",
       name: "Maybank Visa Debit",
       bank: "Maybank",
+      bankAccountId: "bank_maybank",
       totalSpentThisMonth: 180.00,
       createdAt: Date.now()
     }

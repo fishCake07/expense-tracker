@@ -163,37 +163,19 @@
         <span>💼 Liquid Assets &amp; Payment Accounts</span>
       </div>
 
-      <!-- 4. Bank Accounts (Asset Containers • Core Funds & Salary) -->
-      <!-- Bank Accounts Section (Direct Bank Transfer Sources) -->
+      <!-- 4. Bank Accounts & Payment Tools (Asset Containers with Nested Debit Cards) -->
       <section class="card bank-accounts-section">
         <div class="card-header">
           <div>
-            <h2>Bank Accounts</h2>
-            <span class="sub-total-commitment" id="banks-total-summary">Direct transfer &amp; salary accounts</span>
+            <h2>Bank Accounts &amp; Payment Tools</h2>
+            <span class="sub-total-commitment" id="banks-total-summary">Liquid accounts with attached debit cards</span>
           </div>
           <button type="button" id="open-add-bank-account-btn" class="btn-primary-sm">
-            ➕ Add Bank
+            ➕ Add Account
           </button>
         </div>
         <div class="bank-accounts-grid" id="bank-accounts-grid">
-          <p class="empty-state">No bank accounts added yet.</p>
-        </div>
-      </section>
-
-      <!-- 5. Debit Cards (Direct Spending Tools Linked to Bank Accounts • 0% DSR) -->
-      <!-- Debit Cards Section (Direct Bank Deductions • 0% DSR) -->
-      <section class="card debit-cards-section">
-        <div class="card-header">
-          <div>
-            <h2>Debit Cards</h2>
-            <span class="sub-total-commitment" id="debit-cards-total-spend">Monthly Debit Spending: RM 0.00 • 0% DSR</span>
-          </div>
-          <button type="button" id="open-add-debit-card-btn" class="btn-primary-sm">
-            ➕ Add Debit Card
-          </button>
-        </div>
-        <div class="debit-cards-grid" id="debit-cards-grid">
-          <p class="empty-state">No debit cards added. Click "+ Add Debit Card" to track bank card spending.</p>
+          <p class="empty-state">No bank accounts added yet. Click "+ Add Account" to configure liquid assets.</p>
         </div>
       </section>
     </div>
@@ -1191,6 +1173,11 @@
           </select>
         </div>
 
+        <div class="form-group">
+          <label for="debit-card-linked-bank">Linked Bank Account</label>
+          <select id="debit-card-linked-bank"></select>
+        </div>
+
         <div class="dialog-actions">
           <button type="button" id="cancel-debit-modal-btn" class="btn-secondary">Cancel</button>
           <button type="submit" id="save-debit-card-btn" class="btn-primary-sm">Save Debit Card</button>
@@ -1225,6 +1212,14 @@
             <option value="Alliance">Alliance Bank</option>
             <option value="Other">Other Bank</option>
           </select>
+        </div>
+
+        <div class="form-group">
+          <label for="bank-account-balance">Current Balance (Optional)</label>
+          <div class="input-prefix-wrapper">
+            <span class="currency-prefix">RM</span>
+            <input type="number" id="bank-account-balance" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
         </div>
 
         <div class="dialog-actions">

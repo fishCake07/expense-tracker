@@ -9,8 +9,6 @@ const requiredIds = [
   'select-card-dialog',
   'picker-credit-cards-list',
   'picker-debit-cards-list',
-  'debit-cards-grid',
-  'open-add-debit-card-btn',
   'debit-card-dialog',
   'card-dialog',
   'credit-cards-grid',
@@ -24,12 +22,7 @@ const requiredIds = [
 requiredIds.forEach(id => {
   assert(htmlContent.includes(`id="${id}"`), `HTML missing required ID: ${id}`);
 });
-// Ensure no duplicate debit-cards-grid or open-add-debit-card-btn IDs exist
-const debitGridMatches = (htmlContent.match(/id="debit-cards-grid"/g) || []).length;
-const addDebitBtnMatches = (htmlContent.match(/id="open-add-debit-card-btn"/g) || []).length;
-assert.strictEqual(debitGridMatches, 1, 'There must be exactly one debit-cards-grid');
-assert.strictEqual(addDebitBtnMatches, 1, 'There must be exactly one open-add-debit-card-btn');
-console.log("✓ Test 1 Passed: Credit card section, single Debit card section, and Card Picker dialog exist in HTML with zero duplicates.");
+console.log("✓ Test 1 Passed: Credit card section, Bank accounts section, and Card/Bank Picker dialogs exist in HTML.");
 
 // Test 2: Core Logic: Debit Card vs Credit Card DSR and Balance Behavior
 const debitCard = { id: "debit_1", name: "Maybank Visa Debit", bank: "Maybank", type: "DEBIT" };
@@ -100,18 +93,22 @@ assert(!appJsContent.includes('title: "🎉 Version 41'), 'Release registry titl
 
 console.log("✓ Test 6 Passed: Bugs 2, 3, 4, and 5 validated (Bank Accounts, Pickers, Unselected Defaults, No Duplicate Emoji).");
 
-// Test 7: Commitments Page Reorganization & Bug Prevention
+// Test 7: 4-Section Financial Hierarchy & Parent-Child Debit Cards Architecture
 const loanIdx = htmlContent.indexOf('class="card loan-portfolio-card"');
 const creditIdx = htmlContent.indexOf('class="card credit-cards-section"');
 const subsIdx = htmlContent.indexOf('class="card subscriptions-card"');
 const bankIdx = htmlContent.indexOf('class="card bank-accounts-section"');
-const debitIdx = htmlContent.indexOf('class="card debit-cards-section"');
 
-assert(loanIdx !== -1 && creditIdx !== -1 && subsIdx !== -1 && bankIdx !== -1 && debitIdx !== -1, 'All commitment sections must exist');
-assert(loanIdx < creditIdx, 'Loans & Financing must appear before Credit Cards');
-assert(creditIdx < subsIdx, 'Credit Cards must appear before Subscriptions & Bills');
-assert(subsIdx < bankIdx, 'Subscriptions & Bills must appear before Bank Accounts');
-assert(bankIdx < debitIdx, 'Bank Accounts must appear before Debit Cards');
+assert(loanIdx !== -1 && creditIdx !== -1 && subsIdx !== -1 && bankIdx !== -1, 'All 4 primary commitment sections must exist');
+assert(loanIdx < creditIdx, 'Section 1: Loans & Financing must appear before Section 2: Credit Cards');
+assert(creditIdx < subsIdx, 'Section 2: Credit Cards must appear before Section 3: Subscriptions & Bills');
+assert(subsIdx < bankIdx, 'Section 3: Subscriptions & Bills must appear before Section 4: Bank Accounts');
+
+// Test Parent-Child Debit Cards & Combined Outflow
+assert(appJsContent.includes('nested-debit-card-box'), 'Parent bank cards must support nested debit card display');
+assert(appJsContent.includes('nested-link-debit-box'), 'Unlinked bank accounts must display link debit card button');
+assert(appJsContent.includes('Combined Outflow'), 'Bank cards must calculate and display combined outflow (Transfers + Debit)');
+assert(htmlContent.includes('id="bank-account-balance"'), 'Bank account dialog must support balance input');
 
 // Verify obsolete duplicate sub-wallet-pill listener was removed
 assert(!appJsContent.includes('// Subscriptions 3-Wallet Pill Selection (Cash excluded)'), 'Obsolete duplicate sub-wallet-pill listener must be removed');
@@ -120,6 +117,6 @@ assert(!appJsContent.includes('// Subscriptions 3-Wallet Pill Selection (Cash ex
 assert(appJsContent.includes('loans: state.loans'), 'exportToJSON must back up loans');
 assert(appJsContent.includes('bankAccounts: state.bankAccounts'), 'exportToJSON must back up bank accounts');
 
-console.log("✓ Test 7 Passed: Commitments page section order and backup consistency verified.");
+console.log("✓ Test 7 Passed: 4-Section financial hierarchy, Parent-Child debit cards, and combined cash outflow verified.");
 
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
