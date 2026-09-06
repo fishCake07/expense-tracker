@@ -121,6 +121,11 @@ const dom = {
   pickerAddCardBtn: $("nav-to-add-card-btn"),
   closeDebitCardBtn: $("close-debit-modal-btn"),
   cancelDebitCardBtn: $("cancel-debit-modal-btn"),
+  // Income Flow DOM Elements
+  categoryLabel: $("category-label"),
+  expenseWalletGroup: $("expense-wallet-group"),
+  incomeDepositGroup: $("income-deposit-group"),
+  incomeDepositSelect: $("income-deposit-select"),
   // Bank Accounts & Picker Elements (Bug 2, 3, 4)
   openAddBankAccountBtn: $("open-add-bank-account-btn"),
   bankAccountsGrid: $("bank-accounts-grid"),
@@ -1425,11 +1430,39 @@ function bindEvents() {
   }
 }
 
+function populateIncomeDepositSelect() {
+  if (!dom.incomeDepositSelect) return;
+  let options = '<option value="">None / External</option>';
+  if (state.bankAccounts && state.bankAccounts.length) {
+    state.bankAccounts.forEach(b => {
+      options += `<option value="${b.id}">🏦 ${escapeHtml(b.name)} (${escapeHtml(b.bank)})</option>`;
+    });
+  }
+  options += '<option value="cash">💵 Physical Cash</option>';
+  dom.incomeDepositSelect.innerHTML = options;
+}
+
 function setFormType(type) {
   state.currentFormType = type;
   dom.tabExpense.classList.toggle("active", type === "expense");
   dom.tabIncome.classList.toggle("active", type === "income");
   populateCategorySelects(type === "income", dom.category);
+
+  if (dom.categoryLabel) {
+    dom.categoryLabel.textContent = type === "income" ? "Income Source *" : "Category *";
+  }
+
+  if (dom.expenseWalletGroup && dom.incomeDepositGroup) {
+    if (type === "income") {
+      dom.expenseWalletGroup.style.display = "none";
+      dom.incomeDepositGroup.style.display = "block";
+      populateIncomeDepositSelect();
+    } else {
+      dom.expenseWalletGroup.style.display = "block";
+      dom.incomeDepositGroup.style.display = "none";
+    }
+  }
+
   const submitBtn = dom.form.querySelector('button[type="submit"]');
   if (submitBtn) {
     submitBtn.innerHTML = `
@@ -1512,6 +1545,56 @@ function handleAddTransaction(e) {
   $("date-error").textContent = !dt ? "Please choose a date." : "";
 
   if (!amt || amt <= 0 || !cat || !dt || cat === "__ADD_CUSTOM__") return;
+
+  // Handle Income Submission with Bank Account Deposit
+  if (state.currentFormType === "income") {
+    const depVal = dom.incomeDepositSelect ? dom.incomeDepositSelect.value : "";
+    let walletType = "Other";
+    let cardId = null;
+    let cardName = null;
+
+    if (depVal === "cash") {
+      walletType = "Cash";
+      cardName = "Physical Cash";
+    } else if (depVal) {
+      const targetBank = state.bankAccounts.find(b => b.id === depVal);
+      if (targetBank) {
+        walletType = "Bank Transfer";
+        cardId = targetBank.id;
+        cardName = targetBank.name;
+        targetBank.balance = Number(((targetBank.balance || 0) + amt).toFixed(2));
+      }
+    }
+
+    state.transactions.unshift({
+      id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+      type: "income",
+      amount: Number(amt.toFixed(2)),
+      category: cat,
+      wallet: walletType,
+      cardId: cardId,
+      cardName: cardName,
+      cardType: null,
+      receiptImage: state.attachedReceipt || null,
+      date: dt,
+      note: nt || cat,
+      createdAt: Date.now()
+    });
+
+    saveStorage();
+    dom.amount.value = "";
+    dom.category.value = "";
+    dom.note.value = "";
+    state.attachedReceipt = null;
+    if (dom.receiptFileInput) dom.receiptFileInput.value = "";
+    if (dom.receiptPreviewBox) dom.receiptPreviewBox.style.display = "none";
+    setDefaultDate();
+    if (dom.incomeDepositSelect) dom.incomeDepositSelect.value = "";
+    render();
+    showToast(`Saved income of ${formatCurrency(amt)}!`);
+    dom.amount.focus();
+    return;
+  }
 
   const chosenWallet = (dom.selectedWalletInput && dom.selectedWalletInput.value) ? dom.selectedWalletInput.value.trim() : "";
   if (!chosenWallet) {
@@ -1661,6 +1744,14 @@ function deleteExpense(id) {
   const idx = state.transactions.findIndex(t => t.id === id);
   if (idx === -1) return;
   const deleted = state.transactions.splice(idx, 1)[0];
+
+  // Revert balances if deleted item was an income deposited to a bank
+  if (deleted && deleted.type === "income" && deleted.cardId) {
+    const targetBank = state.bankAccounts.find(b => b.id === deleted.cardId || b.name === deleted.cardName);
+    if (targetBank) {
+      targetBank.balance = Math.max(0, Number(((targetBank.balance || 0) - deleted.amount).toFixed(2)));
+    }
+  }
 
   // Revert card balances if deleted item was an expense charged to a card
   if (deleted && deleted.type === "expense") {

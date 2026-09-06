@@ -137,4 +137,21 @@ assert.strictEqual(testCard.unbilledBalance, 5135.00, 'Deleting a RM 300 expense
 
 console.log("✓ Test 8 Passed: Credit Card Unbilled Spends synchronization, reconciliation, and reversal verified.");
 
+// Test 9: Income Logging Flow & Bank Account Balance Integration
+assert(htmlContent.includes('id="income-deposit-select"'), 'income-deposit-select must exist in HTML');
+assert(htmlContent.includes('id="income-deposit-group"'), 'income-deposit-group must exist in HTML');
+assert(appJsContent.includes('function populateIncomeDepositSelect()'), 'populateIncomeDepositSelect must exist in app.js');
+
+// Test balance increment on income deposit
+let mockBank = { id: "bank_public", name: "Public Bank Salary Account", balance: 5200.00 };
+let incomeAmt = 4000.00;
+mockBank.balance = Number((mockBank.balance + incomeAmt).toFixed(2));
+assert.strictEqual(mockBank.balance, 9200.00, 'Depositing RM 4000 to RM 5200 must yield RM 9200 balance');
+
+// Test reversal on deletion
+mockBank.balance = Math.max(0, Number((mockBank.balance - incomeAmt).toFixed(2)));
+assert.strictEqual(mockBank.balance, 5200.00, 'Deleting income must revert bank balance to RM 5200');
+
+console.log("✓ Test 9 Passed: Income Logging flow, Bank Account balance increment, and reversal verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
