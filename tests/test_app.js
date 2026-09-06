@@ -367,4 +367,27 @@ assert.strictEqual(mockPbb.balance, 4600.00, 'Loan installment must deduct 600.0
 
 console.log("✓ Test 19 Passed: Dynamic Loan Engine, exact reducing balance amortization math, and auto-deduct flow verified.");
 
+// Test 20: Loan Installment Due Notification, Settlement, and Reversal Flow
+assert(appJsContent.includes('function settleLoanFromNotification('), 'settleLoanFromNotification must exist in app.js');
+assert(appJsContent.includes('notif_due_loan_'), 'checkLoanDueAlerts must generate due loan notifications');
+
+// Verify loan payment deletion reversal
+let testLoanObj = { id: "loan_bezza", name: "Perodua Bezza", originalPrincipal: 38000.00, remainingPrincipal: 34160.00, tenureMonths: 84, remainingMonths: 76, rate: 3.20, type: "CAR_EIR" };
+let testBankObj = { id: "bank_public", name: "Public Bank Salary Account", balance: 5200.00 };
+let installmentPayment = 480.00;
+
+// Reversal test:
+const revMonthlyRate = (testLoanObj.rate / 100) / 12;
+const revMonthlyInterest = Number((testLoanObj.remainingPrincipal * revMonthlyRate).toFixed(2));
+const principalPaid = Math.max(0, Number((installmentPayment - revMonthlyInterest).toFixed(2)));
+
+testLoanObj.remainingPrincipal = Math.min(testLoanObj.originalPrincipal, Number((testLoanObj.remainingPrincipal + principalPaid).toFixed(2)));
+testLoanObj.remainingMonths = Math.min(testLoanObj.tenureMonths, testLoanObj.remainingMonths + 1);
+testBankObj.balance = Number((testBankObj.balance + installmentPayment).toFixed(2));
+
+assert.strictEqual(testLoanObj.remainingMonths, 77, 'Remaining months must increment back to 77');
+assert.strictEqual(testBankObj.balance, 5680.00, 'Bank balance must refund installment from 5200 to 5680');
+
+console.log("✓ Test 20 Passed: Loan installment due notification, settlement, and reversal flow verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

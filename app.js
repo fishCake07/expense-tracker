@@ -131,6 +131,25 @@ function checkLoanDueAlerts() {
   const bankBal = bank ? getReconciledBankBalance(bank) : 0;
   const bankName = bank ? bank.name : "Bank Account";
 
+  // Ensure an actionable reminder card exists in Notification Center
+  const notifId = "notif_due_loan_" + dueLoan.id + "_" + currentYm;
+  if (!state.notifications.some(n => n.id === notifId)) {
+    state.notifications.unshift({
+      id: notifId,
+      type: "action_due",
+      loanId: dueLoan.id,
+      loanName: dueLoan.name,
+      billedAmount: dueLoan.monthlyInstallment,
+      title: `🔔 Loan Installment Due: ${dueLoan.name}`,
+      time: new Date().toISOString(),
+      isRead: false,
+      decision: null,
+      body: `Monthly installment of ${formatCurrency(dueLoan.monthlyInstallment)} is due for ${monthName}. Payment source: 🏦 ${bankName}.`
+    });
+    saveStorage();
+    updateNotificationBadge();
+  }
+
   if (dom.loanDueTitle) dom.loanDueTitle.textContent = dueLoan.name;
   if (dom.loanDueSubtitle) dom.loanDueSubtitle.textContent = `${monthName} installment confirmation.`;
   if (dom.loanDueAmount) dom.loanDueAmount.textContent = formatCurrency(dueLoan.monthlyInstallment);
@@ -1264,7 +1283,17 @@ function bindEvents() {
   if (dom.loanDueYesBtn) {
     dom.loanDueYesBtn.addEventListener("click", () => {
       if (activeDueLoan) {
-        processLoanPayment(activeDueLoan, activeDueLoan.monthlyInstallment);
+        const currentYm = getLocalDateString().substring(0, 7);
+        const notifId = "notif_due_loan_" + activeDueLoan.id + "_" + currentYm;
+        const notif = state.notifications.find(n => n.id === notifId);
+        if (processLoanPayment(activeDueLoan, activeDueLoan.monthlyInstallment)) {
+          if (notif) {
+            notif.decision = `Paid ${formatCurrency(activeDueLoan.monthlyInstallment)} on ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+            notif.isRead = true;
+          }
+          saveStorage();
+          render();
+        }
         dom.loanDueDialog?.close();
       }
     });
@@ -2294,9 +2323,28 @@ function deleteExpense(id) {
 
   // Revert card and bank balances if deleted item was an expense
   if (deleted && deleted.type === "expense") {
-    // 1. Check if deleted item was a credit card bill settlement
-    const isSettle = deleted.isSettlement || (deleted.note && deleted.note.startsWith("Credit Card Settlement: "));
-    if (isSettle) {
+    // 1. Check if deleted item was a loan installment payment
+    if (deleted.isLoanPayment || deleted.loanId || (deleted.note && deleted.note.startsWith("Loan Installment: "))) {
+      const loan = state.loans.find(l => l.id === deleted.loanId || (deleted.note && deleted.note.includes(l.name))) || state.loans[0];
+      if (loan) {
+        loan.remainingMonths = Math.min(loan.tenureMonths || 84, (loan.remainingMonths || 0) + 1);
+        loan.lastPaidMonth = null;
+        if (loan.type === "CAR_EIR" || loan.type === "HOME_SBR" || loan.type === "PERSONAL") {
+          const monthlyRate = (loan.rate / 100) / 12;
+          const monthlyInterest = Number(((loan.remainingPrincipal || loan.originalPrincipal) * monthlyRate).toFixed(2));
+          const principalPaid = Math.max(0, Number((deleted.amount - monthlyInterest).toFixed(2)));
+          loan.remainingPrincipal = Math.min(loan.originalPrincipal, Number(((loan.remainingPrincipal || 0) + principalPaid).toFixed(2)));
+        } else {
+          const principalPortion = loan.originalPrincipal / (loan.tenureMonths || 84);
+          loan.remainingPrincipal = Math.min(loan.originalPrincipal, Number(((loan.remainingPrincipal || 0) + principalPortion).toFixed(2)));
+        }
+      }
+      const targetBank = state.bankAccounts.find(b => b.id === deleted.cardId || b.name === deleted.cardName || b.bank === deleted.cardName) || state.bankAccounts[0];
+      if (targetBank) {
+        targetBank.balance = Number(((targetBank.balance || 0) + deleted.amount).toFixed(2));
+      }
+    } else if (deleted.isSettlement || (deleted.note && deleted.note.startsWith("Credit Card Settlement: "))) {
+    // Credit Card Settlement Handled Above
       const cardName = deleted.settledCardName || (deleted.note ? deleted.note.replace("Credit Card Settlement: ", "").trim() : "");
       const targetCard = state.creditCards.find(c => c.id === deleted.settledCardId || c.name === cardName) || state.creditCards[0];
       if (targetCard) {
@@ -2895,6 +2943,13 @@ function renderNotificationsFeed() {
     if (n.type === "action_due") {
       if (n.decision) {
         actionHtml = `<div class="btn-decision-stamped">✓ ${escapeHtml(n.decision)}</div>`;
+      } else if (n.loanId) {
+        actionHtml = `
+          <div class="notif-decision-actions">
+            <button type="button" class="btn-notif-action btn-action-settle" onclick="settleLoanFromNotification('${n.id}', '${n.loanId}')">✓ Pay Installment (${formatCurrency(n.billedAmount)})</button>
+            <button type="button" class="btn-text" style="font-size:0.72rem;" onclick="dismissNotification('${n.id}')">Later</button>
+          </div>
+        `;
       } else {
         actionHtml = `
           <div class="notif-decision-actions">
@@ -2919,6 +2974,24 @@ function renderNotificationsFeed() {
       </div>
     `;
   }).join("");
+}
+
+
+function settleLoanFromNotification(notifId, loanId) {
+  const loan = state.loans.find(l => l.id === loanId);
+  const notif = state.notifications.find(n => n.id === notifId);
+  if (!loan) return;
+
+  if (processLoanPayment(loan, loan.monthlyInstallment)) {
+    if (notif) {
+      notif.decision = `Paid ${formatCurrency(loan.monthlyInstallment)} on ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+      notif.isRead = true;
+    }
+    saveStorage();
+    render();
+    renderNotificationsFeed();
+    showToast(`Confirmed ${loan.name} installment!`);
+  }
 }
 
 function settleCardBillInFull(notifId, cardId) {
