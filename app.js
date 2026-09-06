@@ -1,3 +1,42 @@
+
+// Reconcile Credit Card Unbilled Spends against logged transactions
+function reconcileCreditCardUnbilled() {
+  if (!state.creditCards || !state.creditCards.length) return;
+  const now = new Date();
+
+  state.creditCards.forEach(card => {
+    const todayDay = now.getDate();
+    let cycleStartYear = now.getFullYear();
+    let cycleStartMonth = now.getMonth();
+    if (todayDay <= card.statementDay) {
+      cycleStartMonth -= 1;
+      if (cycleStartMonth < 0) {
+        cycleStartMonth = 11;
+        cycleStartYear -= 1;
+      }
+    }
+    const cycleStartDate = new Date(cycleStartYear, cycleStartMonth, card.statementDay + 1);
+    const cycleStartStr = `${cycleStartDate.getFullYear()}-${String(cycleStartDate.getMonth() + 1).padStart(2, "0")}-${String(cycleStartDate.getDate()).padStart(2, "0")}`;
+
+    let cycleSpend = 0;
+    let foundMatchingTx = false;
+
+    state.transactions.forEach(t => {
+      if (t.type === "expense" && (t.wallet === "Credit Card" || t.cardType === "credit")) {
+        const isThisCard = (!t.cardId && !t.cardName) || t.cardId === card.id || t.cardName === card.name;
+        if (isThisCard && t.date && t.date >= cycleStartStr) {
+          cycleSpend += t.amount;
+          foundMatchingTx = true;
+        }
+      }
+    });
+
+    if (foundMatchingTx) {
+      card.unbilledBalance = Number(cycleSpend.toFixed(2));
+    }
+  });
+}
+
 // Category Presets
 const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Food & Dining", icon: "🍔", color: "#f97316" },
@@ -1480,26 +1519,28 @@ function handleAddTransaction(e) {
     return;
   }
   
-  const cardId = dom.selectedCardId ? dom.selectedCardId.value : state.selectedCardId;
-  const cardType = dom.selectedCardType ? dom.selectedCardType.value : state.selectedCardType;
-  const cardName = dom.selectedCardName ? dom.selectedCardName.value : (state.selectedCardName || state.selectedBankName);
+  const cardId = (dom.selectedCardId && dom.selectedCardId.value) ? dom.selectedCardId.value : state.selectedCardId;
+  const rawCardType = state.selectedCardType || (dom.selectedCardType ? dom.selectedCardType.value : null);
+  const cardName = (dom.selectedCardName && dom.selectedCardName.value) ? dom.selectedCardName.value : (state.selectedCardName || state.selectedBankName);
 
-  // Automation for Credit Card vs Debit Card
-  if (chosenWallet === "Credit Card" || chosenWallet === "Card" || chosenWallet === "Debit Card") {
-    if (cardType === "credit") {
-      const targetCard = state.creditCards.find(c => c.id === cardId) || state.creditCards[0];
-      if (targetCard && state.currentFormType === "expense") {
-        targetCard.unbilledBalance = Number((targetCard.unbilledBalance + amt).toFixed(2));
-      }
-    } else if (cardType === "debit") {
-      const targetDebit = state.debitCards.find(dc => dc.id === cardId) || state.debitCards[0];
-      if (targetDebit && state.currentFormType === "expense") {
-        targetDebit.totalSpentThisMonth = Number(((targetDebit.totalSpentThisMonth || 0) + amt).toFixed(2));
-      }
+  const isCredit = (chosenWallet === "Credit Card" || rawCardType === "credit" || rawCardType === "Credit Card" || (cardName && state.creditCards.some(c => c.name === cardName || c.id === cardId)));
+  const isDebit = (chosenWallet === "Debit Card" || rawCardType === "debit" || rawCardType === "Debit Card" || (cardName && state.debitCards.some(dc => dc.name === cardName || dc.id === cardId)));
+
+  // Automation for Credit Card vs Debit Card: Immediately update balances
+  if (isCredit) {
+    const targetCard = state.creditCards.find(c => c.id === cardId || c.name === cardName) || state.creditCards[0];
+    if (targetCard && state.currentFormType === "expense") {
+      targetCard.unbilledBalance = Number(((targetCard.unbilledBalance || 0) + amt).toFixed(2));
+    }
+  } else if (isDebit) {
+    const targetDebit = state.debitCards.find(dc => dc.id === cardId || dc.name === cardName) || state.debitCards[0];
+    if (targetDebit && state.currentFormType === "expense") {
+      targetDebit.totalSpentThisMonth = Number(((targetDebit.totalSpentThisMonth || 0) + amt).toFixed(2));
     }
   }
 
-  const effectiveWallet = cardType === "debit" ? "Debit Card" : (cardType === "credit" ? "Credit Card" : chosenWallet);
+  const effectiveWallet = isDebit ? "Debit Card" : (isCredit ? "Credit Card" : chosenWallet);
+  const effectiveCardType = isDebit ? "debit" : (isCredit ? "credit" : null);
 
   state.transactions.unshift({
     id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
@@ -1509,7 +1550,7 @@ function handleAddTransaction(e) {
     wallet: effectiveWallet,
     cardId: cardId || null,
     cardName: cardName || null,
-    cardType: cardType || null,
+    cardType: effectiveCardType,
     receiptImage: state.attachedReceipt || null,
     date: dt,
     note: nt || cat,
@@ -1620,6 +1661,22 @@ function deleteExpense(id) {
   const idx = state.transactions.findIndex(t => t.id === id);
   if (idx === -1) return;
   const deleted = state.transactions.splice(idx, 1)[0];
+
+  // Revert card balances if deleted item was an expense charged to a card
+  if (deleted && deleted.type === "expense") {
+    if (deleted.wallet === "Credit Card" || deleted.cardType === "credit") {
+      const card = state.creditCards.find(c => c.id === deleted.cardId || c.name === deleted.cardName) || state.creditCards[0];
+      if (card) {
+        card.unbilledBalance = Math.max(0, Number(((card.unbilledBalance || 0) - deleted.amount).toFixed(2)));
+      }
+    } else if (deleted.wallet === "Debit Card" || deleted.cardType === "debit") {
+      const dc = state.debitCards.find(c => c.id === deleted.cardId || c.name === deleted.cardName) || state.debitCards[0];
+      if (dc) {
+        dc.totalSpentThisMonth = Math.max(0, Number(((dc.totalSpentThisMonth || 0) - deleted.amount).toFixed(2)));
+      }
+    }
+  }
+
   saveStorage();
   render();
   showToast(`Deleted "${deleted.note}"`);
@@ -2668,6 +2725,7 @@ function selectBankAccount(bankId, bankName) {
 // ================= INTERACTIVE CARD PICKER (CREDIT VS DEBIT) =================
 function openCardPicker() {
   if (!dom.selectCardDialog) return;
+  reconcileCreditCardUnbilled();
 
   // 1. Populate Credit Cards List
   if (dom.pickerCreditCardsList) {
@@ -2772,6 +2830,7 @@ function selectPaymentCard(type, cardId, cardName) {
 
 function renderCreditCards() {
   if (!dom.creditCardsGrid) return;
+  reconcileCreditCardUnbilled();
 
   let totalCardDebt = 0;
   let totalDsrCommitment = 0;

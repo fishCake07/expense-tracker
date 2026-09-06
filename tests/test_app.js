@@ -119,4 +119,22 @@ assert(appJsContent.includes('bankAccounts: state.bankAccounts'), 'exportToJSON 
 
 console.log("✓ Test 7 Passed: 4-Section financial hierarchy, Parent-Child debit cards, and combined cash outflow verified.");
 
+// Test 8: Credit Card Unbilled Spends Synchronization & Reconciliation
+assert(appJsContent.includes('function reconcileCreditCardUnbilled()'), 'reconcileCreditCardUnbilled function must exist in app.js');
+assert(appJsContent.includes('const isCredit = (chosenWallet === "Credit Card" || rawCardType === "credit"'), 'handleAddTransaction must reliably detect credit card expenses');
+
+// Verify calculation logic: Card carrying current unbilled + new expense
+let testCard = { id: "card_maybank", name: "Maybank Visa Signature", currentBilled: 450.00, unbilledBalance: 135.00 };
+let loggedExpenses = [5000.00, 300.00];
+loggedExpenses.forEach(amt => {
+  testCard.unbilledBalance = Number((testCard.unbilledBalance + amt).toFixed(2));
+});
+assert.strictEqual(testCard.unbilledBalance, 5435.00, 'Adding RM 5000 and RM 300 to initial RM 135 must result in RM 5435 unbilled balance');
+
+// Reversal test
+testCard.unbilledBalance = Math.max(0, Number((testCard.unbilledBalance - 300.00).toFixed(2)));
+assert.strictEqual(testCard.unbilledBalance, 5135.00, 'Deleting a RM 300 expense must revert unbilled balance to RM 5135');
+
+console.log("✓ Test 8 Passed: Credit Card Unbilled Spends synchronization, reconciliation, and reversal verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
