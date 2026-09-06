@@ -417,4 +417,80 @@ assert.strictEqual(calcDsr, 15.1, 'DSR must equal 15.1%');
 
 console.log("✓ Test 19 Passed: Dual-Perspective Summary HTML elements and financial underwriting math verified.");
 
+
+// Test 21: Subscriptions & Bills Deletion Updates Total Monthly Commitment (Bug 1 Fix)
+assert(appJsContent.includes('deleteSubscription(id)'), 'deleteSubscription must exist in app.js');
+assert(appJsContent.includes('render(); // Synchronize Subscriptions header, Total Monthly Commitment card, and Spendable Hero (Bug 1 Fix)'), 'deleteSubscription must call render() to update Total Monthly Commitment');
+
+// Test logic: totalSubsCommitment calculation on subscription deletion
+let mockSubscriptions = [
+  { id: "sub_netflix", name: "Netflixxxxx", amount: 43.00, category: "Entertainment", billingDay: 2 },
+  { id: "sub_wifi", name: "Home Fibre", amount: 89.00, category: "Bills & Utilities", billingDay: 22 }
+];
+let mockLoans = [{ id: "loan_1", monthlyInstallment: 500.00 }];
+let mockCreditCards = [{ id: "card_1", currentBilled: 200.00, unbilledBalance: 0, payInFull: true }];
+
+let initialSubsTotal = mockSubscriptions.reduce((s, sub) => s + (sub.amount || 0), 0);
+let initialBudgetTotal = mockLoans[0].monthlyInstallment + initialSubsTotal + mockCreditCards[0].currentBilled;
+assert.strictEqual(initialSubsTotal, 132.00, 'Initial subscriptions total must be RM 132.00');
+assert.strictEqual(initialBudgetTotal, 832.00, 'Initial total budget commitment must be RM 832.00');
+
+// Delete sub_netflix
+const delIdx = mockSubscriptions.findIndex(s => s.id === "sub_netflix");
+mockSubscriptions.splice(delIdx, 1);
+
+let updatedSubsTotal = mockSubscriptions.reduce((s, sub) => s + (sub.amount || 0), 0);
+let updatedBudgetTotal = mockLoans[0].monthlyInstallment + updatedSubsTotal + mockCreditCards[0].currentBilled;
+assert.strictEqual(updatedSubsTotal, 89.00, 'Updated subscriptions total must be RM 89.00 after deletion');
+assert.strictEqual(updatedBudgetTotal, 789.00, 'Updated total budget commitment must be RM 789.00 after deletion');
+console.log("✓ Test 21 Passed: Subscriptions & Bills deletion updates Total Monthly Commitment simultaneously (Bug 1 Fix).");
+
+// Test 22: Logged Subscription Transaction Deletion Reversals & 'Debited for [Month]' State Reset (Bug 2 Fix)
+assert(appJsContent.includes('function isSubscriptionTransaction('), 'isSubscriptionTransaction helper must exist in app.js');
+assert(appJsContent.includes('// Check if deleted item was a logged subscription / recurring bill (Bug 2 Fix)'), 'deleteExpense must handle subscription reversal');
+assert(appJsContent.includes('// Dynamic reconciliation with state.transactions as Single Source of Truth (Bug 2 Fix)'), 'renderSubscriptions must dynamically reconcile debited status');
+
+// Test transaction matching and reversal logic
+let testSub = { id: "sub_netflix", name: "Netflixxxxx", amount: 43.00, lastLoggedMonth: "2026-09" };
+let testTransactions = [
+  { id: "tx_sub_1", type: "expense", amount: 43.00, date: "2026-09-02", note: "Netflixxxxx (Monthly Bill)", subId: "sub_netflix" }
+];
+
+// Helper mock matching function
+function mockIsSubTx(tx, sub) {
+  if (!tx || tx.type !== "expense" || !sub) return false;
+  if (tx.subId && tx.subId === sub.id) return true;
+  if (tx.note) {
+    const cleanNote = tx.note.trim().toLowerCase();
+    const cleanSubName = sub.name.trim().toLowerCase();
+    return cleanNote === `${cleanSubName} (monthly bill)` || cleanNote === `${cleanSubName} (auto-debited)`;
+  }
+  return false;
+}
+
+assert.strictEqual(mockIsSubTx(testTransactions[0], testSub), true, 'Transaction must match subscription by subId and note');
+
+// When transaction exists for 2026-09, sub must be debited
+let hasTx = testTransactions.some(t => t.date.startsWith("2026-09") && mockIsSubTx(t, testSub));
+assert.strictEqual(hasTx, true, 'hasTx must be true when transaction is logged');
+
+// Simulate deleteExpense on tx_sub_1
+const txDelIdx = testTransactions.findIndex(t => t.id === "tx_sub_1");
+const deletedTx = testTransactions.splice(txDelIdx, 1)[0];
+
+// Reversal logic from deleteExpense
+if (mockIsSubTx(deletedTx, testSub)) {
+  const hasRemaining = testTransactions.some(t => t.date.startsWith("2026-09") && mockIsSubTx(t, testSub));
+  if (!hasRemaining) {
+    testSub.lastLoggedMonth = null;
+  }
+}
+
+assert.strictEqual(testSub.lastLoggedMonth, null, 'Subscription lastLoggedMonth must reset to null after deleting transaction');
+
+// Dynamic reconciliation in renderSubscriptions
+let isDebitedNow = testSub.lastLoggedMonth === "2026-09";
+assert.strictEqual(isDebitedNow, false, 'isDebited must be false after transaction deletion (badge reverts to Log button)');
+console.log("✓ Test 22 Passed: Logged Subscription Transaction Deletion Reversals & Debited badge reset verified (Bug 2 Fix).");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

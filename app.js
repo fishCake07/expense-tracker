@@ -2315,6 +2315,25 @@ function handleSaveEdit(e) {
   showToast("Transaction updated!");
 }
 
+// Helper: Match transaction to subscription for zero-drift reconciliation
+function isSubscriptionTransaction(tx, sub) {
+  if (!tx || (tx.type || "expense") !== "expense" || !sub) return false;
+  if (tx.subId && tx.subId === sub.id) return true;
+  if (tx.note) {
+    const cleanNote = tx.note.trim().toLowerCase();
+    const cleanSubName = (sub.name || "").trim().toLowerCase();
+    if (!cleanSubName) return false;
+    if (cleanNote === `${cleanSubName} (monthly bill)` ||
+        cleanNote === `${cleanSubName} (auto-debited)` ||
+        cleanNote === cleanSubName ||
+        cleanNote.startsWith(`${cleanSubName} (monthly bill)`) ||
+        cleanNote.startsWith(`${cleanSubName} (auto-debited)`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function deleteExpense(id) {
   const idx = state.transactions.findIndex(t => t.id === id);
   if (idx === -1) return;
@@ -2330,6 +2349,20 @@ function deleteExpense(id) {
 
   // Revert card and bank balances if deleted item was an expense
   if (deleted && deleted.type === "expense") {
+    // Check if deleted item was a logged subscription / recurring bill (Bug 2 Fix)
+    if (state.subscriptions && state.subscriptions.length) {
+      const matchedSub = state.subscriptions.find(s => isSubscriptionTransaction(deleted, s));
+      if (matchedSub) {
+        const deletedYm = (deleted.date && deleted.date.length >= 7) ? deleted.date.substring(0, 7) : getLocalDateString().substring(0, 7);
+        const hasOther = state.transactions.some(t =>
+          t.date && t.date.startsWith(deletedYm) && isSubscriptionTransaction(t, matchedSub)
+        );
+        if (!hasOther && matchedSub.lastLoggedMonth === deletedYm) {
+          matchedSub.lastLoggedMonth = null;
+        }
+      }
+    }
+
     // 1. Check if deleted item was a loan installment payment
     if (deleted.isLoanPayment || deleted.loanId || (deleted.note && deleted.note.startsWith("Loan Installment: "))) {
       const loan = state.loans.find(l => l.id === deleted.loanId || (deleted.note && deleted.note.includes(l.name))) || state.loans[0];
@@ -2423,6 +2456,8 @@ function processAutoDeductions() {
         cardType: autoCardType,
         date: autoDate,
         note: `${sub.name} (Auto-debited)`,
+        subId: sub.id,
+        isSubscription: true,
         createdAt: Date.now()
       };
 
@@ -2471,7 +2506,7 @@ function handleAddSubscription(e) {
   });
 
   saveStorage();
-  renderSubscriptions();
+  render(); // Synchronize Subscriptions header, Total Monthly Commitment card, and Spendable Hero
   dom.subDialog.close();
   showToast(`Added "${name}" to recurring bills!`);
 }
@@ -2492,7 +2527,7 @@ function promptSubFallback() {
     createdAt: Date.now()
   });
   saveStorage();
-  renderSubscriptions();
+  render(); // Synchronize Subscriptions header, Total Monthly Commitment card, and Spendable Hero
   showToast("Bill added!");
 }
 
@@ -2501,7 +2536,7 @@ function deleteSubscription(id) {
   if (idx === -1) return;
   const deleted = state.subscriptions.splice(idx, 1)[0];
   saveStorage();
-  renderSubscriptions();
+  render(); // Synchronize Subscriptions header, Total Monthly Commitment card, and Spendable Hero (Bug 1 Fix)
   showToast(`Removed "${deleted.name}"`);
 }
 
@@ -2526,6 +2561,8 @@ function logSubscriptionNow(id) {
     cardType: autoCardType,
     date: today,
     note: `${sub.name} (Monthly Bill)`,
+    subId: sub.id,
+    isSubscription: true,
     createdAt: Date.now()
   });
 
@@ -2553,6 +2590,17 @@ function renderSubscriptions() {
     const diff = sub.billingDay - currentDay;
 
     const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+    // Dynamic reconciliation with state.transactions as Single Source of Truth (Bug 2 Fix)
+    const hasCurrentMonthTx = state.transactions.some(t =>
+      t.date && t.date.startsWith(currentYm) && isSubscriptionTransaction(t, sub)
+    );
+    if (hasCurrentMonthTx) {
+      sub.lastLoggedMonth = currentYm;
+    } else if (sub.lastLoggedMonth === currentYm) {
+      sub.lastLoggedMonth = null;
+    }
+
     const isDebited = sub.lastLoggedMonth === currentYm;
     const monthShort = today.toLocaleString(undefined, { month: "short" });
 
