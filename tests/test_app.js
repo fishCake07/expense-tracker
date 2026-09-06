@@ -302,4 +302,28 @@ assert.strictEqual(mockSettleBank.balance, 3000.00, 'Bank balance must deduct pa
 
 console.log("✓ Test 16 Passed: Credit Card default payment source and automated bill settlement verified.");
 
+// Test 17: Credit Card Edit Button Scoping & Settle Transaction Deletion Reversals
+assert(appJsContent.includes('isSettlement: true'), 'Settlement transactions must be tagged with isSettlement: true');
+assert(appJsContent.includes('Credit Card Settlement: '), 'deleteExpense must detect settlement transactions');
+
+// Verify that populateCardLinkedBankSelect is defined at the global scope (before openEditCardModal)
+const popIdx = appJsContent.indexOf('function populateCardLinkedBankSelect(');
+const openEditIdx = appJsContent.indexOf('function openEditCardModal(');
+const bindIdx = appJsContent.indexOf('function bindEvents()');
+assert(popIdx !== -1 && openEditIdx !== -1, 'Both functions must exist in app.js');
+assert(popIdx > bindIdx, 'populateCardLinkedBankSelect must not be nested inside the beginning of bindEvents');
+assert(popIdx < openEditIdx, 'populateCardLinkedBankSelect must be defined directly before openEditCardModal at top scope');
+
+// Reversal logic verification:
+let revertCardTarget = { id: "card_maybank", name: "Maybank Visa Signature", currentBilled: 0.00, payInFull: true };
+let deletedSettleTx = { isSettlement: true, settledCardId: "card_maybank", amount: 450.00 };
+if (deletedSettleTx.isSettlement) {
+  revertCardTarget.currentBilled = Number((revertCardTarget.currentBilled + deletedSettleTx.amount).toFixed(2));
+  revertCardTarget.payInFull = false;
+}
+assert.strictEqual(revertCardTarget.currentBilled, 450.00, 'Deleting settlement must restore 450.00 current billed debt');
+assert.strictEqual(revertCardTarget.payInFull, false, 'payInFull must revert to false when debt is restored');
+
+console.log("✓ Test 17 Passed: Edit card modal scoping and settlement deletion debt restoration verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

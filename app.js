@@ -1142,19 +1142,6 @@ function bindEvents() {
   }
 
 
-function populateCardLinkedBankSelect(selectedBankId) {
-  const sel = document.getElementById("card-linked-bank");
-  if (!sel) return;
-  if (!state.bankAccounts || !state.bankAccounts.length) {
-    sel.innerHTML = '<option value="">(No bank accounts configured)</option>';
-    return;
-  }
-  sel.innerHTML = state.bankAccounts.map(b => {
-    const isSel = selectedBankId ? (selectedBankId === b.id || selectedBankId === b.bank) : false;
-    const bal = getReconciledBankBalance(b);
-    return `<option value="${b.id}" ${isSel ? "selected" : ""}>🏦 ${escapeHtml(b.name)} (Balance: ${formatCurrency(bal)})</option>`;
-  }).join("");
-}
   // Credit Card Modal Handlers
   if (dom.openAddCardBtn) {
     dom.openAddCardBtn.addEventListener("click", () => {
@@ -2124,7 +2111,21 @@ function deleteExpense(id) {
 
   // Revert card and bank balances if deleted item was an expense
   if (deleted && deleted.type === "expense") {
-    if (deleted.wallet === "Credit Card" || deleted.cardType === "credit") {
+    // 1. Check if deleted item was a credit card bill settlement
+    const isSettle = deleted.isSettlement || (deleted.note && deleted.note.startsWith("Credit Card Settlement: "));
+    if (isSettle) {
+      const cardName = deleted.settledCardName || (deleted.note ? deleted.note.replace("Credit Card Settlement: ", "").trim() : "");
+      const targetCard = state.creditCards.find(c => c.id === deleted.settledCardId || c.name === cardName) || state.creditCards[0];
+      if (targetCard) {
+        targetCard.currentBilled = Number(((targetCard.currentBilled || 0) + deleted.amount).toFixed(2));
+        targetCard.payInFull = false;
+      }
+      // Revert funds back to the bank account that paid this settlement
+      const targetBank = state.bankAccounts.find(b => b.id === deleted.cardId || b.name === deleted.cardName || b.bank === deleted.cardName) || state.bankAccounts[0];
+      if (targetBank) {
+        targetBank.balance = Number(((targetBank.balance || 0) + deleted.amount).toFixed(2));
+      }
+    } else if (deleted.wallet === "Credit Card" || deleted.cardType === "credit") {
       const card = state.creditCards.find(c => c.id === deleted.cardId || c.name === deleted.cardName) || state.creditCards[0];
       if (card) {
         card.unbilledBalance = Math.max(0, Number(((card.unbilledBalance || 0) - deleted.amount).toFixed(2)));
@@ -3416,6 +3417,20 @@ function renderCreditCards() {
   }).join("");
 }
 
+function populateCardLinkedBankSelect(selectedBankId) {
+  const sel = document.getElementById("card-linked-bank");
+  if (!sel) return;
+  if (!state.bankAccounts || !state.bankAccounts.length) {
+    sel.innerHTML = '<option value="">(No bank accounts configured)</option>';
+    return;
+  }
+  sel.innerHTML = state.bankAccounts.map(b => {
+    const isSel = selectedBankId ? (selectedBankId === b.id || selectedBankId === b.bank) : false;
+    const bal = getReconciledBankBalance(b);
+    return `<option value="${b.id}" ${isSel ? "selected" : ""}>🏦 ${escapeHtml(b.name)} (Balance: ${formatCurrency(bal)})</option>`;
+  }).join("");
+}
+
 function openEditCardModal(cardId) {
   const card = state.creditCards.find(c => c.id === cardId);
   if (!card) return;
@@ -3462,7 +3477,7 @@ Proceed anyway (Account will become overdrawn)?`)) {
     bank.balance = Number(((bank.balance || 0) - settleAmt).toFixed(2));
   }
 
-  // 3. Log settlement expense into ledger
+  // 3. Log settlement expense into ledger with explicit credit card linkage
   state.transactions.unshift({
     id: "tx_settle_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
     type: "expense",
@@ -3472,6 +3487,9 @@ Proceed anyway (Account will become overdrawn)?`)) {
     cardId: bank ? bank.id : null,
     cardName: bank ? bank.name : "Bank Transfer",
     cardType: null,
+    isSettlement: true,
+    settledCardId: card.id,
+    settledCardName: card.name,
     date: getLocalDateString(),
     note: `Credit Card Settlement: ${card.name}`,
     createdAt: Date.now()
