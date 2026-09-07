@@ -1395,22 +1395,30 @@ function bindEvents() {
   if (dom.cancelCardBtn) dom.cancelCardBtn.addEventListener("click", () => dom.cardDialog.close());
   if (dom.cardForm) dom.cardForm.addEventListener("submit", handleSaveCreditCard);
 
-  // Release Guide Modal Handlers
+  // Release Guide Modal Handlers: Mark as seen and keep permanently archived in Notification Center
   const closeGuide = () => {
-    localStorage.setItem(STORAGE_KEYS.lastSeenRelease, "v39-credit-cards-and-notifications");
-    // Archive release guide into notifications feed
-    if (!state.notifications.some(n => n.id === "notif_release_v39")) {
-      state.notifications.push({
-        id: "notif_release_v39",
+    const latestRelease = APP_RELEASES_REGISTRY[0];
+    localStorage.setItem(STORAGE_KEYS.lastSeenRelease, latestRelease.version);
+
+    // Ensure notification exists and mark as read
+    const notifId = "notif_release_" + latestRelease.version;
+    const notif = state.notifications.find(n => n.id === notifId);
+    if (notif) {
+      notif.isRead = true;
+    } else {
+      state.notifications.unshift({
+        id: notifId,
         type: "guide",
-        title: "🎉 Version Release Guide",
+        title: `🎉 ${latestRelease.title}`,
         time: new Date().toISOString(),
         isRead: true,
-        body: "Credit Card management (cut-offs, unbilled cycles, and 5% CCRIS rule) and Notification Center are now live!"
+        body: latestRelease.features.join(" • ")
       });
-      saveStorage();
-      updateNotificationBadge();
     }
+
+    saveStorage();
+    updateNotificationBadge();
+    renderNotificationsFeed();
     dom.releaseGuideDialog?.close();
   };
 
@@ -4042,7 +4050,23 @@ const APP_RELEASES_REGISTRY = [
 function checkReleaseOnboardingGuide() {
   const latestRelease = APP_RELEASES_REGISTRY[0];
   const lastSeen = localStorage.getItem(STORAGE_KEYS.lastSeenRelease);
+  const notifId = "notif_release_" + latestRelease.version;
 
+  // 1. Ensure update reminder is permanently archived in Notification Center
+  if (!state.notifications.some(n => n.id === notifId)) {
+    state.notifications.unshift({
+      id: notifId,
+      type: "guide",
+      title: `🎉 ${latestRelease.title}`,
+      time: new Date().toISOString(),
+      isRead: (lastSeen === latestRelease.version),
+      body: latestRelease.features.join(" • ")
+    });
+    saveStorage();
+    updateNotificationBadge();
+  }
+
+  // 2. Only show the pop-up modal once if not yet seen for this release
   if (lastSeen !== latestRelease.version && dom.releaseGuideDialog) {
     const titleEl = dom.releaseGuideDialog.querySelector("h3");
     if (titleEl) titleEl.textContent = latestRelease.title;

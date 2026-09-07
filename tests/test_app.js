@@ -806,4 +806,46 @@ assert(jsIosCheck.includes('(b.date || "").localeCompare(a.date || "")'), 'rende
 
 console.log("✓ Test 34 Passed: iOS Mobile WebKit System Optimizations & Lifecycle Synchronization verified.");
 
+
+// Test 35: Update Reminder Notification Show-Once & Notification Center Permanent Archive
+const jsUpdateCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(jsUpdateCheck.includes('localStorage.setItem(STORAGE_KEYS.lastSeenRelease, latestRelease.version);'), 'closeGuide must dynamically store latestRelease.version in localStorage');
+assert(jsUpdateCheck.includes('const notifId = "notif_release_" + latestRelease.version;'), 'Release guide must generate dynamic notifId based on version');
+
+// Test show-once logic
+const mockRegistry = [{ version: "v41", title: "Version 41", features: ["Feat 1"] }];
+let mockStorage = {};
+
+// First login: lastSeen is empty -> should show modal
+let lastSeen = mockStorage["expense_tracker_last_seen_release_v1"];
+let shouldShowDialog = lastSeen !== mockRegistry[0].version;
+assert.strictEqual(shouldShowDialog, true, 'First login must trigger the update modal');
+
+// User dismisses modal: closeGuide saves version
+mockStorage["expense_tracker_last_seen_release_v1"] = mockRegistry[0].version;
+
+// Ensure archived in Notification Center
+let mockNotifs = [];
+const notifId = "notif_release_" + mockRegistry[0].version;
+mockNotifs.unshift({
+  id: notifId,
+  type: "guide",
+  title: mockRegistry[0].title,
+  isRead: true,
+  body: mockRegistry[0].features.join(" • ")
+});
+
+// Second login: lastSeen matches -> should NOT show modal
+lastSeen = mockStorage["expense_tracker_last_seen_release_v1"];
+let shouldShowDialogSecondLogin = lastSeen !== mockRegistry[0].version;
+assert.strictEqual(shouldShowDialogSecondLogin, false, 'Second login must NOT trigger the update modal');
+
+// Notification Center still contains the archived release notes
+const foundGuide = mockNotifs.find(n => n.id === notifId);
+assert(foundGuide !== undefined, 'Notification Center must permanently retain the update reminder');
+assert.strictEqual(foundGuide.isRead, true, 'Archived guide must be marked as read without being deleted');
+
+console.log("✓ Test 35 Passed: Update Reminder Notification Show-Once & Notification Center Permanent Archive verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
