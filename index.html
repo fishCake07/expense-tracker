@@ -23,7 +23,7 @@
   </style>
 
   <!-- Core Stylesheet with Cache-Buster v68 -->
-  <link rel="stylesheet" href="./style.css?v=68">
+  <link rel="stylesheet" href="./style.css?v=71">
 </head>
 <body>
   <div class="app-container">
@@ -614,10 +614,10 @@
             <button type="button" id="settings-export-json" class="btn-tool-lg">
               💾 Full JSON Backup
             </button>
-            <button type="button" id="settings-import-btn" class="btn-tool-lg">
+            <label for="settings-file-input" id="settings-import-btn" class="btn-tool-lg" style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
               📥 Import Backup (.json or .csv)
-            </button>
-            <input type="file" id="settings-file-input" accept=".json,.csv" style="display:none;">
+            </label>
+            <input type="file" id="settings-file-input" accept=".json,.csv,application/json,text/csv,text/comma-separated-values,text/plain,*/*" class="visually-hidden-input">
             <button type="button" id="force-update-cache-btn" class="btn-tool-lg" style="color: var(--primary); font-weight: 700;">
               🔄 Force Purge Cache &amp; Update App
             </button>
@@ -1383,6 +1383,6 @@
 
   </div>
 
-  <script src="./app.js?v=68" defer></script>
+  <script src="./app.js?v=71" defer></script>
 </body>
 </html>

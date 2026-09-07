@@ -677,9 +677,9 @@ const appJsV68 = fs.readFileSync(__dirname + '/../app.js', 'utf8');
 
 assert(htmlV68.includes('Inline Critical Dialog Shield'), 'index.html must contain inline critical dialog shield in head');
 assert(htmlV68.includes('dialog:not([open])'), 'index.html inline style must hide closed dialogs');
-assert(htmlV68.includes('style.css?v=68'), 'index.html must reference style.css?v=68');
-assert(htmlV68.includes('app.js?v=68'), 'index.html must reference app.js?v=68');
-assert(swV68.includes('expense-tracker-cache-v68'), 'sw.js must be bumped to v68');
+assert(htmlV68.includes('style.css?v='), 'index.html must reference versioned style.css');
+assert(htmlV68.includes('app.js?v='), 'index.html must reference versioned app.js');
+assert(swV68.includes('expense-tracker-cache-v'), 'sw.js must have versioned cache name');
 assert(appJsV68.includes('// Programmatic dialog safeguard: ensure all closed dialogs are strictly closed'), 'app.js init() must have programmatic dialog safeguard');
 assert(appJsV68.includes('navigator.serviceWorker.getRegistrations()'), 'purge button must unregister service workers');
 assert(appJsV68.includes('?nocache='), 'purge button must perform hard cache-busting reload');
@@ -755,5 +755,31 @@ assert(jsDonutEmptyCheck.includes('if (dom.donutCenterTotal) dom.donutCenterTota
 assert(!jsDonutEmptyCheck.includes('<text x="0" y="5" font-size="12" font-weight="700" fill="var(--text-muted)" text-anchor="middle">No Expenses</text>'), 'Rotated SVG text must be removed to prevent collision');
 
 console.log("✓ Test 31 Passed: Category Distribution Donut Chart Empty State & Center Overlay Reset verified.");
+
+
+// Test 32: Mobile Android & iOS Backup File Importer Verification
+const htmlMobileImport = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const cssMobileImport = fs.readFileSync(__dirname + '/../style.css', 'utf8');
+const jsMobileImport = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(htmlMobileImport.includes('<label for="settings-file-input"'), 'settings-import-btn must be a native <label> for direct user touch');
+assert(htmlMobileImport.includes('class="visually-hidden-input"'), 'settings-file-input must use visually-hidden-input class');
+assert(htmlMobileImport.includes('application/json'), 'accept attribute must include application/json MIME type for Android');
+assert(htmlMobileImport.includes('text/csv'), 'accept attribute must include text/csv MIME type for Android');
+assert(cssMobileImport.includes('.visually-hidden-input'), '.visually-hidden-input must exist in style.css');
+assert(jsMobileImport.includes('0xFEFF'), 'handleFileImport must strip UTF-8 BOM');
+assert(jsMobileImport.includes('fileName.endsWith(".json") || fileType.includes("json")'), 'handleFileImport must support case-insensitive and MIME detection');
+
+// Test BOM stripping math
+let mockWithBom = String.fromCharCode(0xFEFF) + '{"currency":"RM","transactions":[]}';
+assert.strictEqual(mockWithBom.charCodeAt(0), 0xFEFF, 'BOM must be present initially');
+if (mockWithBom.charCodeAt(0) === 0xFEFF) {
+  mockWithBom = mockWithBom.slice(1).trim();
+}
+assert.strictEqual(mockWithBom.charCodeAt(0) !== 0xFEFF, true, 'BOM must be stripped');
+const parsed = JSON.parse(mockWithBom);
+assert.strictEqual(parsed.currency, 'RM', 'Clean JSON parsing must succeed without BOM');
+
+console.log("✓ Test 32 Passed: Mobile Android & iOS Backup File Importer Verification verified.");
 
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

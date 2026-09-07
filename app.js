@@ -1690,7 +1690,7 @@ function bindEvents() {
   // Settings Data Actions (Option 3 Integration)
   dom.settingsExportCsv.addEventListener("click", exportToCSV);
   dom.settingsExportJson.addEventListener("click", exportToJSON);
-  dom.settingsImportBtn.addEventListener("click", () => dom.settingsFileInput.click());
+  if (dom.settingsImportBtn && dom.settingsImportBtn.tagName === "BUTTON") { dom.settingsImportBtn.addEventListener("click", () => dom.settingsFileInput.click()); }
   dom.settingsFileInput.addEventListener("change", handleFileImport);
 
   const purgeBtn = document.getElementById("force-update-cache-btn");
@@ -5362,20 +5362,57 @@ function handleFileImport(e) {
   if (!file) return;
 
   const reader = new FileReader();
-  const isJson = file.name.endsWith(".json");
-  const isCsv = file.name.endsWith(".csv");
+  const fileName = (file.name || "").toLowerCase();
+  const fileType = (file.type || "").toLowerCase();
 
   reader.onload = (evt) => {
     try {
-      const content = evt.target.result;
-      if (isJson) importJSONData(content);
-      else if (isCsv) importCSVData(content);
-      else showToast("Unsupported file format. Use .json or .csv.");
+      let content = (evt.target.result || "").trim();
+      // Strip UTF-8 Byte Order Mark (BOM) if present (common on mobile and Excel exports)
+      if (content.charCodeAt(0) === 0xFEFF) {
+        content = content.slice(1).trim();
+      }
+
+      // Robust Format detection for Android & iOS
+      let isJson = fileName.endsWith(".json") || fileType.includes("json");
+      let isCsv = fileName.endsWith(".csv") || fileType.includes("csv");
+
+      if (!isJson && !isCsv) {
+        // Heuristic inspection of content
+        if (content.startsWith("{") || content.startsWith("[")) {
+          isJson = true;
+        } else if (content.includes(",") && content.includes("\n")) {
+          isCsv = true;
+        }
+      }
+
+      if (isJson) {
+        try {
+          importJSONData(content);
+        } catch (jsonErr) {
+          // Fallback to CSV if JSON parse fails
+          importCSVData(content);
+        }
+      } else if (isCsv) {
+        importCSVData(content);
+      } else {
+        // Try JSON first, then CSV
+        try {
+          importJSONData(content);
+        } catch (fallbackErr) {
+          importCSVData(content);
+        }
+      }
     } catch (err) {
       showToast("Failed to parse imported file.");
     } finally {
       if (dom.settingsFileInput) dom.settingsFileInput.value = "";
     }
+  };
+
+  reader.onerror = () => {
+    showToast("Error reading file from device.");
+    if (dom.settingsFileInput) dom.settingsFileInput.value = "";
   };
 
   reader.readAsText(file);
