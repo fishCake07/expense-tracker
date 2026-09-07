@@ -782,4 +782,14 @@ assert.strictEqual(parsed.currency, 'RM', 'Clean JSON parsing must succeed witho
 
 console.log("✓ Test 32 Passed: Mobile Android & iOS Backup File Importer Verification verified.");
 
+
+// Test 33: Data Management Button Uniform Left Alignment Verification
+const htmlBtnCheck = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const cssBtnCheck = fs.readFileSync(__dirname + '/../style.css', 'utf8');
+
+assert(cssBtnCheck.includes('.btn-tool-lg {\n  display: flex;\n  align-items: center;\n  justify-content: flex-start;'), '.btn-tool-lg must have display: flex and justify-content: flex-start');
+assert(!htmlBtnCheck.includes('justify-content: center'), 'index.html settings-import-btn must not have inline centering');
+
+console.log("✓ Test 33 Passed: Data Management Button Uniform Left Alignment Verification verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
