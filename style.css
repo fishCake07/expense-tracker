@@ -1334,6 +1334,10 @@ body {
 }
 
 /* Modals & Pickers */
+dialog:not([open]) {
+  display: none !important;
+}
+
 .custom-dialog {
   border: none;
   border-radius: var(--radius-md);
@@ -3478,10 +3482,17 @@ body {
   width: 92% !important;
   height: 560px !important;
   max-height: 85vh !important;
-  display: flex !important;
-  flex-direction: column !important;
   padding: 1.25rem !important;
   overflow: hidden !important;
+}
+
+.notif-center-dialog:not([open]) {
+  display: none !important;
+}
+
+.notif-center-dialog[open] {
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .notif-tabs-row {

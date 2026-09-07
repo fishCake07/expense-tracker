@@ -659,4 +659,14 @@ assert(cssNotifCheck.includes('.notifications-feed .empty-state'), 'notification
 
 console.log("✓ Test 27 Passed: Notification Center Stable Sizing Architecture verified.");
 
+
+// Test 28: Dialog Visibility Safeguards & Notification Center [open] Scoping
+const cssVisibilityCheck = fs.readFileSync(__dirname + '/../style.css', 'utf8');
+
+assert(cssVisibilityCheck.includes('dialog:not([open]) {\n  display: none !important;'), 'Global dialog:not([open]) safeguard must exist');
+assert(cssVisibilityCheck.includes('.notif-center-dialog:not([open]) {\n  display: none !important;'), '.notif-center-dialog:not([open]) must be hidden');
+assert(cssVisibilityCheck.includes('.notif-center-dialog[open] {\n  display: flex !important;'), '.notif-center-dialog[open] must display as flex only when open');
+
+console.log("✓ Test 28 Passed: Dialog Visibility Safeguards & Notification Center [open] Scoping verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
