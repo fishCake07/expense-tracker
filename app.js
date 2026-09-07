@@ -4644,7 +4644,9 @@ function renderAnalysisPieChart() {
   const total = monthExpenses.reduce((s, t) => s + t.amount, 0);
 
   if (!total || !monthExpenses.length) {
-    dom.categoryPieChart.innerHTML = `<circle cx="0" cy="0" r="90" fill="var(--bg-subtle)" stroke="var(--border-color)" stroke-width="2"></circle><text x="0" y="5" font-size="12" font-weight="700" fill="var(--text-muted)" text-anchor="middle">No Expenses</text>`;
+    if (dom.donutCenterLabel) dom.donutCenterLabel.textContent = "No Expenses";
+    if (dom.donutCenterTotal) dom.donutCenterTotal.textContent = formatCurrency(0);
+    dom.categoryPieChart.innerHTML = `<circle cx="0" cy="0" r="77" fill="none" stroke="var(--bg-subtle)" stroke-width="28" opacity="0.6"></circle>`;
     dom.pieChartBreakdownList.innerHTML = `<p class="empty-state">No category expenses found for this month.</p>`;
     return;
   }

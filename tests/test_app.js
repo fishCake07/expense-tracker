@@ -746,4 +746,14 @@ assert.strictEqual(row2[idxType], 'income');
 
 console.log("✓ Test 30 Passed: Smart CSV Importer and 7-Column Export Round-Trip Verification verified.");
 
+
+// Test 31: Category Distribution Donut Chart Empty State & Center Overlay Reset
+const jsDonutEmptyCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(jsDonutEmptyCheck.includes('if (dom.donutCenterLabel) dom.donutCenterLabel.textContent = "No Expenses";'), 'renderAnalysisPieChart must reset center label on empty month');
+assert(jsDonutEmptyCheck.includes('if (dom.donutCenterTotal) dom.donutCenterTotal.textContent = formatCurrency(0);'), 'renderAnalysisPieChart must reset center total to RM 0.00 on empty month');
+assert(!jsDonutEmptyCheck.includes('<text x="0" y="5" font-size="12" font-weight="700" fill="var(--text-muted)" text-anchor="middle">No Expenses</text>'), 'Rotated SVG text must be removed to prevent collision');
+
+console.log("✓ Test 31 Passed: Category Distribution Donut Chart Empty State & Center Overlay Reset verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
