@@ -491,10 +491,17 @@
           </div>
         </div>
 
-        <!-- Spending by Wallet Breakdown -->
-        <div class="analysis-wallet-breakdown" id="analysis-wallet-breakdown" style="margin-top: 1.25rem;">
-          <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.65rem;">Spending by Account / Wallet</h3>
-          <div class="wallet-stats-grid" id="wallet-stats-grid"></div>
+        <!-- Spending by Payment Source Consolidated Card -->
+        <div class="payment-source-card" id="analysis-wallet-breakdown">
+          <div class="payment-source-header">
+            <h3 class="payment-source-title">SPENDING BY PAYMENT SOURCE</h3>
+            <p class="payment-source-subtitle">Distribution of transaction outflow across your active wallets</p>
+          </div>
+          <div class="payment-source-list" id="payment-source-list">
+            <!-- Dynamically populated: sorted rows with color dot, wallet name, amount, %, and progress bar -->
+          </div>
+          <!-- Backward-compatible hidden container for wallet-stats-grid -->
+          <div id="wallet-stats-grid" style="display:none;" aria-hidden="true"></div>
         </div>
 
         <!-- Insights Callout -->

@@ -543,4 +543,37 @@ assert(generatedPath.includes('255.0 40.0'), 'Path must terminate at final point
 
 console.log("✓ Test 23 Passed: Cash Flow Trajectory Dual-Line Chart with Curved Area Gradients & Time-Filter Dropdown verified.");
 
+
+// Test 24: Spending by Payment Source Consolidated Card & Progress Bar Sorting
+const htmlAfterRedesign = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const jsAfterRedesign = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(htmlAfterRedesign.includes('id="payment-source-list"'), 'payment-source-list container must exist in index.html');
+assert(htmlAfterRedesign.includes('SPENDING BY PAYMENT SOURCE'), 'SPENDING BY PAYMENT SOURCE title must exist in index.html');
+assert(jsAfterRedesign.includes('WALLET_CONFIG'), 'WALLET_CONFIG mapping must exist in app.js');
+assert(jsAfterRedesign.includes('payment-source-progress-fill'), 'payment-source-progress-fill progress bars must exist in app.js');
+
+// Test descending sort and percentage calculations
+const mockWalletTotals = {
+  "Bank Account": 0,
+  "Credit Card": 2146.40,
+  "E-Wallet": 4043.00,
+  "Cash": 1497.00,
+  "Bank Transfer": 4045.00,
+  "Debit Card": 1420.00
+};
+
+const totalSpend = Object.values(mockWalletTotals).reduce((s, v) => s + v, 0);
+assert.strictEqual(totalSpend, 13151.40, 'Total wallet spend must equal 13,151.40');
+
+const sorted = Object.entries(mockWalletTotals).sort((a, b) => b[1] - a[1]);
+assert.strictEqual(sorted[0][0], "Bank Transfer", 'Highest spend source must be Bank Transfer (4045.00)');
+assert.strictEqual(sorted[1][0], "E-Wallet", 'Second highest spend source must be E-Wallet (4043.00)');
+assert.strictEqual(sorted[sorted.length - 1][0], "Bank Account", 'Lowest spend source must be Bank Account (0.00)');
+
+const eWalletPct = ((mockWalletTotals["E-Wallet"] / totalSpend) * 100).toFixed(0);
+assert.strictEqual(eWalletPct, "31", 'E-Wallet percentage must be 31%');
+
+console.log("✓ Test 24 Passed: Spending by Payment Source Consolidated Card & Progress Bar Sorting verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

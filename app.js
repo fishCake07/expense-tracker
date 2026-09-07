@@ -462,6 +462,7 @@ const dom = {
   chartInteractiveLegend: $("chart-interactive-legend"),
   analysisInsightText: $("analysis-insight-text"),
   walletStatsGrid: $("wallet-stats-grid"),
+  paymentSourceList: $("payment-source-list") || $("wallet-stats-grid"),
   pieChartMonthSelect: $("pie-chart-month-select"),
   categoryPieChart: $("category-pie-chart"),
   pieChartBreakdownList: $("pie-chart-breakdown-list"),
@@ -5086,8 +5087,18 @@ function renderAnalysis() {
   renderWalletBreakdown(buckets);
 }
 
+const WALLET_CONFIG = {
+  "E-Wallet": { color: "#8b5cf6", barColor: "#8b5cf6", icon: "📱" },
+  "Bank Transfer": { color: "#0d9488", barColor: "#0d9488", icon: "🏛️" },
+  "Credit Card": { color: "#6366f1", barColor: "#6366f1", icon: "💳" },
+  "Debit Card": { color: "#0284c7", barColor: "#0284c7", icon: "💳" },
+  "Cash": { color: "#d97706", barColor: "#d97706", icon: "💵" },
+  "Bank Account": { color: "#64748b", barColor: "#64748b", icon: "🏦" }
+};
+
 function renderWalletBreakdown(buckets) {
-  if (!dom.walletStatsGrid) return;
+  const container = dom.paymentSourceList || dom.walletStatsGrid;
+  if (!container) return;
 
   const activeKeys = new Set(buckets.map(b => b.key));
   const periodExpenses = state.transactions.filter(t => {
@@ -5102,7 +5113,9 @@ function renderWalletBreakdown(buckets) {
     "Bank Account": 0,
     "Credit Card": 0,
     "E-Wallet": 0,
-    "Cash": 0
+    "Cash": 0,
+    "Bank Transfer": 0,
+    "Debit Card": 0
   };
 
   periodExpenses.forEach(t => {
@@ -5110,19 +5123,42 @@ function renderWalletBreakdown(buckets) {
     walletTotals[w] = (walletTotals[w] || 0) + t.amount;
   });
 
-  dom.walletStatsGrid.innerHTML = Object.entries(walletTotals).map(([wallet, amount]) => {
+  // Sort descending by spending volume (leaderboard layout)
+  const sortedEntries = Object.entries(walletTotals).sort((a, b) => b[1] - a[1]);
+
+  const htmlContent = sortedEntries.map(([wallet, amount]) => {
     const pct = totalExp > 0 ? ((amount / totalExp) * 100).toFixed(0) : 0;
-    const icon = getWalletIcon(wallet);
+    const cfg = WALLET_CONFIG[wallet] || {
+      color: "var(--primary)",
+      barColor: "var(--primary)",
+      icon: getWalletIcon(wallet)
+    };
+
     return `
-      <div class="wallet-stat-card">
-        <div class="wallet-stat-header">
-          <span>${icon} ${wallet}</span>
-          <span class="wallet-stat-pct">${pct}%</span>
+      <div class="payment-source-item" data-wallet="${escapeHtml(wallet)}">
+        <div class="payment-source-row">
+          <span class="payment-source-name">
+            <span class="payment-source-dot" style="background-color:${cfg.color};"></span>
+            <span class="payment-source-icon" aria-hidden="true">${cfg.icon}</span>
+            <span>${escapeHtml(wallet)}</span>
+          </span>
+          <div class="payment-source-figures">
+            <span class="payment-source-amount">${formatCurrency(amount)}</span>
+            <span class="payment-source-pct">(${pct}%)</span>
+          </div>
         </div>
-        <div class="wallet-stat-amount">${formatCurrency(amount)}</div>
+        <div class="payment-source-progress-track">
+          <div class="payment-source-progress-fill" style="width:${pct}%; background-color:${cfg.barColor};"></div>
+        </div>
       </div>
     `;
   }).join("");
+
+  container.innerHTML = htmlContent;
+
+  if (dom.walletStatsGrid && dom.walletStatsGrid !== container) {
+    dom.walletStatsGrid.innerHTML = htmlContent;
+  }
 }
 
 // Option 7C & Settings Render
