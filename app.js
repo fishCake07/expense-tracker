@@ -667,6 +667,7 @@ function init() {
   initSwipeGestures();
   initMovableMenuFAB();
   initUniversalBackdropDismissal();
+  initModalScrollLock();
 }
 
 // Local Timezone Helpers (Guarantees rollover at 00:00 local time)
@@ -1154,6 +1155,28 @@ function closeNavHub() {
 
 
 // Universal Click-Outside Backdrop Dismissal for ALL Modals (iOS & Android)
+// Modal Scroll Lock Engine (Prevents background rubber-band scroll bleed on iOS Safari)
+function initModalScrollLock() {
+  const syncBodyScrollLock = () => {
+    const hasOpenDialog = Array.from(document.querySelectorAll("dialog")).some(d => d.open || d.hasAttribute("open"));
+    if (hasOpenDialog) {
+      document.body.classList.add("modal-open");
+    } else {
+      document.body.classList.remove("modal-open");
+    }
+  };
+
+  document.querySelectorAll("dialog").forEach(dialog => {
+    dialog.addEventListener("close", syncBodyScrollLock);
+    dialog.addEventListener("cancel", syncBodyScrollLock);
+  });
+
+  const observer = new MutationObserver(syncBodyScrollLock);
+  document.querySelectorAll("dialog").forEach(dialog => {
+    observer.observe(dialog, { attributes: true, attributeFilter: ["open"] });
+  });
+}
+
 function initUniversalBackdropDismissal() {
   document.querySelectorAll("dialog").forEach(dialog => {
     dialog.addEventListener("click", (e) => {
@@ -4696,9 +4719,9 @@ function renderAnalysisPieChart() {
     const startAngle = cumulativeAngle;
     const endAngle = cumulativeAngle + sliceAngle;
 
-    // Convert angles to radians
-    const startRad = (startAngle * Math.PI) / 180;
-    const endRad = (endAngle * Math.PI) / 180;
+    // Convert angles to radians starting at 12 o'clock (-90deg) natively in math
+    const startRad = ((startAngle - 90) * Math.PI) / 180;
+    const endRad = ((endAngle - 90) * Math.PI) / 180;
 
     const x1out = R * Math.cos(startRad);
     const y1out = R * Math.sin(startRad);
@@ -5343,7 +5366,7 @@ function exportToCSV() {
 
   const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n");
   const today = getLocalDateString();
-  downloadBlob(new Blob([csvContent], { type: "text/csv;charset=utf-8;" }), `expenses_${today}.csv`);
+  exportFile(new Blob([csvContent], { type: "text/csv;charset=utf-8;" }), `expenses_${today}.csv`);
   showToast(`Exported ${state.transactions.length} transactions to CSV!`);
 }
 
@@ -5364,8 +5387,28 @@ function exportToJSON() {
 
   const jsonStr = JSON.stringify(backupData, null, 2);
   const today = getLocalDateString();
-  downloadBlob(new Blob([jsonStr], { type: "application/json;charset=utf-8;" }), `expense_tracker_backup_${today}.json`);
-  showToast("Full backup file downloaded!");
+  exportFile(new Blob([jsonStr], { type: "application/json;charset=utf-8;" }), `expense_tracker_backup_${today}.json`);
+  showToast("Full backup file ready!");
+}
+
+// Web Share API File Exporter with downloadBlob fallback (Guarantees iOS Standalone PWA export capability)
+async function exportFile(blob, filename) {
+  if (navigator.canShare && typeof File !== "undefined") {
+    try {
+      const file = new File([blob], filename, { type: blob.type || "application/octet-stream" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: filename
+        });
+        showToast(`Saved "${filename}"!`);
+        return;
+      }
+    } catch (err) {
+      if (err.name === "AbortError") return; // User dismissed share sheet
+    }
+  }
+  downloadBlob(blob, filename);
 }
 
 function downloadBlob(blob, filename) {

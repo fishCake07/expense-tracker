@@ -1355,6 +1355,8 @@ dialog:not([open]) {
   max-width: 380px;
   width: 90%;
   margin: auto;
+  margin-top: max(1.25rem, env(safe-area-inset-top, 0px)) !important;
+  margin-bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
   max-height: 85vh; /* Fallback for iOS < 15.4 */
   max-height: calc(88dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
@@ -3202,7 +3204,6 @@ dialog:not([open]) {
 }
 
 #category-pie-chart {
-  transform: rotate(-90deg);
   overflow: visible;
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08));
 }
@@ -4817,4 +4818,9 @@ input[type="date"]::-webkit-date-and-time-value {
   border: 0 !important;
   opacity: 0 !important;
   pointer-events: none !important;
+}
+
+body.modal-open {
+  overflow: hidden !important;
+  touch-action: none;
 }

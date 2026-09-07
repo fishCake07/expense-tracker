@@ -848,4 +848,20 @@ assert.strictEqual(foundGuide.isRead, true, 'Archived guide must be marked as re
 
 console.log("✓ Test 35 Passed: Update Reminder Notification Show-Once & Notification Center Permanent Archive verified.");
 
+
+// Test 36: iOS Parity Enhancements (Web Share API, Modal Scroll Lock, Safe Area Top Margin, Native Donut Math)
+const htmlParityCheck = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const cssParityCheck = fs.readFileSync(__dirname + '/../style.css', 'utf8');
+const jsParityCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(htmlParityCheck.includes('content="black-translucent"'), 'index.html must set apple-mobile-web-app-status-bar-style to black-translucent');
+assert(cssParityCheck.includes('margin-top: max(1.25rem, env(safe-area-inset-top, 0px)) !important;'), 'custom-dialog must enforce top safe-area clearance for iOS keyboard');
+assert(cssParityCheck.includes('body.modal-open {\n  overflow: hidden !important;\n  touch-action: none;\n}'), 'style.css must have body.modal-open scroll lock');
+assert(jsParityCheck.includes('async function exportFile('), 'app.js must define exportFile with Web Share API');
+assert(jsParityCheck.includes('navigator.canShare'), 'exportFile must check navigator.canShare for iOS file export');
+assert(jsParityCheck.includes('function initModalScrollLock()'), 'app.js must initialize modal scroll lock');
+assert(jsParityCheck.includes('(startAngle - 90) * Math.PI'), 'renderAnalysisPieChart must use native 12 oclock math');
+
+console.log("✓ Test 36 Passed: iOS Parity Enhancements (Web Share API, Modal Scroll Lock, Safe Area Top Margin, Native Donut Math) verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
