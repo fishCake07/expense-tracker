@@ -2481,6 +2481,37 @@ function processAutoDeductions() {
       sub.lastLoggedMonth = currentYm;
       autoLoggedCount++;
       names.push(sub.name);
+
+      // Check if auto-deduction overdraws bank account and record alert in Notification Center
+      let autoCheckBank = null;
+      if (sub.wallet === "Debit Card") {
+        const dc = state.debitCards.find(c => c.id === sub.sourceId || c.name === sub.sourceName || c.name === sub.cardName) || state.debitCards[0];
+        if (dc) {
+          autoCheckBank = state.bankAccounts.find(b => b.id === dc.bankAccountId || b.bank === dc.bank || (dc.name && b.name.toLowerCase().includes(dc.bank.toLowerCase()))) || state.bankAccounts[0];
+        }
+      } else if (sub.wallet === "Bank Transfer" || sub.wallet === "Bank Account") {
+        autoCheckBank = state.bankAccounts.find(b => b.id === sub.sourceId || b.name === sub.sourceName || b.name === sub.cardName || b.bank === sub.sourceName) || state.bankAccounts[0];
+      }
+
+      if (autoCheckBank) {
+        const liveBal = getReconciledBankBalance(autoCheckBank);
+        if (sub.amount > liveBal) {
+          const shortfall = (sub.amount - liveBal).toFixed(2);
+          const notifId = "notif_sub_overdrawn_" + sub.id + "_" + currentYm;
+          if (!state.notifications.some(n => n.id === notifId)) {
+            state.notifications.unshift({
+              id: notifId,
+              type: "alert",
+              cardId: autoCheckBank.id,
+              title: `⚠️ Overdrawn Alert: ${autoCheckBank.name}`,
+              time: new Date().toISOString(),
+              isRead: false,
+              decision: `Overdrawn by ${formatCurrency(shortfall)}`,
+              body: `Auto-debited "${sub.name}" (${formatCurrency(sub.amount)}) exceeded available balance in ${autoCheckBank.name}. Account is now overdrawn.`
+            });
+          }
+        }
+      }
     }
   });
 
@@ -2563,6 +2594,43 @@ function logSubscriptionNow(id) {
   const now = new Date();
   const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const today = getLocalDateString();
+
+  // Insufficient Funds / Overdrawn Pre-Transaction Verification Guard
+  let checkBank = null;
+  if (sub.wallet === "Debit Card") {
+    const dc = state.debitCards.find(c => c.id === sub.sourceId || c.name === sub.sourceName || c.name === sub.cardName) || state.debitCards[0];
+    if (dc) {
+      checkBank = state.bankAccounts.find(b => b.id === dc.bankAccountId || b.bank === dc.bank || (dc.name && b.name.toLowerCase().includes(dc.bank.toLowerCase()))) || state.bankAccounts[0];
+    }
+  } else if (sub.wallet === "Bank Transfer" || sub.wallet === "Bank Account") {
+    checkBank = state.bankAccounts.find(b => b.id === sub.sourceId || b.name === sub.sourceName || b.name === sub.cardName || b.bank === sub.sourceName) || state.bankAccounts[0];
+  } else if (sub.sourceId && state.bankAccounts.some(b => b.id === sub.sourceId)) {
+    checkBank = state.bankAccounts.find(b => b.id === sub.sourceId);
+  }
+
+  if (checkBank) {
+    const liveBal = getReconciledBankBalance(checkBank);
+    if (sub.amount > liveBal) {
+      const shortfall = (sub.amount - liveBal).toFixed(2);
+      const confirmMsg = `⚠️ Insufficient Funds in ${checkBank.name}!
+
+` +
+        `Available Balance: ${formatCurrency(liveBal)}
+` +
+        `Bill Amount: ${formatCurrency(sub.amount)}
+` +
+        `Shortfall: ${formatCurrency(shortfall)}
+
+` +
+        `Do you still want to proceed? (The account will show ⚠️ Overdrawn).
+` +
+        `Click Cancel to abort.`;
+      if (!confirm(confirmMsg)) {
+        showToast(`Logging cancelled for "${sub.name}" (Insufficient funds)`);
+        return;
+      }
+    }
+  }
 
   const autoCardType = sub.wallet === "Credit Card" ? "credit" : (sub.wallet === "Debit Card" ? "debit" : null);
   const autoWallet = sub.wallet === "Credit Card" ? "Credit Card" : (sub.wallet === "Debit Card" ? "Debit Card" : (sub.wallet === "E-Wallet" ? "E-Wallet" : "Bank Transfer"));
@@ -4631,7 +4699,7 @@ function renderAnalysisPieChart() {
     const icon = getCategoryIcon(cat);
 
     return `
-      <div class="donut-legend-row" id="donut-legend-row-${idx}" data-cat="${escapeHtml(cat)}" onmouseenter="highlightDonutCategory('${escapeHtml(cat)}', ${amt}, '${pct}', ${total})" onmouseleave="resetDonutCategory(${total})">
+      <div class="donut-legend-row" id="donut-legend-row-${idx}" data-cat="${escapeHtml(cat)}" onmouseenter="highlightDonutCategory('${escapeHtml(cat)}', ${amt}, '${pct}', ${total})" onmouseleave="resetDonutCategory(${total})" onclick="highlightDonutCategory('${escapeHtml(cat)}', ${amt}, '${pct}', ${total})">
         <div class="donut-legend-left">
           <span class="donut-legend-swatch" style="background-color:${color};"></span>
           <span class="donut-legend-name">${icon} ${escapeHtml(cat)}</span>

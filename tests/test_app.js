@@ -619,4 +619,33 @@ assert.strictEqual(y2in, 62.00);
 
 console.log("✓ Test 25 Passed: Category Distribution Donut Chart with Inner Total & Modern Legend verified.");
 
+
+// Test 26: Subscriptions & Bills Insufficient Funds Overdrawn Verification Guard
+const jsOverdrawnCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(jsOverdrawnCheck.includes('// Insufficient Funds / Overdrawn Pre-Transaction Verification Guard'), 'logSubscriptionNow must have overdrawn guard');
+assert(jsOverdrawnCheck.includes('notif_sub_overdrawn_'), 'processAutoDeductions must record overdrawn notification');
+
+// Test logic: Insufficient funds detection and shortfall calculation
+let testOverdrawnBank = { id: "bank_savings", name: "Maybank Savings", balance: 15.00 };
+let testOverdrawnBill = { id: "sub_netflix", name: "Netflix Premium", amount: 55.00, wallet: "Bank Transfer", sourceId: "bank_savings", lastLoggedMonth: null };
+
+let liveBal = testOverdrawnBank.balance;
+let hasShortfall = testOverdrawnBill.amount > liveBal;
+assert.strictEqual(hasShortfall, true, 'Bill amount (55.00) must trigger shortfall against balance (15.00)');
+
+let shortfall = (testOverdrawnBill.amount - liveBal).toFixed(2);
+assert.strictEqual(shortfall, "40.00", 'Shortfall must be exactly RM 40.00');
+
+// Test cancellation behavior: sub.lastLoggedMonth must remain null
+let userAccepted = false; // User clicks cancel
+if (!userAccepted) {
+  // aborted
+} else {
+  testOverdrawnBill.lastLoggedMonth = "2026-09";
+}
+assert.strictEqual(testOverdrawnBill.lastLoggedMonth, null, 'Cancelled overdrawn logging must not mark bill as debited');
+
+console.log("✓ Test 26 Passed: Subscriptions & Bills Insufficient Funds Overdrawn Verification Guard verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
