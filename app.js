@@ -466,6 +466,9 @@ const dom = {
   pieChartMonthSelect: $("pie-chart-month-select"),
   categoryPieChart: $("category-pie-chart"),
   pieChartBreakdownList: $("pie-chart-breakdown-list"),
+  donutCenterOverlay: $("donut-center-overlay"),
+  donutCenterLabel: $("donut-center-label"),
+  donutCenterTotal: $("donut-center-total"),
   // Settings Elements
   settingsExportCsv: $("settings-export-csv"),
   settingsExportJson: $("settings-export-json"),
@@ -4513,6 +4516,17 @@ function renderDashboardInstallments() {
 // Analysis Monthly Pie Chart Engine
 let selectedPieMonth = "";
 
+// Donut Category Hover Helpers
+function highlightDonutCategory(cat, amt, pct, total) {
+  if (dom.donutCenterLabel) dom.donutCenterLabel.textContent = cat;
+  if (dom.donutCenterTotal) dom.donutCenterTotal.textContent = formatCurrency(amt);
+}
+
+function resetDonutCategory(total) {
+  if (dom.donutCenterLabel) dom.donutCenterLabel.textContent = "Total Spent";
+  if (dom.donutCenterTotal) dom.donutCenterTotal.textContent = formatCurrency(total);
+}
+
 function renderAnalysisPieChart() {
   if (!dom.categoryPieChart || !dom.pieChartBreakdownList) return;
 
@@ -4560,12 +4574,17 @@ function renderAnalysisPieChart() {
 
   const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
 
-  // 4. Render SVG Pie Slices (Polar to Cartesian SVG Paths)
+  // Update Inner Total default display
+  if (dom.donutCenterLabel) dom.donutCenterLabel.textContent = "Total Spent";
+  if (dom.donutCenterTotal) dom.donutCenterTotal.textContent = formatCurrency(total);
+
+  // 4. Render SVG Donut Slices (Outer Radius 92, Inner Radius 62)
   let cumulativeAngle = 0;
-  const radius = 90;
+  const R = 92;
+  const r = 62;
   let svgPaths = "";
 
-  sortedCats.forEach(([cat, amt]) => {
+  sortedCats.forEach(([cat, amt], idx) => {
     const sliceAngle = (amt / total) * 360;
     const startAngle = cumulativeAngle;
     const endAngle = cumulativeAngle + sliceAngle;
@@ -4574,40 +4593,53 @@ function renderAnalysisPieChart() {
     const startRad = (startAngle * Math.PI) / 180;
     const endRad = (endAngle * Math.PI) / 180;
 
-    const x1 = radius * Math.cos(startRad);
-    const y1 = radius * Math.sin(startRad);
-    const x2 = radius * Math.cos(endRad);
-    const y2 = radius * Math.sin(endRad);
+    const x1out = R * Math.cos(startRad);
+    const y1out = R * Math.sin(startRad);
+    const x2out = R * Math.cos(endRad);
+    const y2out = R * Math.sin(endRad);
+
+    const x1in = r * Math.cos(startRad);
+    const y1in = r * Math.sin(startRad);
+    const x2in = r * Math.cos(endRad);
+    const y2in = r * Math.sin(endRad);
 
     const largeArcFlag = sliceAngle > 180 ? 1 : 0;
     const color = getCategoryColor(cat);
+    const pct = ((amt / total) * 100).toFixed(1);
 
     let d = "";
     if (sliceAngle >= 359.99) {
-      d = `M 0 -${radius} A ${radius} ${radius} 0 1 1 0 ${radius} A ${radius} ${radius} 0 1 1 0 -${radius} Z`;
+      d = `M 0 -${R} A ${R} ${R} 0 1 1 0 ${R} A ${R} ${R} 0 1 1 0 -${R} M 0 -${r} A ${r} ${r} 0 1 0 0 ${r} A ${r} ${r} 0 1 0 0 -${r} Z`;
     } else {
-      d = `M 0 0 L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+      d = `M ${x1out.toFixed(2)} ${y1out.toFixed(2)} A ${R} ${R} 0 ${largeArcFlag} 1 ${x2out.toFixed(2)} ${y2out.toFixed(2)} L ${x2in.toFixed(2)} ${y2in.toFixed(2)} A ${r} ${r} 0 ${largeArcFlag} 0 ${x1in.toFixed(2)} ${y1in.toFixed(2)} Z`;
     }
 
-    svgPaths += `<path class="pie-slice" d="${d}" fill="${color}" data-cat="${cat}" data-amt="${amt}" data-pct="${((amt/total)*100).toFixed(1)}"><title>${cat}: ${formatCurrency(amt)} (${((amt/total)*100).toFixed(1)}%)</title></path>`;
+    svgPaths += `
+      <path class="pie-slice donut-slice" id="donut-slice-${idx}" d="${d}" fill="${color}" stroke="var(--bg-surface)" stroke-width="2" data-cat="${escapeHtml(cat)}" data-amt="${amt}" data-pct="${pct}" onmouseenter="highlightDonutCategory('${escapeHtml(cat)}', ${amt}, '${pct}', ${total})" onmouseleave="resetDonutCategory(${total})">
+        <title>${escapeHtml(cat)}: ${formatCurrency(amt)} (${pct}%)</title>
+      </path>
+    `;
     cumulativeAngle += sliceAngle;
   });
 
   dom.categoryPieChart.innerHTML = svgPaths;
 
-  // 5. Render Breakdown List Cards Below (Percentage badge + Category + Price)
-  dom.pieChartBreakdownList.innerHTML = sortedCats.map(([cat, amt]) => {
+  // 5. Render Modern Legend Rows with Thin Rounded Squares & Side-by-Side Values
+  dom.pieChartBreakdownList.innerHTML = sortedCats.map(([cat, amt], idx) => {
     const pct = ((amt / total) * 100).toFixed(0);
     const color = getCategoryColor(cat);
     const icon = getCategoryIcon(cat);
 
     return `
-      <div class="pie-category-row-card">
-        <div class="pie-card-left">
-          <span class="pie-pct-badge" style="background-color:${color};">${pct}%</span>
-          <span class="pie-cat-title">${icon} ${escapeHtml(cat)}</span>
+      <div class="donut-legend-row" id="donut-legend-row-${idx}" data-cat="${escapeHtml(cat)}" onmouseenter="highlightDonutCategory('${escapeHtml(cat)}', ${amt}, '${pct}', ${total})" onmouseleave="resetDonutCategory(${total})">
+        <div class="donut-legend-left">
+          <span class="donut-legend-swatch" style="background-color:${color};"></span>
+          <span class="donut-legend-name">${icon} ${escapeHtml(cat)}</span>
         </div>
-        <span class="pie-cat-amount">${formatCurrency(amt)}</span>
+        <div class="donut-legend-right">
+          <span class="donut-legend-amount">${formatCurrency(amt)}</span>
+          <span class="donut-legend-pct" style="color:${color};">${pct}%</span>
+        </div>
       </div>
     `;
   }).join("");

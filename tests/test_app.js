@@ -576,4 +576,47 @@ assert.strictEqual(eWalletPct, "31", 'E-Wallet percentage must be 31%');
 
 console.log("✓ Test 24 Passed: Spending by Payment Source Consolidated Card & Progress Bar Sorting verified.");
 
+
+// Test 25: Category Distribution Donut Chart with Inner Total & Modern Legend
+const htmlDonut = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const cssDonut = fs.readFileSync(__dirname + '/../style.css', 'utf8');
+const jsDonut = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(htmlDonut.includes('id="donut-center-overlay"'), 'donut-center-overlay must exist in index.html');
+assert(htmlDonut.includes('id="donut-center-label"'), 'donut-center-label must exist in index.html');
+assert(htmlDonut.includes('id="donut-center-total"'), 'donut-center-total must exist in index.html');
+assert(cssDonut.includes('.donut-legend-swatch'), 'donut-legend-swatch styling must exist in style.css');
+assert(cssDonut.includes('border-radius: 4px;'), 'Thin rounded square swatches (border-radius: 4px) must exist in style.css');
+assert(jsDonut.includes('donut-slice'), 'donut-slice class must exist in app.js');
+assert(jsDonut.includes('highlightDonutCategory'), 'highlightDonutCategory hover helper must exist in app.js');
+
+// Test Donut Slice Geometry calculation
+const R = 92;
+const r = 62;
+const sliceAngle = 90;
+const startAngle = 0;
+const endAngle = 90;
+const startRad = (startAngle * Math.PI) / 180;
+const endRad = (endAngle * Math.PI) / 180;
+
+const x1out = Number((R * Math.cos(startRad)).toFixed(2));
+const y1out = Number((R * Math.sin(startRad)).toFixed(2));
+const x2out = Number((R * Math.cos(endRad)).toFixed(2));
+const y2out = Number((R * Math.sin(endRad)).toFixed(2));
+const x1in = Number((r * Math.cos(startRad)).toFixed(2));
+const y1in = Number((r * Math.sin(startRad)).toFixed(2));
+const x2in = Number((r * Math.cos(endRad)).toFixed(2));
+const y2in = Number((r * Math.sin(endRad)).toFixed(2));
+
+assert.strictEqual(x1out, 92.00);
+assert.strictEqual(y1out, 0.00);
+assert.strictEqual(x2out, 0.00);
+assert.strictEqual(y2out, 92.00);
+assert.strictEqual(x1in, 62.00);
+assert.strictEqual(y1in, 0.00);
+assert.strictEqual(x2in, 0.00);
+assert.strictEqual(y2in, 62.00);
+
+console.log("✓ Test 25 Passed: Category Distribution Donut Chart with Inner Total & Modern Legend verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

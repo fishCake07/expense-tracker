@@ -510,22 +510,26 @@
         </div>
       </section>
 
-      <!-- NEWLY ADDED: Monthly Spending Pie Chart Section -->
+      <!-- Category Distribution Donut Chart Section with Inner Total -->
       <section class="card analysis-pie-card" id="analysis-pie-card">
         <div class="card-header">
           <div>
             <h2>Category Distribution</h2>
-            <p class="dialog-sub">Visual breakdown of spending across categories.</p>
+            <p class="dialog-sub">Visual breakdown of spending across categories</p>
           </div>
           <div>
             <label for="pie-chart-month-select" class="sr-only">Month</label>
-            <select id="pie-chart-month-select" class="select-filter"></select>
+            <select id="pie-chart-month-select" class="select-filter analysis-range-select"></select>
           </div>
         </div>
 
         <div class="pie-chart-container-layout">
-          <div class="pie-svg-wrapper">
+          <div class="donut-chart-wrapper">
             <svg id="category-pie-chart" width="220" height="220" viewBox="-110 -110 220 220"></svg>
+            <div class="donut-center-overlay" id="donut-center-overlay">
+              <span class="donut-center-label" id="donut-center-label">Total Spent</span>
+              <span class="donut-center-total" id="donut-center-total">RM 0.00</span>
+            </div>
           </div>
           <div class="pie-breakdown-list" id="pie-chart-breakdown-list">
             <p class="empty-state">No category expenses found for this month.</p>
