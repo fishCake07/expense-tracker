@@ -1563,7 +1563,7 @@ dialog:not([open]) {
 
   .header-controls select {
     padding: 0.25rem 0.45rem !important;
-    font-size: 0.75rem !important;
+    font-size: 16px !important;
   }
 
   /* Spendable Hero Card Density */
@@ -1844,7 +1844,7 @@ dialog:not([open]) {
   .history-actions select {
     flex: 1 !important;
     min-width: 0 !important;
-    font-size: 0.74rem !important;
+    font-size: 16px !important;
     padding: 0.3rem 0.35rem !important;
   }
 
@@ -1862,7 +1862,7 @@ dialog:not([open]) {
   }
 
   .search-input-wrapper input {
-    font-size: 0.78rem !important;
+    font-size: 16px !important;
     padding: 0.35rem 1.5rem 0.35rem 1.75rem !important;
   }
 
@@ -1873,7 +1873,7 @@ dialog:not([open]) {
   .custom-date-row input {
     flex: 1 !important;
     min-width: 0 !important;
-    font-size: 0.72rem !important;
+    font-size: 16px !important;
     padding: 0.25rem 0.35rem !important;
   }
 
@@ -2645,6 +2645,7 @@ dialog:not([open]) {
   left: 20px;
   width: 52px;
   height: 52px;
+  touch-action: none !important;
   border-radius: 50%;
   background: var(--primary);
   color: #ffffff;

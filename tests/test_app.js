@@ -792,4 +792,18 @@ assert(!htmlBtnCheck.includes('justify-content: center'), 'index.html settings-i
 
 console.log("✓ Test 33 Passed: Data Management Button Uniform Left Alignment Verification verified.");
 
+
+// Test 34: iOS Mobile WebKit System Optimizations & Lifecycle Synchronization
+const cssIosCheck = fs.readFileSync(__dirname + '/../style.css', 'utf8');
+const jsIosCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(cssIosCheck.includes('.search-input-wrapper input {\n    font-size: 16px !important;'), 'search input must enforce 16px to prevent iOS auto-zoom');
+assert(cssIosCheck.includes('.custom-date-row input {\n    flex: 1 !important;\n    min-width: 0 !important;\n    font-size: 16px !important;'), 'custom date inputs must enforce 16px to prevent iOS auto-zoom');
+assert(cssIosCheck.includes('.header-controls select {\n    padding: 0.25rem 0.45rem !important;\n    font-size: 16px !important;'), 'header select must enforce 16px to prevent iOS auto-zoom');
+assert(cssIosCheck.includes('touch-action: none !important;'), 'movable-menu-fab must have touch-action: none for iOS dragging');
+assert(jsIosCheck.includes('60000); // 60s for iOS Safari download manager'), 'downloadBlob must allow 60s for iOS Safari download confirmation');
+assert(jsIosCheck.includes('(b.date || "").localeCompare(a.date || "")'), 'renderTransactionList must use localeCompare for date sorting');
+
+console.log("✓ Test 34 Passed: iOS Mobile WebKit System Optimizations & Lifecycle Synchronization verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

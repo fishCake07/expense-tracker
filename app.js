@@ -692,9 +692,8 @@ function scheduleMidnightRollover() {
   setTimeout(() => {
     setDefaultDate();
     processAutoDeductions();
-  checkMonthEndSweepNotification();
-    renderHeroSpendableGaugeAndMetrics();
-    renderSubscriptions();
+    checkMonthEndSweepNotification();
+    render();
     scheduleMidnightRollover();
   }, msUntilMidnight);
 }
@@ -707,13 +706,12 @@ function initDateLifecycleListeners() {
       processAutoDeductions();
       checkMonthEndSweepNotification();
       checkLoanDueAlerts();
-      renderHeroSpendableGaugeAndMetrics();
-      renderSubscriptions();
+      render();
     }
   });
   window.addEventListener("focus", () => {
     setDefaultDate();
-    renderHeroSpendableGaugeAndMetrics();
+    render();
   });
 }
 
@@ -4903,7 +4901,7 @@ function renderBreakdown() {
 // Transaction List Render
 function renderTransactionList() {
   const filtered = getFilteredTransactions();
-  let list = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt - a.createdAt);
+  let list = [...filtered].sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0));
 
   if (!list.length) {
     const hasActiveFilters = state.filterCategory !== "ALL" || state.periodFilter !== "ALL" || state.searchQuery;
@@ -5354,7 +5352,7 @@ function downloadBlob(blob, filename) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 60000); // 60s for iOS Safari download manager
 }
 
 function handleFileImport(e) {
