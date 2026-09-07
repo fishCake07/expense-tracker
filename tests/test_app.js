@@ -648,4 +648,15 @@ assert.strictEqual(testOverdrawnBill.lastLoggedMonth, null, 'Cancelled overdrawn
 
 console.log("✓ Test 26 Passed: Subscriptions & Bills Insufficient Funds Overdrawn Verification Guard verified.");
 
+
+// Test 27: Notification Center Stable Sizing Architecture
+const cssNotifCheck = fs.readFileSync(__dirname + '/../style.css', 'utf8');
+
+assert(cssNotifCheck.includes('height: 560px !important;'), 'notif-center-dialog must enforce a stable 560px height');
+assert(cssNotifCheck.includes('display: flex !important;'), 'notif-center-dialog must use flex column layout');
+assert(cssNotifCheck.includes('scrollbar-gutter: stable;'), 'notifications-feed must have scrollbar-gutter: stable to prevent width jitter');
+assert(cssNotifCheck.includes('.notifications-feed .empty-state'), 'notifications-feed must center empty states');
+
+console.log("✓ Test 27 Passed: Notification Center Stable Sizing Architecture verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
