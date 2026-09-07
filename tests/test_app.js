@@ -686,4 +686,64 @@ assert(appJsV68.includes('?nocache='), 'purge button must perform hard cache-bus
 
 console.log("✓ Test 29 Passed: Cache-Busting & Deep Purge Safeguards (v68) verified.");
 
+
+// Test 30: Smart CSV Importer and 7-Column Export Round-Trip Verification
+const jsCsvCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(jsCsvCheck.includes('Smart Header Mapping'), 'importCSVData must include smart header mapping');
+assert(jsCsvCheck.includes('idxWallet'), 'importCSVData must support wallet column mapping');
+
+// Test Round-Trip CSV Parsing
+const exportedCsvSample = 'Date,Type,Category,Wallet,Note,Amount,Currency\r\n2026-09-02,expense,"Food & Dining","E-Wallet","Lunch at cafe",12.50,RM\r\n2026-09-01,income,"Salary & Wages","Bank Transfer","Monthly Salary",3500.00,RM';
+
+// Use same parseCSVLine logic
+function testParseCSVLine(t) {
+  const res = [];
+  let cur = "";
+  let inQ = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (c === '"') {
+      if (inQ && t[i + 1] === '"') { cur += '"'; i++; } else { inQ = !inQ; }
+    } else if (c === ',' && !inQ) {
+      res.push(cur);
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  res.push(cur);
+  return res;
+}
+
+const lines = exportedCsvSample.split(/\r?\n/).filter(l => l.trim().length > 0);
+const headers = testParseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+const idxDate = headers.findIndex(h => h.includes("date"));
+const idxType = headers.findIndex(h => h.includes("type"));
+const idxCat = headers.findIndex(h => h.includes("category"));
+const idxWallet = headers.findIndex(h => h.includes("wallet"));
+const idxNote = headers.findIndex(h => h.includes("note"));
+const idxAmt = headers.findIndex(h => h.includes("amount"));
+
+assert.strictEqual(idxDate, 0);
+assert.strictEqual(idxType, 1);
+assert.strictEqual(idxCat, 2);
+assert.strictEqual(idxWallet, 3);
+assert.strictEqual(idxNote, 4);
+assert.strictEqual(idxAmt, 5);
+
+const row1 = testParseCSVLine(lines[1]);
+const row1Amt = parseFloat(row1[idxAmt]);
+assert.strictEqual(row1Amt, 12.50, 'Row 1 amount must be 12.50 (not NaN)');
+assert.strictEqual(row1[idxCat], 'Food & Dining');
+assert.strictEqual(row1[idxWallet], 'E-Wallet');
+assert.strictEqual(row1[idxNote], 'Lunch at cafe');
+
+const row2 = testParseCSVLine(lines[2]);
+const row2Amt = parseFloat(row2[idxAmt]);
+assert.strictEqual(row2Amt, 3500.00, 'Row 2 amount must be 3500.00 (not NaN)');
+assert.strictEqual(row2[idxType], 'income');
+
+console.log("✓ Test 30 Passed: Smart CSV Importer and 7-Column Export Round-Trip Verification verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

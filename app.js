@@ -5415,42 +5415,96 @@ function importCSVData(csvStr) {
   const lines = csvStr.split(/\r?\n/).filter(line => line.trim().length > 0);
   if (lines.length <= 1) return showToast("CSV file is empty.");
 
+  // Smart Header Mapping
+  const headerCols = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+  const idxDate = headerCols.findIndex(h => h.includes("date"));
+  const idxType = headerCols.findIndex(h => h.includes("type"));
+  const idxCat = headerCols.findIndex(h => h.includes("category") || h.includes("cat"));
+  const idxWallet = headerCols.findIndex(h => h.includes("wallet") || h.includes("account") || h.includes("source"));
+  const idxNote = headerCols.findIndex(h => h.includes("note") || h.includes("desc") || h.includes("memo") || h.includes("detail"));
+  const idxAmt = headerCols.findIndex(h => h.includes("amount") || h.includes("amt") || h.includes("price") || h.includes("cost") || h.includes("value"));
+
   const imported = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCSVLine(lines[i]);
-    if (cols.length >= 4) {
-      let [date, typeOrCat, catOrNote, noteOrAmt, amtStr] = cols;
-      let type = "expense";
-      let category = typeOrCat;
-      let note = catOrNote;
-      let amt = parseFloat(noteOrAmt);
+    if (!cols.length) continue;
 
-      if (cols.length >= 5 && (typeOrCat === "expense" || typeOrCat === "income")) {
-        type = typeOrCat;
-        category = catOrNote;
-        note = noteOrAmt;
-        amt = parseFloat(amtStr);
-      }
+    let date = "";
+    let type = "expense";
+    let category = "Other";
+    let wallet = "Bank Account";
+    let note = "";
+    let amt = NaN;
 
-      if (date && category && !isNaN(amt) && amt > 0) {
-        imported.push({
-          id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6) + "_" + i,
-          type,
-          amount: Number(amt.toFixed(2)),
-          category: category.trim(),
-          date: date.trim(),
-          note: (note || category).trim(),
-          createdAt: Date.now()
-        });
+    if (idxAmt !== -1 && idxDate !== -1) {
+      // Smart Header-Mapped Parsing
+      date = (cols[idxDate] || "").trim();
+      if (idxType !== -1 && cols[idxType]) {
+        type = cols[idxType].trim().toLowerCase() === "income" ? "income" : "expense";
       }
+      if (idxCat !== -1 && cols[idxCat]) {
+        category = cols[idxCat].trim() || "Other";
+      }
+      if (idxWallet !== -1 && cols[idxWallet]) {
+        wallet = cols[idxWallet].trim() || "Bank Account";
+      }
+      if (idxNote !== -1 && cols[idxNote]) {
+        note = cols[idxNote].trim();
+      }
+      const rawAmtStr = (cols[idxAmt] || "").replace(/[^0-9.-]+/g, "");
+      amt = parseFloat(rawAmtStr);
+    } else if (cols.length >= 7) {
+      // Standard 7-column export: Date, Type, Category, Wallet, Note, Amount, Currency
+      date = (cols[0] || "").trim();
+      type = (cols[1] || "").trim().toLowerCase() === "income" ? "income" : "expense";
+      category = (cols[2] || "").trim() || "Other";
+      wallet = (cols[3] || "").trim() || "Bank Account";
+      note = (cols[4] || "").trim();
+      amt = parseFloat((cols[5] || "").replace(/[^0-9.-]+/g, ""));
+    } else if (cols.length >= 5) {
+      // Legacy 5-column export: Date, Type, Category, Note, Amount
+      date = (cols[0] || "").trim();
+      type = (cols[1] || "").trim().toLowerCase() === "income" ? "income" : "expense";
+      category = (cols[2] || "").trim() || "Other";
+      note = (cols[3] || "").trim();
+      amt = parseFloat((cols[4] || "").replace(/[^0-9.-]+/g, ""));
+    } else if (cols.length >= 4) {
+      // Minimal 4-column: Date, Category, Note, Amount
+      date = (cols[0] || "").trim();
+      category = (cols[1] || "").trim() || "Other";
+      note = (cols[2] || "").trim();
+      amt = parseFloat((cols[3] || "").replace(/[^0-9.-]+/g, ""));
+    }
+
+    if (date && !isNaN(amt) && amt > 0) {
+      imported.push({
+        id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6) + "_" + i,
+        type,
+        amount: Number(amt.toFixed(2)),
+        category: category || "Other",
+        wallet: wallet || "Bank Account",
+        date,
+        note: note || category || "Imported transaction",
+        createdAt: Date.now()
+      });
     }
   }
 
   if (!imported.length) return showToast("No valid rows found in CSV.");
-  state.transactions = [...imported, ...state.transactions];
+
+  const shouldMerge = state.transactions.length > 0 && confirm("Do you want to MERGE with existing records?\n\nClick OK to Merge.\nClick Cancel to REPLACE all records.");
+
+  if (shouldMerge) {
+    state.transactions = [...imported, ...state.transactions];
+  } else {
+    state.transactions = imported;
+  }
+
   saveStorage();
+  populateCategorySelects();
+  populateFilterCategories();
   render();
-  showToast(`Imported ${imported.length} transactions from CSV!`);
+  showToast(`Successfully imported ${imported.length} transactions from CSV!`);
 }
 
 function parseCSVLine(text) {
