@@ -285,6 +285,7 @@ const state = {
   customEndDate: "",
   currentFormType: "expense",
   analysisGranularity: "month",
+  analysisRange: 6,
   autoSweepSurplus: false,
   loans: [],
   creditCards: [],
@@ -455,7 +456,10 @@ const dom = {
   analysisTotalSpend: $("analysis-total-spend"),
   analysisTotalIncome: $("analysis-total-income"),
   analysisComparisonStat: $("analysis-comparison-stat"),
-  analysisBarChart: $("analysis-bar-chart"),
+  analysisLineChart: $("analysis-line-chart") || $("analysis-bar-chart"),
+  analysisBarChart: $("analysis-line-chart") || $("analysis-bar-chart"),
+  analysisRangeSelect: $("analysis-range-select"),
+  chartInteractiveLegend: $("chart-interactive-legend"),
   analysisInsightText: $("analysis-insight-text"),
   walletStatsGrid: $("wallet-stats-grid"),
   pieChartMonthSelect: $("pie-chart-month-select"),
@@ -1526,7 +1530,15 @@ function bindEvents() {
     });
   });
 
-  // Analysis Granularity Switcher (Option 7B)
+  // Analysis Range Dropdown Listener (Dual-Line Trajectory)
+  if (dom.analysisRangeSelect) {
+    dom.analysisRangeSelect.addEventListener("change", (e) => {
+      state.analysisRange = parseInt(e.target.value, 10) || 6;
+      renderAnalysis();
+    });
+  }
+
+  // Analysis Granularity Switcher (Fallback / Legacy)
   document.querySelectorAll(".gran-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".gran-btn").forEach(b => b.classList.remove("active"));
@@ -4836,39 +4848,101 @@ function renderTransactionList() {
   }).join("");
 }
 
-// Option 7B: Analysis Page Engine (Bar Chart & Trend Comparisons)
+// Option 7B: Cash Flow Trajectory Dual-Line Chart Engine with Curved Area Gradients
+let activeAnalysisBuckets = [];
+
+function highlightTrajectoryPoint(idx) {
+  if (!activeAnalysisBuckets || !activeAnalysisBuckets[idx]) return;
+  const b = activeAnalysisBuckets[idx];
+  const net = b.income - b.expenses;
+  const netSign = net >= 0 ? "+" : "";
+
+  // Highlight active dots and cursor line
+  document.querySelectorAll(".chart-point-dot").forEach(d => d.classList.remove("active"));
+  const dotInc = document.getElementById("traj-dot-inc-" + idx);
+  const dotExp = document.getElementById("traj-dot-exp-" + idx);
+  if (dotInc) dotInc.classList.add("active");
+  if (dotExp) dotExp.classList.add("active");
+
+  const cursorLine = document.getElementById("traj-cursor-line");
+  if (cursorLine && dotInc) {
+    const cx = dotInc.getAttribute("cx");
+    cursorLine.setAttribute("x1", cx);
+    cursorLine.setAttribute("x2", cx);
+    cursorLine.style.opacity = "0.75";
+  }
+
+  if (dom.chartInteractiveLegend) {
+    dom.chartInteractiveLegend.innerHTML = `
+      <div class="legend-badge legend-active-month" title="Active Month">
+        <span>📅 <strong>${b.label}</strong></span>
+      </div>
+      <div class="legend-badge legend-income">
+        <span class="legend-dot" style="background:#10b981;"></span>
+        <span>Income: <strong>${formatCurrency(b.income)}</strong></span>
+      </div>
+      <div class="legend-badge legend-expense">
+        <span class="legend-dot" style="background:#ef4444;"></span>
+        <span>Expenses: <strong>${formatCurrency(b.expenses)}</strong></span>
+      </div>
+      <div class="legend-badge legend-surplus" style="border-color:${net >= 0 ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}">
+        <span class="legend-dot" style="background:${net >= 0 ? "#3b82f6" : "#f59e0b"};"></span>
+        <span>Net: <strong>${netSign}${formatCurrency(net)}</strong></span>
+      </div>
+    `;
+  }
+}
+
+// Helper: Smooth Monotone / Cubic Bézier Spline for Curves
+function getCurvedPath(points) {
+  if (!points.length) return "";
+  if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  let path = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? 0 : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+
+    const cp1x = p1.x + (p2.x - p0.x) * 0.18;
+    const cp1y = p1.y + (p2.y - p0.y) * 0.18;
+    const cp2x = p2.x - (p3.x - p1.x) * 0.18;
+    const cp2y = p2.y - (p3.y - p1.y) * 0.18;
+
+    path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return path;
+}
+
+function getCurvedAreaPath(points, bottomY) {
+  if (!points.length) return "";
+  const linePath = getCurvedPath(points);
+  return `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${bottomY.toFixed(1)} L ${points[0].x.toFixed(1)} ${bottomY.toFixed(1)} Z`;
+}
+
+function getChartYScale(maxVal) {
+  if (maxVal <= 1000) return { ceil: 1000, mid: 500 };
+  if (maxVal <= 2500) return { ceil: 2500, mid: 1250 };
+  if (maxVal <= 5000) return { ceil: 5000, mid: 2500 };
+  if (maxVal <= 10000) return { ceil: 10000, mid: 5000 };
+  const ceil = Math.ceil(maxVal / 2500) * 2500;
+  return { ceil, mid: ceil / 2 };
+}
+
 function renderAnalysis() {
-  const gran = state.analysisGranularity; // "month", "day", "year"
+  const rangeMonths = state.analysisRange || 6;
   const now = new Date();
 
   let buckets = [];
-  // 1. Prepare Intervals
-  if (gran === "month") {
-    // Last 6 months
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleString(undefined, { month: "short" });
-      buckets.push({ key: ym, label, expenses: 0, income: 0, savings: 0 });
-    }
-  } else if (gran === "day") {
-    // Days in current month (up to 31)
-    const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dayStr = String(d).padStart(2, "0");
-      const fullDate = `${currentYm}-${dayStr}`;
-      buckets.push({ key: fullDate, label: `${d}`, expenses: 0, income: 0, savings: 0 });
-    }
-  } else if (gran === "year") {
-    // Last 3 years
-    for (let i = 2; i >= 0; i--) {
-      const yr = String(now.getFullYear() - i);
-      buckets.push({ key: yr, label: yr, expenses: 0, income: 0, savings: 0 });
-    }
+  // Prepare Intervals based on selected range (default: Last 6 Months)
+  for (let i = rangeMonths - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleString(undefined, { month: "short" });
+    buckets.push({ key: ym, label, expenses: 0, income: 0, savings: 0 });
   }
 
-  // 2. Aggregate Data
+  // Aggregate Data
   state.transactions.forEach(t => {
     if (!t.date) return;
     buckets.forEach(b => {
@@ -4884,11 +4958,13 @@ function renderAnalysis() {
     });
   });
 
-  // 3. Render Totals in Header
+  activeAnalysisBuckets = buckets;
+
+  // Render Totals in Header Cards
   const totalExp = buckets.reduce((s, b) => s + b.expenses, 0);
   const totalInc = buckets.reduce((s, b) => s + b.income, 0);
-  dom.analysisTotalSpend.textContent = formatCurrency(totalExp);
-  dom.analysisTotalIncome.textContent = formatCurrency(totalInc);
+  if (dom.analysisTotalSpend) dom.analysisTotalSpend.textContent = formatCurrency(totalExp);
+  if (dom.analysisTotalIncome) dom.analysisTotalIncome.textContent = formatCurrency(totalInc);
 
   // Comparison stat vs previous period
   if (buckets.length >= 2) {
@@ -4897,63 +4973,116 @@ function renderAnalysis() {
     if (prevBucket.expenses > 0) {
       const diffPct = (((currentBucket.expenses - prevBucket.expenses) / prevBucket.expenses) * 100).toFixed(0);
       if (diffPct < 0) {
-        dom.analysisComparisonStat.innerHTML = `<span class="text-success">📉 ${Math.abs(diffPct)}% lower</span>`;
-        dom.analysisInsightText.textContent = `Great progress! You spent ${Math.abs(diffPct)}% less in ${currentBucket.label} compared to ${prevBucket.label}.`;
+        if (dom.analysisComparisonStat) dom.analysisComparisonStat.innerHTML = `<span class="text-success">📉 ${Math.abs(diffPct)}% lower</span>`;
+        if (dom.analysisInsightText) dom.analysisInsightText.textContent = `Great progress! You spent ${Math.abs(diffPct)}% less in ${currentBucket.label} compared to ${prevBucket.label}.`;
       } else {
-        dom.analysisComparisonStat.innerHTML = `<span class="text-danger">📈 +${diffPct}% higher</span>`;
-        dom.analysisInsightText.textContent = `Spending in ${currentBucket.label} is ${diffPct}% higher than in ${prevBucket.label}. Keep an eye on non-essential categories.`;
+        if (dom.analysisComparisonStat) dom.analysisComparisonStat.innerHTML = `<span class="text-danger">📈 +${diffPct}% higher</span>`;
+        if (dom.analysisInsightText) dom.analysisInsightText.textContent = `Spending in ${currentBucket.label} is ${diffPct}% higher than in ${prevBucket.label}. Keep an eye on non-essential categories.`;
       }
     } else {
-      dom.analysisComparisonStat.textContent = "—";
-      dom.analysisInsightText.textContent = "Log more expenses across consecutive periods to generate detailed comparative insights.";
+      if (dom.analysisComparisonStat) dom.analysisComparisonStat.textContent = "—";
+      if (dom.analysisInsightText) dom.analysisInsightText.textContent = "Log more expenses across consecutive periods to generate detailed comparative insights.";
     }
   }
 
-  // 4. Render SVG Bar Chart
-  const svg = dom.analysisBarChart;
-  const maxVal = Math.max(1, ...buckets.map(b => Math.max(b.expenses, b.income, b.savings)));
-  const chartHeight = 150;
-  const chartWidth = 540;
-  const paddingLeft = 40;
-  const paddingBottom = 30;
-  const usableWidth = chartWidth - paddingLeft - 20;
-  const usableHeight = chartHeight;
+  // Render Dual-Line Chart with Curved Area Gradients
+  const svg = dom.analysisLineChart || dom.analysisBarChart;
+  if (svg) {
+    const maxDataVal = Math.max(1, ...buckets.map(b => Math.max(b.income, b.expenses)));
+    const yScale = getChartYScale(maxDataVal);
 
-  const colWidth = usableWidth / buckets.length;
-  const barWidth = Math.max(4, Math.min(18, colWidth / 3.5));
+    const chartWidth = 560;
+    const chartHeight = 230;
+    const paddingLeft = 75;
+    const paddingRight = 35;
+    const paddingTop = 24;
+    const paddingBottom = 36;
+    const usableWidth = chartWidth - paddingLeft - paddingRight;
+    const usableHeight = chartHeight - paddingTop - paddingBottom;
+    const chartBottom = paddingTop + usableHeight;
+    const chartMid = paddingTop + usableHeight / 2;
+    const chartTop = paddingTop;
 
-  let svgContent = `
-    <line x1="${paddingLeft}" y1="${chartHeight}" x2="${chartWidth - 10}" y2="${chartHeight}" stroke="var(--border-color)" stroke-width="1.5" />
-    <line x1="${paddingLeft}" y1="${chartHeight / 2}" x2="${chartWidth - 10}" y2="${chartHeight / 2}" stroke="var(--border-color)" stroke-width="1" stroke-dasharray="4" opacity="0.6" />
-    <text x="${paddingLeft - 8}" y="${chartHeight}" font-size="10" fill="var(--text-muted)" text-anchor="end">0</text>
-    <text x="${paddingLeft - 8}" y="${chartHeight / 2 + 4}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(maxVal / 2).toFixed(0)}</text>
-    <text x="${paddingLeft - 8}" y="12" font-size="10" fill="var(--text-muted)" text-anchor="end">${maxVal.toFixed(0)}</text>
-  `;
+    const colStep = buckets.length > 1 ? usableWidth / (buckets.length - 1) : usableWidth;
+    const incomePoints = [];
+    const expensePoints = [];
 
-  buckets.forEach((b, i) => {
-    const xBase = paddingLeft + (i * colWidth) + (colWidth / 2);
-    const expH = (b.expenses / maxVal) * usableHeight;
-    const incH = (b.income / maxVal) * usableHeight;
-    const savH = (b.savings / maxVal) * usableHeight;
+    buckets.forEach((b, i) => {
+      const x = paddingLeft + (i * colStep);
+      const incY = Math.max(chartTop, chartBottom - (b.income / yScale.ceil) * usableHeight);
+      const expY = Math.max(chartTop, chartBottom - (b.expenses / yScale.ceil) * usableHeight);
+      incomePoints.push({ x, y: incY, bucket: b, idx: i });
+      expensePoints.push({ x, y: expY, bucket: b, idx: i });
+    });
 
-    // Bars
-    svgContent += `
-      <g class="chart-col-group">
-        <!-- Expenses Bar (Red) -->
-        <rect x="${xBase - barWidth * 1.6}" y="${chartHeight - expH}" width="${barWidth}" height="${expH}" fill="#ef4444" rx="2" />
-        <!-- Income Bar (Green) -->
-        <rect x="${xBase - barWidth * 0.5}" y="${chartHeight - incH}" width="${barWidth}" height="${incH}" fill="#10b981" rx="2" />
-        <!-- Savings Bar (Emerald) -->
-        <rect x="${xBase + barWidth * 0.6}" y="${chartHeight - savH}" width="${barWidth}" height="${savH}" fill="#059669" rx="2" />
-        <!-- Label -->
-        <text x="${xBase}" y="${chartHeight + 18}" font-size="${gran === 'day' ? 9 : 11}" font-weight="600" fill="var(--text-muted)" text-anchor="middle">${b.label}</text>
-      </g>
+    const incLine = getCurvedPath(incomePoints);
+    const expLine = getCurvedPath(expensePoints);
+    const incArea = getCurvedAreaPath(incomePoints, chartBottom);
+    const expArea = getCurvedAreaPath(expensePoints, chartBottom);
+
+    let svgContent = `
+      <defs>
+        <linearGradient id="cashflowIncomeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#10b981" stop-opacity="0.30" />
+          <stop offset="65%" stop-color="#10b981" stop-opacity="0.08" />
+          <stop offset="100%" stop-color="#10b981" stop-opacity="0.00" />
+        </linearGradient>
+        <linearGradient id="cashflowExpenseGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ef4444" stop-opacity="0.25" />
+          <stop offset="65%" stop-color="#ef4444" stop-opacity="0.06" />
+          <stop offset="100%" stop-color="#ef4444" stop-opacity="0.00" />
+        </linearGradient>
+      </defs>
+
+      <!-- Y Axis Grid lines -->
+      <line x1="${paddingLeft}" y1="${chartTop}" x2="${chartWidth - paddingRight}" y2="${chartTop}" stroke="var(--border-color)" stroke-width="1" stroke-dasharray="4" opacity="0.45" />
+      <line x1="${paddingLeft}" y1="${chartMid}" x2="${chartWidth - paddingRight}" y2="${chartMid}" stroke="var(--border-color)" stroke-width="1" stroke-dasharray="4" opacity="0.45" />
+      <line x1="${paddingLeft}" y1="${chartBottom}" x2="${chartWidth - paddingRight}" y2="${chartBottom}" stroke="var(--border-color)" stroke-width="1.5" />
+
+      <!-- Y Axis Currency Labels -->
+      <text x="${paddingLeft - 10}" y="${chartTop + 4}" font-size="10" font-weight="600" fill="var(--text-muted)" text-anchor="end">${formatCurrency(yScale.ceil)}</text>
+      <text x="${paddingLeft - 10}" y="${chartMid + 4}" font-size="10" font-weight="600" fill="var(--text-muted)" text-anchor="end">${formatCurrency(yScale.mid)}</text>
+      <text x="${paddingLeft - 10}" y="${chartBottom + 4}" font-size="10" font-weight="600" fill="var(--text-muted)" text-anchor="end">${formatCurrency(0)}</text>
+
+      <!-- Curved Area Gradients -->
+      <path d="${incArea}" fill="url(#cashflowIncomeGrad)" />
+      <path d="${expArea}" fill="url(#cashflowExpenseGrad)" />
+
+      <!-- Cursor Line for Hover/Selection -->
+      <line id="traj-cursor-line" x1="${incomePoints[incomePoints.length - 1].x.toFixed(1)}" y1="${chartTop}" x2="${incomePoints[incomePoints.length - 1].x.toFixed(1)}" y2="${chartBottom}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3" opacity="0.5" style="transition:all 0.2s ease;" />
+
+      <!-- Curved Line Strokes -->
+      <path d="${incLine}" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="${expLine}" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
     `;
-  });
 
-  svg.innerHTML = svgContent;
+    // Data dots, X labels, and touch hover zones
+    buckets.forEach((b, i) => {
+      const x = incomePoints[i].x;
+      const incY = incomePoints[i].y;
+      const expY = expensePoints[i].y;
+      const isLatest = (i === buckets.length - 1);
 
-  // Render Spending by Wallet Breakdown (Queue Item 1)
+      svgContent += `
+        <!-- X Axis Month Label -->
+        <text x="${x.toFixed(1)}" y="${chartBottom + 20}" font-size="11" font-weight="600" fill="var(--text-muted)" text-anchor="middle">${b.label}</text>
+
+        <!-- Point Dots -->
+        <circle id="traj-dot-inc-${i}" cx="${x.toFixed(1)}" cy="${incY.toFixed(1)}" r="${isLatest ? 5.5 : 4}" fill="var(--bg-surface)" stroke="#10b981" stroke-width="${isLatest ? 3 : 2.5}" class="chart-point-dot ${isLatest ? 'active' : ''}" />
+        <circle id="traj-dot-exp-${i}" cx="${x.toFixed(1)}" cy="${expY.toFixed(1)}" r="${isLatest ? 5.5 : 4}" fill="var(--bg-surface)" stroke="#ef4444" stroke-width="${isLatest ? 3 : 2.5}" class="chart-point-dot ${isLatest ? 'active' : ''}" />
+
+        <!-- Interactive Column Tap / Hover Zone -->
+        <rect x="${(x - colStep / 2).toFixed(1)}" y="${chartTop}" width="${colStep.toFixed(1)}" height="${(usableHeight + 25).toFixed(1)}" fill="transparent" class="chart-hover-zone" data-idx="${i}" style="cursor:pointer;" onmouseenter="highlightTrajectoryPoint(${i})" onclick="highlightTrajectoryPoint(${i})" />
+      `;
+    });
+
+    svg.innerHTML = svgContent;
+
+    // Highlight latest month by default in interactive legend
+    highlightTrajectoryPoint(buckets.length - 1);
+  }
+
+  // Render Spending by Wallet Breakdown
   renderWalletBreakdown(buckets);
 }
 

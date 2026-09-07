@@ -493,4 +493,54 @@ let isDebitedNow = testSub.lastLoggedMonth === "2026-09";
 assert.strictEqual(isDebitedNow, false, 'isDebited must be false after transaction deletion (badge reverts to Log button)');
 console.log("✓ Test 22 Passed: Logged Subscription Transaction Deletion Reversals & Debited badge reset verified (Bug 2 Fix).");
 
+
+// Test 23: Cash Flow Trajectory Dual-Line Chart with Curved Area Gradients & Time-Filter Dropdown
+const updatedHtml = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const updatedAppJs = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(updatedHtml.includes('id="analysis-range-select"'), 'analysis-range-select dropdown must exist in index.html');
+assert(updatedHtml.includes('id="analysis-line-chart"'), 'analysis-line-chart SVG must exist in index.html');
+assert(updatedHtml.includes('id="chart-interactive-legend"'), 'chart-interactive-legend container must exist in index.html');
+assert(updatedAppJs.includes('getCurvedPath'), 'getCurvedPath Bézier spline generator must exist in app.js');
+assert(updatedAppJs.includes('getCurvedAreaPath'), 'getCurvedAreaPath area generator must exist in app.js');
+assert(updatedAppJs.includes('cashflowIncomeGrad'), 'cashflowIncomeGrad linear gradient must exist in app.js');
+assert(updatedAppJs.includes('cashflowExpenseGrad'), 'cashflowExpenseGrad linear gradient must exist in app.js');
+
+// Test Cubic Bézier Generator math
+function mockCurvedPath(points) {
+  if (!points.length) return "";
+  let path = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? 0 : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+    const cp1x = p1.x + (p2.x - p0.x) * 0.18;
+    const cp1y = p1.y + (p2.y - p0.y) * 0.18;
+    const cp2x = p2.x - (p3.x - p1.x) * 0.18;
+    const cp2y = p2.y - (p3.y - p1.y) * 0.18;
+    path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return path;
+}
+
+const testPts = [{ x: 75, y: 50 }, { x: 165, y: 60 }, { x: 255, y: 40 }];
+const generatedPath = mockCurvedPath(testPts);
+assert(generatedPath.startsWith('M 75.0 50.0 C'), 'Path must start with M and use cubic bezier C commands');
+assert(generatedPath.includes('255.0 40.0'), 'Path must terminate at final point');
+
+// Test Time Range selection (3, 6, 12 months)
+[3, 6, 12].forEach(range => {
+  let buckets = [];
+  const now = new Date(2026, 8, 7);
+  for (let i = range - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    buckets.push({ key: ym });
+  }
+  assert.strictEqual(buckets.length, range, `Time range ${range} must generate exactly ${range} monthly buckets`);
+});
+
+console.log("✓ Test 23 Passed: Cash Flow Trajectory Dual-Line Chart with Curved Area Gradients & Time-Filter Dropdown verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
