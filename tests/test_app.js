@@ -669,4 +669,21 @@ assert(cssVisibilityCheck.includes('.notif-center-dialog[open] {\n  display: fle
 
 console.log("✓ Test 28 Passed: Dialog Visibility Safeguards & Notification Center [open] Scoping verified.");
 
+
+// Test 29: Cache-Busting & Deep Purge Safeguards (v68)
+const htmlV68 = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const swV68 = fs.readFileSync(__dirname + '/../sw.js', 'utf8');
+const appJsV68 = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(htmlV68.includes('Inline Critical Dialog Shield'), 'index.html must contain inline critical dialog shield in head');
+assert(htmlV68.includes('dialog:not([open])'), 'index.html inline style must hide closed dialogs');
+assert(htmlV68.includes('style.css?v=68'), 'index.html must reference style.css?v=68');
+assert(htmlV68.includes('app.js?v=68'), 'index.html must reference app.js?v=68');
+assert(swV68.includes('expense-tracker-cache-v68'), 'sw.js must be bumped to v68');
+assert(appJsV68.includes('// Programmatic dialog safeguard: ensure all closed dialogs are strictly closed'), 'app.js init() must have programmatic dialog safeguard');
+assert(appJsV68.includes('navigator.serviceWorker.getRegistrations()'), 'purge button must unregister service workers');
+assert(appJsV68.includes('?nocache='), 'purge button must perform hard cache-busting reload');
+
+console.log("✓ Test 29 Passed: Cache-Busting & Deep Purge Safeguards (v68) verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

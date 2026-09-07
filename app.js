@@ -639,6 +639,12 @@ function getCategoryIcon(name) {
 
 // Initialize Application
 function init() {
+  // Programmatic dialog safeguard: ensure all closed dialogs are strictly closed
+  document.querySelectorAll("dialog").forEach(d => {
+    if (!d.hasAttribute("open") && d.open) {
+      try { d.close(); } catch(e) {}
+    }
+  });
   loadStorage();
   initTheme();
   setDefaultDate();
@@ -1689,15 +1695,24 @@ function bindEvents() {
 
   const purgeBtn = document.getElementById("force-update-cache-btn");
   if (purgeBtn) {
-    purgeBtn.addEventListener("click", () => {
-      if ("caches" in window) {
-        caches.keys().then(names => Promise.all(names.map(n => caches.delete(n))))
-          .then(() => {
-            showToast("Cache purged! Reloading latest build...");
-            setTimeout(() => { window.location.reload(true); }, 500);
-          });
-      } else {
-        window.location.reload(true);
+    purgeBtn.addEventListener("click", async () => {
+      showToast("Purging all caches & service workers...");
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(r => r.unregister()));
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        sessionStorage.clear();
+        showToast("Cache purged! Reloading fresh build...");
+        setTimeout(() => {
+          window.location.href = window.location.pathname + "?nocache=" + Date.now();
+        }, 400);
+      } catch (err) {
+        window.location.href = window.location.pathname + "?nocache=" + Date.now();
       }
     });
   }

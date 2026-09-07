@@ -14,8 +14,16 @@
   <meta name="apple-mobile-web-app-title" content="Expense Tracker">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
-  <!-- Core Stylesheet with Cache-Buster -->
-  <link rel="stylesheet" href="./style.css?v=62">
+  <!-- Inline Critical Dialog Shield (Guarantees zero leakage even before external CSS loads) -->
+  <style>
+    dialog:not([open]),
+    .notif-center-dialog:not([open]) {
+      display: none !important;
+    }
+  </style>
+
+  <!-- Core Stylesheet with Cache-Buster v68 -->
+  <link rel="stylesheet" href="./style.css?v=68">
 </head>
 <body>
   <div class="app-container">
@@ -1375,6 +1383,6 @@
 
   </div>
 
-  <script src="./app.js?v=62" defer></script>
+  <script src="./app.js?v=68" defer></script>
 </body>
 </html>
