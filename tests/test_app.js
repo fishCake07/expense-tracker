@@ -555,11 +555,10 @@ assert(jsAfterRedesign.includes('payment-source-progress-fill'), 'payment-source
 
 // Test descending sort and percentage calculations
 const mockWalletTotals = {
-  "Bank Account": 0,
-  "Credit Card": 2146.40,
-  "E-Wallet": 4043.00,
-  "Cash": 1497.00,
   "Bank Transfer": 4045.00,
+  "E-Wallet": 4043.00,
+  "Credit Card": 2146.40,
+  "Cash": 1497.00,
   "Debit Card": 1420.00
 };
 
@@ -569,7 +568,8 @@ assert.strictEqual(totalSpend, 13151.40, 'Total wallet spend must equal 13,151.4
 const sorted = Object.entries(mockWalletTotals).sort((a, b) => b[1] - a[1]);
 assert.strictEqual(sorted[0][0], "Bank Transfer", 'Highest spend source must be Bank Transfer (4045.00)');
 assert.strictEqual(sorted[1][0], "E-Wallet", 'Second highest spend source must be E-Wallet (4043.00)');
-assert.strictEqual(sorted[sorted.length - 1][0], "Bank Account", 'Lowest spend source must be Bank Account (0.00)');
+assert.strictEqual(sorted[sorted.length - 1][0], "Debit Card", 'Lowest active spend source is Debit Card (1420.00)');
+assert(!Object.keys(mockWalletTotals).includes("Bank Account"), 'Redundant Bank Account must be removed');
 
 const eWalletPct = ((mockWalletTotals["E-Wallet"] / totalSpend) * 100).toFixed(0);
 assert.strictEqual(eWalletPct, "31", 'E-Wallet percentage must be 31%');

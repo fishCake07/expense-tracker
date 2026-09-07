@@ -5227,16 +5227,16 @@ function renderWalletBreakdown(buckets) {
   const totalExp = periodExpenses.reduce((s, t) => s + t.amount, 0);
 
   const walletTotals = {
-    "Bank Account": 0,
-    "Credit Card": 0,
-    "E-Wallet": 0,
-    "Cash": 0,
     "Bank Transfer": 0,
-    "Debit Card": 0
+    "E-Wallet": 0,
+    "Credit Card": 0,
+    "Debit Card": 0,
+    "Cash": 0
   };
 
   periodExpenses.forEach(t => {
-    const w = t.wallet || "Bank Account";
+    let w = t.wallet || "Bank Transfer";
+    if (w === "Bank Account") w = "Bank Transfer";
     walletTotals[w] = (walletTotals[w] || 0) + t.amount;
   });
 
