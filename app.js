@@ -469,6 +469,8 @@ const dom = {
   donutCenterOverlay: $("donut-center-overlay"),
   donutCenterLabel: $("donut-center-label"),
   donutCenterTotal: $("donut-center-total"),
+  analysisDonutCenterLabel: $("analysis-donut-center-label") || $("donut-center-label"),
+  analysisDonutCenterTotal: $("analysis-donut-center-total") || $("donut-center-total"),
   // Settings Elements
   settingsExportCsv: $("settings-export-csv"),
   settingsExportJson: $("settings-export-json"),
@@ -966,10 +968,10 @@ function switchTab(tabName, direction = null) {
     renderDebitCards();
     renderLoans();
   } else if (tabName === "transactions") {
-    renderBreakdown();
     renderTransactionList();
   } else if (tabName === "dashboard") {
     renderHeroSpendableGaugeAndMetrics();
+    renderBreakdown();
     renderDashboardInstallments();
   } else if (tabName === "analysis") {
     renderAnalysis();

@@ -864,4 +864,30 @@ assert(jsParityCheck.includes('(startAngle - 90) * Math.PI'), 'renderAnalysisPie
 
 console.log("✓ Test 36 Passed: iOS Parity Enhancements (Web Share API, Modal Scroll Lock, Safe Area Top Margin, Native Donut Math) verified.");
 
+
+// Test 37: Dashboard Spending by Category Migration & Focused Transactions Page
+const htmlViewCheck = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const jsViewCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+const sTrans = htmlViewCheck.indexOf('id="view-transactions"');
+const sDash = htmlViewCheck.indexOf('id="view-dashboard"');
+const sAnalysis = htmlViewCheck.indexOf('id="view-analysis"');
+
+const transSectionHtml = htmlViewCheck.substring(sTrans, sDash);
+const dashSectionHtml = htmlViewCheck.substring(sDash, sAnalysis);
+
+assert(!transSectionHtml.includes('class="card breakdown-card"'), 'Transactions view must not contain breakdown-card');
+assert(transSectionHtml.includes('class="card form-section"'), 'Transactions view must retain form-section');
+assert(transSectionHtml.includes('class="card history-card"'), 'Transactions view must retain history-card');
+
+assert(dashSectionHtml.includes('class="card breakdown-card"'), 'Dashboard view must now contain breakdown-card');
+assert(dashSectionHtml.includes('class="card spendable-hero-card"'), 'Dashboard view must retain spendable-hero-card');
+assert(dashSectionHtml.includes('class="metrics-grid"'), 'Dashboard view must retain metrics-grid');
+assert(dashSectionHtml.includes('class="card dashboard-installments-card"'), 'Dashboard view must retain dashboard-installments-card');
+
+// Verify dashboard tab switch renders breakdown
+assert(jsViewCheck.includes('} else if (tabName === "dashboard") {\n    renderHeroSpendableGaugeAndMetrics();\n    renderBreakdown();\n    renderDashboardInstallments();'), 'switchTab for dashboard must call renderBreakdown');
+
+console.log("✓ Test 37 Passed: Dashboard Spending by Category Migration & Focused Transactions Page verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

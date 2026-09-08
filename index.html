@@ -23,7 +23,7 @@
   </style>
 
   <!-- Core Stylesheet with Cache-Buster v68 -->
-  <link rel="stylesheet" href="./style.css?v=76">
+  <link rel="stylesheet" href="./style.css?v=77">
 </head>
 <body>
   <div class="app-container">
@@ -300,34 +300,6 @@
         </form>
       </section>
 
-      <!-- Category Breakdown Donut Chart -->
-      <section class="card breakdown-card">
-        <div class="card-header">
-          <div>
-            <h2 id="breakdown-title">Spending by Category</h2>
-            <span class="chart-period-badge" id="chart-period-badge">This Month</span>
-          </div>
-          <span class="chart-tip" id="chart-tip">Tap slice or card to inspect</span>
-        </div>
-
-        <div class="chart-layout" id="chart-layout">
-          <div class="donut-wrapper" id="donut-wrapper">
-            <svg id="spending-donut" width="160" height="160" viewBox="0 0 160 160">
-              <circle class="donut-bg-ring" cx="80" cy="80" r="58"></circle>
-              <g id="donut-segments-group"></g>
-            </svg>
-            <div class="donut-center-info" id="donut-center-info" tabindex="0" role="button" aria-label="Donut center details, tap to reset selection">
-              <span class="donut-center-label" id="donut-center-label">Total</span>
-              <span class="donut-center-val" id="donut-center-val">RM 0.00</span>
-              <span class="donut-center-hint" id="donut-center-hint" style="display:none;">Tap to reset</span>
-            </div>
-          </div>
-          <div id="category-breakdown-list" class="breakdown-list">
-            <p class="empty-state">No categorized expenses recorded yet.</p>
-          </div>
-        </div>
-      </section>
-
       <!-- Transaction History Feed -->
       <section class="card history-card">
         <div class="card-header">
@@ -431,6 +403,35 @@
           <span class="metric-sub" id="top-category-amount">No expenses yet</span>
         </div>
       </section>
+
+      <!-- Category Breakdown Donut Chart -->
+      <section class="card breakdown-card">
+        <div class="card-header">
+          <div>
+            <h2 id="breakdown-title">Spending by Category</h2>
+            <span class="chart-period-badge" id="chart-period-badge">This Month</span>
+          </div>
+          <span class="chart-tip" id="chart-tip">Tap slice or card to inspect</span>
+        </div>
+
+        <div class="chart-layout" id="chart-layout">
+          <div class="donut-wrapper" id="donut-wrapper">
+            <svg id="spending-donut" width="160" height="160" viewBox="0 0 160 160">
+              <circle class="donut-bg-ring" cx="80" cy="80" r="58"></circle>
+              <g id="donut-segments-group"></g>
+            </svg>
+            <div class="donut-center-info" id="donut-center-info" tabindex="0" role="button" aria-label="Donut center details, tap to reset selection">
+              <span class="donut-center-label" id="donut-center-label">Total</span>
+              <span class="donut-center-val" id="donut-center-val">RM 0.00</span>
+              <span class="donut-center-hint" id="donut-center-hint" style="display:none;">Tap to reset</span>
+            </div>
+          </div>
+          <div id="category-breakdown-list" class="breakdown-list">
+            <p class="empty-state">No categorized expenses recorded yet.</p>
+          </div>
+        </div>
+      </section>
+
 
       <!-- Installment Progress Bars Summary Section -->
       <section class="card dashboard-installments-card" id="dashboard-installments-card">
@@ -1383,6 +1384,6 @@
 
   </div>
 
-  <script src="./app.js?v=76" defer></script>
+  <script src="./app.js?v=77" defer></script>
 </body>
 </html>
