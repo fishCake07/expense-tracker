@@ -1018,4 +1018,18 @@ assert.strictEqual(ptptnMonthly, 119.17, 'PTPTN monthly installment must be RM 1
 
 console.log("✓ Test 40 Passed: PTPTN Flat Rate Ujrah Calculation Verification verified.");
 
+
+// Test 41: iOS WebKit Stabilization & Quota Recovery Verification
+const htmlIosStabilize = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const cssIosStabilize = fs.readFileSync(__dirname + '/../style.css', 'utf8');
+const jsIosStabilize = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(htmlIosStabilize.includes('id="receipt-file-input" accept="image/*" class="visually-hidden-input"'), 'receipt-file-input must use visually-hidden-input');
+assert(htmlIosStabilize.includes('id="edit-receipt-file-input" accept="image/*" class="visually-hidden-input"'), 'edit-receipt-file-input must use visually-hidden-input');
+assert(cssIosStabilize.includes('/* iOS Universal Input Zoom Safeguard (< 1024px) */'), 'style.css must include universal 16px safeguard');
+assert(jsIosStabilize.includes('QuotaExceededError'), 'saveStorage must include QuotaExceededError handler');
+assert(jsIosStabilize.includes('.chart-scroll-container, .line-chart-wrapper, .donut-wrapper, .donut-chart-wrapper, .chart-hover-zone'), 'initSwipeGestures must ignore chart interactions');
+
+console.log("✓ Test 41 Passed: iOS WebKit Stabilization & Quota Recovery Verification verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

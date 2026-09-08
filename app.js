@@ -824,7 +824,27 @@ function saveStorage() {
     localStorage.setItem(STORAGE_KEYS.debitCards, JSON.stringify(state.debitCards));
     localStorage.setItem(STORAGE_KEYS.banks, JSON.stringify(state.bankAccounts));
     localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(state.notifications));
-  } catch (e) {}
+  } catch (e) {
+    // iOS Safari 5MB QuotaExceededError Recovery Safeguard
+    if (e.name === "QuotaExceededError" || e.code === 22 || e.code === 1014) {
+      let freed = false;
+      for (let i = state.transactions.length - 1; i >= 0; i--) {
+        if (state.transactions[i].receiptImage) {
+          state.transactions[i].receiptImage = null;
+          freed = true;
+          break;
+        }
+      }
+      if (freed) {
+        try {
+          localStorage.setItem(STORAGE_KEYS.tx, JSON.stringify(state.transactions));
+          showToast("Storage quota nearly full. Pruned oldest receipt to preserve ledger.");
+        } catch (retryErr) {}
+      } else {
+        showToast("Storage quota full! Export a JSON backup to clear old records.");
+      }
+    }
+  }
 }
 
 
@@ -1208,7 +1228,7 @@ function initSwipeGestures() {
     // or within 25px of the screen edge to preserve native iOS Safari Back/Forward navigation
     const isNearEdge = touchStartX < 25 || touchStartX > (window.innerWidth - 25);
     const target = e.target;
-    isIgnoredTarget = isNearEdge || !!target.closest("input, select, textarea, dialog[open], .emoji-btn, .color-swatch-btn, .movable-menu-fab, .wallet-pill-group");
+    isIgnoredTarget = isNearEdge || !!target.closest("input, select, textarea, dialog[open], .emoji-btn, .color-swatch-btn, .movable-menu-fab, .wallet-pill-group, .chart-scroll-container, .line-chart-wrapper, .donut-wrapper, .donut-chart-wrapper, .chart-hover-zone");
   }, { passive: true });
 
   document.addEventListener("touchend", (e) => {

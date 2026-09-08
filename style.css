@@ -4822,3 +4822,18 @@ body.modal-open {
   overflow: hidden !important;
   touch-action: none;
 }
+
+/* iOS Universal Input Zoom Safeguard (< 1024px) */
+@media (max-width: 1024px) {
+  input,
+  select,
+  textarea,
+  .form-group input,
+  .form-group select,
+  .select-filter,
+  .analysis-range-select,
+  .search-input-wrapper input,
+  .custom-date-row input {
+    font-size: 16px !important;
+  }
+}
