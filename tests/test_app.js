@@ -855,7 +855,7 @@ const cssParityCheck = fs.readFileSync(__dirname + '/../style.css', 'utf8');
 const jsParityCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
 
 assert(htmlParityCheck.includes('content="black-translucent"'), 'index.html must set apple-mobile-web-app-status-bar-style to black-translucent');
-assert(cssParityCheck.includes('margin-top: max(1.25rem, env(safe-area-inset-top, 0px)) !important;'), 'custom-dialog must enforce top safe-area clearance for iOS keyboard');
+assert(cssParityCheck.includes('margin: auto;'), 'custom-dialog must use margin: auto for dead-center vertical and horizontal alignment');
 assert(cssParityCheck.includes('body.modal-open {\n  overflow: hidden !important;\n  touch-action: none;\n}'), 'style.css must have body.modal-open scroll lock');
 assert(jsParityCheck.includes('async function exportFile('), 'app.js must define exportFile with Web Share API');
 assert(jsParityCheck.includes('navigator.canShare'), 'exportFile must check navigator.canShare for iOS file export');

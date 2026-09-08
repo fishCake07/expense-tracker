@@ -1354,9 +1354,7 @@ dialog:not([open]) {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
   max-width: 380px;
   width: 90%;
-  margin: auto;
-  margin-top: max(1.25rem, env(safe-area-inset-top, 0px)) !important;
-  margin-bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+  margin: auto; /* Vertically and horizontally centers the modal on both desktop and mobile */
   max-height: 85vh; /* Fallback for iOS < 15.4 */
   max-height: calc(88dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
