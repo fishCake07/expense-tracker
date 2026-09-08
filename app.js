@@ -39,7 +39,8 @@ Proceed anyway (Account will become overdrawn)?`)) {
     loan.remainingPrincipal = Math.max(0, Number(((loan.remainingPrincipal || loan.originalPrincipal) - principalPaid).toFixed(2)));
   } else {
     // Group C: PTPTN (1% flat Ujrah) & 0% IPP
-    monthlyInterest = loan.type === "PTPTN" ? Number(((loan.originalPrincipal * 0.01) / 12).toFixed(2)) : 0;
+    const effectiveRate = (loan.rate !== undefined && loan.rate !== null && !isNaN(loan.rate) && loan.rate > 0) ? loan.rate : 1.0;
+    monthlyInterest = loan.type === "PTPTN" ? Number(((loan.originalPrincipal * (effectiveRate / 100)) / 12).toFixed(2)) : 0;
     principalPaid = Math.max(0, Number((paymentAmt - monthlyInterest).toFixed(2)));
     loan.remainingPrincipal = Math.max(0, Number(((loan.remainingPrincipal || loan.originalPrincipal) - principalPaid).toFixed(2)));
   }
@@ -4125,10 +4126,12 @@ function calculateLoanSpecs(principal, annualRate, tenureMonths, type) {
     totalInterest = principal * (annualRate / 100) * years;
     monthly = (principal + totalInterest) / tenureMonths;
   } else if (type === "PTPTN") {
-    // PTPTN Ujrah 1% p.a.
-    const years = tenureMonths / 12;
-    totalInterest = principal * 0.01 * years;
-    monthly = (principal + totalInterest) / tenureMonths;
+    // PTPTN Fixed Ujrah Fee: Flat Rate Formula
+    const effectiveRate = (annualRate !== undefined && annualRate !== null && !isNaN(annualRate) && annualRate > 0) ? annualRate : 1.0;
+    const tenureYears = tenureMonths / 12;
+    totalInterest = principal * (effectiveRate / 100) * tenureYears;
+    const totalRepayable = principal + totalInterest;
+    monthly = totalRepayable / tenureMonths;
   } else if (type === "IPP_0") {
     // 0% Credit Card IPP
     totalInterest = 0;

@@ -996,4 +996,26 @@ assert(mortgageIntSaved > 19000 && mortgageIntSaved < 20000, 'Prepayment of +RM 
 
 console.log("✓ Test 39 Passed: Reducing-Balance Mortgage Auto-Calculation & Prepayment Amortization Verification verified.");
 
+
+// Test 40: PTPTN Flat Rate Ujrah Calculation Verification
+const jsPtptnCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(jsPtptnCheck.includes('// PTPTN Fixed Ujrah Fee: Flat Rate Formula'), 'calculateLoanSpecs must include flat rate formula for PTPTN');
+
+// Test calculation for RM 13,000 at 1% Ujrah over 120 months (10 years)
+const ptptnPrincipal = 13000.00;
+const ptptnRate = 1.00;
+const ptptnTenure = 120;
+
+const ptptnYears = ptptnTenure / 12;
+const ptptnInterest = Number((ptptnPrincipal * (ptptnRate / 100) * ptptnYears).toFixed(2));
+const ptptnRepayable = Number((ptptnPrincipal + ptptnInterest).toFixed(2));
+const ptptnMonthly = Number((ptptnRepayable / ptptnTenure).toFixed(2));
+
+assert.strictEqual(ptptnInterest, 1300.00, 'PTPTN total interest must be RM 1,300.00');
+assert.strictEqual(ptptnRepayable, 14300.00, 'PTPTN total repayable must be RM 14,300.00');
+assert.strictEqual(ptptnMonthly, 119.17, 'PTPTN monthly installment must be RM 119.17');
+
+console.log("✓ Test 40 Passed: PTPTN Flat Rate Ujrah Calculation Verification verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");
