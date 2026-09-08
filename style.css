@@ -52,6 +52,7 @@ html, body {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden; /* Locks horizontal viewport entirely */
+  overscroll-behavior-y: contain; /* Prevents accidental Android Chrome pull-to-refresh reload */
   position: relative;
 }
 
@@ -1122,8 +1123,14 @@ body {
   border: none;
   color: var(--text-light);
   cursor: pointer;
-  padding: 0.3rem;
+  padding: 0.4rem;
+  min-width: 38px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-sm);
+  touch-action: manipulation;
 }
 
 .btn-edit:hover {

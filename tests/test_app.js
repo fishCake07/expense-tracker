@@ -1032,4 +1032,41 @@ assert(jsIosStabilize.includes('.chart-scroll-container, .line-chart-wrapper, .d
 
 console.log("✓ Test 41 Passed: iOS WebKit Stabilization & Quota Recovery Verification verified.");
 
+// Test 42: Android Stabilization, Status Bar Theme-Color & Hardware Back Navigation Verification
+const htmlAndroid = fs.readFileSync(__dirname + "/../index.html", "utf8");
+const cssAndroid = fs.readFileSync(__dirname + "/../style.css", "utf8");
+const jsAndroid = fs.readFileSync(__dirname + "/../app.js", "utf8");
+const manifestAndroid = JSON.parse(fs.readFileSync(__dirname + "/../manifest.json", "utf8"));
+const swAndroid = fs.readFileSync(__dirname + "/../sw.js", "utf8");
+
+// 1. Manifest Theme-Color Parity (Light mode matching)
+assert.strictEqual(manifestAndroid.theme_color, "#f8fafc", "manifest.json theme_color must be #f8fafc for Android status bar contrast");
+assert.strictEqual(manifestAndroid.background_color, "#f8fafc", "manifest.json background_color must be #f8fafc");
+
+// 2. Viewport interactive-widget support for Android virtual keyboard
+assert(htmlAndroid.includes("interactive-widget=resizes-content"), "index.html viewport must include interactive-widget=resizes-content");
+
+// 3. Status bar theme-color synchronization in app.js
+assert(jsAndroid.includes("theme-color-meta"), "app.js must synchronize status bar theme-color meta tag");
+assert(jsAndroid.includes("applyTheme"), "app.js must update status bar color upon theme toggle");
+
+// 4. Android system back-button and gesture navigation
+assert(jsAndroid.includes("function initAndroidBackNavigation()"), "app.js must implement initAndroidBackNavigation");
+assert(jsAndroid.includes("initAndroidBackNavigation();"), "app.js init() must register initAndroidBackNavigation");
+assert(jsAndroid.includes("window.addEventListener(\"popstate\""), "app.js must handle popstate for Android hardware/gesture back navigation");
+
+// 5. Overscroll pull-to-refresh prevention
+assert(cssAndroid.includes("overscroll-behavior-y: contain;"), "style.css must define overscroll-behavior-y: contain to prevent accidental reloads");
+
+// 6. Accessible touch targets on micro-actions
+assert(cssAndroid.includes("min-width: 38px;"), "style.css must ensure minimum touch target widths for action buttons");
+assert(cssAndroid.includes("min-height: 38px;"), "style.css must ensure minimum touch target heights for action buttons");
+
+// 7. Service worker and cache asset alignment v82
+assert(swAndroid.includes("expense-tracker-cache-v82"), "sw.js must be updated to cache v82");
+assert(htmlAndroid.includes("style.css?v=82"), "index.html must reference style.css?v=82");
+assert(htmlAndroid.includes("app.js?v=82"), "index.html must reference app.js?v=82");
+
+console.log("✓ Test 42 Passed: Android Stabilization & Platform Integration Verification verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

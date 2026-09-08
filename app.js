@@ -671,6 +671,7 @@ function init() {
   initMovableMenuFAB();
   initUniversalBackdropDismissal();
   initModalScrollLock();
+  initAndroidBackNavigation();
 }
 
 // Local Timezone Helpers (Guarantees rollover at 00:00 local time)
@@ -930,17 +931,48 @@ function initTheme() {
   document.querySelectorAll(".theme-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.theme === state.theme);
   });
+  try {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (state.theme === "auto") {
+        applyTheme("auto");
+      }
+    });
+  } catch (e) {}
 }
 
 function applyTheme(theme) {
   state.theme = theme;
   saveStorage();
+  let effectiveTheme = theme;
   if (theme === "auto") {
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
+    effectiveTheme = prefersDark ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", effectiveTheme);
   } else {
     document.documentElement.setAttribute("data-theme", theme);
   }
+
+  // Synchronize system status bar theme-color for Android & mobile PWA
+  const statusColor = effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc";
+  let metaTheme = document.getElementById("theme-color-meta") || document.querySelector('meta[name="theme-color"]:not([media])');
+  if (!metaTheme && typeof document !== "undefined" && document.head) {
+    metaTheme = document.createElement("meta");
+    metaTheme.setAttribute("name", "theme-color");
+    metaTheme.setAttribute("id", "theme-color-meta");
+    document.head.appendChild(metaTheme);
+  }
+  if (metaTheme) {
+    metaTheme.setAttribute("content", statusColor);
+  }
+  const mediaThemes = document.querySelectorAll('meta[name="theme-color"][media]');
+  mediaThemes.forEach(m => {
+    const media = m.getAttribute("media") || "";
+    if (media.includes("light")) {
+      m.setAttribute("content", effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc");
+    } else if (media.includes("dark")) {
+      m.setAttribute("content", effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc");
+    }
+  });
 }
 
 // Navigation Tabs Router (Direction-Aware Slide & Haptic)
@@ -1179,6 +1211,78 @@ function closeNavHub() {
 
 // Universal Click-Outside Backdrop Dismissal for ALL Modals (iOS & Android)
 // Modal Scroll Lock Engine (Prevents background rubber-band scroll bleed on iOS Safari)
+// Android System Back Button & Modal History Navigation Controller
+function initAndroidBackNavigation() {
+  let isClosingFromPopState = false;
+
+  const pushModalHistory = (identifier) => {
+    try {
+      history.pushState({ modalOpen: true, modalId: identifier }, "");
+    } catch (e) {}
+  };
+
+  // Observe all dialogs opening/closing
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach(m => {
+      if (m.type === "attributes" && m.attributeName === "open") {
+        const dialog = m.target;
+        if (dialog.hasAttribute("open") || dialog.open) {
+          pushModalHistory(dialog.id || "dialog");
+        }
+      }
+    });
+  });
+
+  document.querySelectorAll("dialog").forEach(d => {
+    observer.observe(d, { attributes: true, attributeFilter: ["open"] });
+    d.addEventListener("close", () => {
+      if (!isClosingFromPopState) {
+        if (history.state && history.state.modalOpen) {
+          try { history.back(); } catch (e) {}
+        }
+      }
+    });
+  });
+
+  // Handle dynamic Nav Hub
+  if (dom.movableMenuBtn) {
+    const origOpenNavHub = openNavHub;
+    openNavHub = function() {
+      origOpenNavHub();
+      pushModalHistory("nav-hub");
+    };
+    const origCloseNavHub = closeNavHub;
+    closeNavHub = function() {
+      origCloseNavHub();
+      if (!isClosingFromPopState) {
+        if (history.state && history.state.modalOpen) {
+          try { history.back(); } catch (e) {}
+        }
+      }
+    };
+  }
+
+  // Handle hardware / gesture back navigation on Android
+  window.addEventListener("popstate", () => {
+    isClosingFromPopState = true;
+    try {
+      // 1. Close Nav Hub if active
+      if (dom.navHubBackdrop && (dom.navHubBackdrop.style.display === "flex" || dom.navHubBackdrop.style.display === "block")) {
+        closeNavHub();
+        return;
+      }
+      // 2. Close topmost open dialog
+      const openDialogs = Array.from(document.querySelectorAll("dialog")).filter(d => d.open || d.hasAttribute("open"));
+      if (openDialogs.length > 0) {
+        const topDialog = openDialogs[openDialogs.length - 1];
+        try { topDialog.close(); } catch (err) {}
+      }
+    } finally {
+      isClosingFromPopState = false;
+    }
+  });
+}
+
 function initModalScrollLock() {
   const syncBodyScrollLock = () => {
     const hasOpenDialog = Array.from(document.querySelectorAll("dialog")).some(d => d.open || d.hasAttribute("open"));
