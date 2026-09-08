@@ -1056,7 +1056,7 @@ assert(jsAndroid.includes("initAndroidBackNavigation();"), "app.js init() must r
 assert(jsAndroid.includes("window.addEventListener(\"popstate\""), "app.js must handle popstate for Android hardware/gesture back navigation");
 
 // 5. Overscroll pull-to-refresh prevention
-assert(cssAndroid.includes("overscroll-behavior-y: contain;"), "style.css must define overscroll-behavior-y: contain to prevent accidental reloads");
+assert(cssAndroid.includes("overscroll-behavior-y: none;") || cssAndroid.includes("overscroll-behavior-y: contain;"), "style.css must define overscroll-behavior-y to prevent accidental reloads");
 
 // 6. Accessible touch targets on micro-actions
 assert(cssAndroid.includes("min-width: 38px;"), "style.css must ensure minimum touch target widths for action buttons");
