@@ -4,6 +4,7 @@ const ASSETS_TO_CACHE = [
   "./index.html",
   "./style.css?v=82",
   "./app.js?v=82",
+  "./auth-sync.js?v=82",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png"
@@ -37,6 +38,7 @@ self.addEventListener("activate", (e) => {
 // Fetch Event: NETWORK-FIRST with offline Cache fallback (Crucial for iOS PWA updates)
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  if (e.request.url.includes("/api/")) return;
 
   e.respondWith(
     fetch(e.request)
