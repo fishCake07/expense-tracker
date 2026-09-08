@@ -17,8 +17,13 @@
         var effectiveTheme = (savedTheme === "dark" || (savedTheme === "auto" && prefersDark)) ? "dark" : "light";
         document.documentElement.setAttribute("data-theme", effectiveTheme);
         var themeColor = effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc";
-        var meta = document.getElementById("theme-color-meta");
-        if (meta) meta.setAttribute("content", themeColor);
+        var existing = document.getElementById("theme-color-meta");
+        if (existing) existing.remove();
+        var meta = document.createElement("meta");
+        meta.setAttribute("name", "theme-color");
+        meta.setAttribute("id", "theme-color-meta");
+        meta.setAttribute("content", themeColor);
+        document.head.appendChild(meta);
       } catch (e) {}
     })();
   </script>
