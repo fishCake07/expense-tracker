@@ -7,9 +7,21 @@
   
   <!-- PWA & Mobile Web App Meta -->
   <link rel="manifest" href="./manifest.json">
+  <!-- Single dynamic status bar theme-color (eliminates system dark mode override collision) -->
   <meta name="theme-color" content="#f8fafc" id="theme-color-meta">
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0f19">
+  <script>
+    (function() {
+      try {
+        var savedTheme = localStorage.getItem("expense_tracker_theme_v1");
+        var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var effectiveTheme = (savedTheme === "dark" || (savedTheme === "auto" && prefersDark)) ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", effectiveTheme);
+        var themeColor = effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc";
+        var meta = document.getElementById("theme-color-meta");
+        if (meta) meta.setAttribute("content", themeColor);
+      } catch (e) {}
+    })();
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Expense Tracker">

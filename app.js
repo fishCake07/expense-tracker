@@ -964,15 +964,8 @@ function applyTheme(theme) {
   if (metaTheme) {
     metaTheme.setAttribute("content", statusColor);
   }
-  const mediaThemes = document.querySelectorAll('meta[name="theme-color"][media]');
-  mediaThemes.forEach(m => {
-    const media = m.getAttribute("media") || "";
-    if (media.includes("light")) {
-      m.setAttribute("content", effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc");
-    } else if (media.includes("dark")) {
-      m.setAttribute("content", effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc");
-    }
-  });
+  // Purge any lingering media query tags so Chrome exclusively follows #theme-color-meta
+  document.querySelectorAll('meta[name="theme-color"][media]').forEach(m => m.remove());
 }
 
 // Navigation Tabs Router (Direction-Aware Slide & Haptic)
