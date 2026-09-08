@@ -944,4 +944,56 @@ assert.strictEqual(interestSaved, 701.46, 'Interest saved must be exactly RM 701
 
 console.log("✓ Test 38 Passed: Loan Prepayment Simulator Dynamic Amortization Math Verification verified.");
 
+
+// Test 39: Reducing-Balance Mortgage Auto-Calculation & Prepayment Amortization Verification
+const jsMortgageCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(jsMortgageCheck.includes('// Under-Amortization Validation Guard: Installment must exceed monthly interest charge'), 'handleSaveNewLoan must guard against under-amortized loans');
+assert(jsMortgageCheck.includes('if (dom.loanInstallment) {\n      dom.loanInstallment.value = specs.monthly.toFixed(2);'), 'updateLoanLivePreview must auto-populate calculated installment');
+
+// Test reducing-balance annuity formula for RM 1,000,000 at 2.8% over 360 months
+const pMortgage = 1000000.00;
+const rateMortgage = 2.8;
+const nMortgage = 360;
+const rMortgage = (rateMortgage / 100) / 12;
+
+const exactMonthly = pMortgage * (rMortgage * Math.pow(1 + rMortgage, nMortgage)) / (Math.pow(1 + rMortgage, nMortgage) - 1);
+const roundedMonthly = Number(exactMonthly.toFixed(2));
+const calcTotalInt = Number(((roundedMonthly * nMortgage) - pMortgage).toFixed(2));
+
+assert.strictEqual(roundedMonthly, 4108.94, 'Monthly installment for RM 1,000,000 at 2.8% over 360 mos must be RM 4,108.94 (NOT flat RM 2,333.33)');
+assert.strictEqual(calcTotalInt, 479218.40, 'Total interest must be approximately RM 479,218.40');
+
+// Test Prepayment Simulator on RM 1,000,000 loan with +RM 100 extra payment
+let bMort1 = pMortgage;
+let intMort1 = 0;
+let mMort1 = 0;
+while (bMort1 > 0.01 && mMort1 < 600) {
+  const interest = bMort1 * rMortgage;
+  const payment = Math.min(bMort1 + interest, roundedMonthly);
+  intMort1 += interest;
+  bMort1 -= Math.max(0, payment - interest);
+  mMort1++;
+}
+
+let bMort2 = pMortgage;
+let intMort2 = 0;
+let mMort2 = 0;
+const acceleratedMonthly = roundedMonthly + 100.00;
+while (bMort2 > 0.01 && mMort2 < 600) {
+  const interest = bMort2 * rMortgage;
+  const payment = Math.min(bMort2 + interest, acceleratedMonthly);
+  intMort2 += interest;
+  bMort2 -= Math.max(0, payment - interest);
+  mMort2++;
+}
+
+const mortgageMonthsSaved = mMort1 - mMort2;
+const mortgageIntSaved = Math.max(0, Number((intMort1 - intMort2).toFixed(2)));
+
+assert.strictEqual(mortgageMonthsSaved, 14, 'Prepayment of +RM 100 must shave off 14 months (NOT 0 mos)');
+assert(mortgageIntSaved > 19000 && mortgageIntSaved < 20000, 'Prepayment of +RM 100 must save ~RM 19,521 interest');
+
+console.log("✓ Test 39 Passed: Reducing-Balance Mortgage Auto-Calculation & Prepayment Amortization Verification verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

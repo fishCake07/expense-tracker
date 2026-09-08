@@ -4483,7 +4483,7 @@ function updateLoanLivePreview() {
 
   if (principal > 0 && tenure > 0) {
     const specs = calculateLoanSpecs(principal, rate, tenure, type);
-    if (dom.loanInstallment && !dom.loanInstallment.value) {
+    if (dom.loanInstallment) {
       dom.loanInstallment.value = specs.monthly.toFixed(2);
     }
     if (dom.previewInterest) dom.previewInterest.textContent = formatCurrency(specs.totalInterest);
@@ -4508,6 +4508,14 @@ function handleSaveNewLoan(e) {
 
   if (!name || isNaN(principal) || principal <= 0 || isNaN(tenureMonths) || tenureMonths <= 0 || isNaN(installment) || installment <= 0) {
     return showToast("Please enter valid loan details.");
+  }
+
+  // Under-Amortization Validation Guard: Installment must exceed monthly interest charge
+  if (type === "CAR_EIR" || type === "HOME_SBR" || type === "PERSONAL") {
+    const monthlyInterestOnly = Number(((principal * (rate / 100)) / 12).toFixed(2));
+    if (installment <= monthlyInterestOnly) {
+      return showToast(`Monthly installment must exceed monthly interest (${formatCurrency(monthlyInterestOnly)}) to amortize the loan.`);
+    }
   }
 
   const specs = calculateLoanSpecs(principal, rate, tenureMonths, type);
@@ -4586,10 +4594,16 @@ function calculateSimResults() {
   let bal1 = remPrincipal;
   let totalInt1 = 0;
   let m1 = 0;
-  while (bal1 > 0.01 && m1 < 600) {
+  const statedTenure = activeSimLoan.remainingMonths || activeSimLoan.tenureMonths || 360;
+  while (bal1 > 0.01 && m1 < 1200) {
     const interest = r > 0 ? (bal1 * r) : 0;
     const payment = Math.min(bal1 + interest, baseMonthly);
     const principalPaid = Math.max(0, payment - interest);
+    if (principalPaid <= 0.001) {
+      m1 = statedTenure;
+      totalInt1 = (activeSimLoan.totalInterest || (baseMonthly * statedTenure - remPrincipal));
+      break;
+    }
     totalInt1 += interest;
     bal1 -= principalPaid;
     m1++;
@@ -4600,7 +4614,7 @@ function calculateSimResults() {
   let bal2 = remPrincipal;
   let totalInt2 = 0;
   let m2 = 0;
-  while (bal2 > 0.01 && m2 < 600) {
+  while (bal2 > 0.01 && m2 < 1200) {
     const interest = r > 0 ? (bal2 * r) : 0;
     const payment = Math.min(bal2 + interest, newMonthly);
     const principalPaid = Math.max(0, payment - interest);
