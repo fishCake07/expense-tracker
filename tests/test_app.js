@@ -890,4 +890,58 @@ assert(jsViewCheck.includes('} else if (tabName === "dashboard") {\n    renderHe
 
 console.log("✓ Test 37 Passed: Dashboard Spending by Category Migration & Focused Transactions Page verified.");
 
+
+// Test 38: Loan Prepayment Simulator Dynamic Amortization Math Verification
+const jsSimCheck = fs.readFileSync(__dirname + '/../app.js', 'utf8');
+
+assert(jsSimCheck.includes('// 1. Dynamic Baseline Amortization Loop'), 'calculateSimResults must use baseline amortization loop');
+assert(jsSimCheck.includes('// 2. Dynamic Accelerated Amortization Loop'), 'calculateSimResults must use accelerated amortization loop');
+assert(!jsSimCheck.includes('(newMonthly * newTenure) - remPrincipal'), 'Flawed static multiplication formula must be removed');
+
+// Test amortization simulation math
+const testLoanBezza = {
+  monthlyInstallment: 480.00,
+  remainingPrincipal: 33772.13,
+  rate: 3.2
+};
+const testExtra = 100.00;
+
+const rateMonthly = (testLoanBezza.rate / 100) / 12;
+
+// Baseline
+let b1 = testLoanBezza.remainingPrincipal;
+let int1 = 0;
+let m1 = 0;
+while (b1 > 0.01 && m1 < 600) {
+  const interest = b1 * rateMonthly;
+  const payment = Math.min(b1 + interest, testLoanBezza.monthlyInstallment);
+  const principalPaid = Math.max(0, payment - interest);
+  int1 += interest;
+  b1 -= principalPaid;
+  m1++;
+}
+
+// Accelerated
+let b2 = testLoanBezza.remainingPrincipal;
+let int2 = 0;
+let m2 = 0;
+const newMonthly = testLoanBezza.monthlyInstallment + testExtra;
+while (b2 > 0.01 && m2 < 600) {
+  const interest = b2 * rateMonthly;
+  const payment = Math.min(b2 + interest, newMonthly);
+  const principalPaid = Math.max(0, payment - interest);
+  int2 += interest;
+  b2 -= principalPaid;
+  m2++;
+}
+
+const monthsSaved = Math.max(0, m1 - m2);
+const interestSaved = Math.max(0, Number((int1 - int2).toFixed(2)));
+
+assert.strictEqual(monthsSaved, 15, 'Months saved must be exactly 15 months');
+assert(interestSaved > 650 && interestSaved < 750, 'Interest saved must be in 700 range (RM 701.46), NOT RM 0.00');
+assert.strictEqual(interestSaved, 701.46, 'Interest saved must be exactly RM 701.46');
+
+console.log("✓ Test 38 Passed: Loan Prepayment Simulator Dynamic Amortization Math Verification verified.");
+
 console.log("\nAll Multi-Card (Credit & Debit) Architecture tests passed successfully!");

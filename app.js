@@ -4572,8 +4572,7 @@ function calculateSimResults() {
   const extra = parseFloat(dom.simExtraPayment.value) || 0;
   const baseMonthly = activeSimLoan.monthlyInstallment;
   const remPrincipal = activeSimLoan.remainingPrincipal || activeSimLoan.originalPrincipal;
-  const remMonths = activeSimLoan.remainingMonths;
-  const rate = activeSimLoan.rate;
+  const rate = activeSimLoan.rate || 0;
 
   if (extra <= 0) {
     dom.simTimeSaved.textContent = "0 months";
@@ -4581,31 +4580,41 @@ function calculateSimResults() {
     return;
   }
 
-  // Calculate new accelerated tenure with extra payment
-  const newMonthly = baseMonthly + extra;
   const r = (rate / 100) / 12;
 
-  if (r > 0) {
-    // Amortization payoff duration: n = -ln(1 - (P*r/M)) / ln(1+r)
-    const pTimesR = remPrincipal * r;
-    if (newMonthly > pTimesR) {
-      const newTenure = Math.ceil(-Math.log(1 - (pTimesR / newMonthly)) / Math.log(1 + r));
-      const monthsSaved = Math.max(0, remMonths - newTenure);
-      const yearsSaved = (monthsSaved / 12).toFixed(1);
-
-      const originalTotalInterest = (baseMonthly * remMonths) - remPrincipal;
-      const newTotalInterest = Math.max(0, (newMonthly * newTenure) - remPrincipal);
-      const interestSaved = Math.max(0, originalTotalInterest - newTotalInterest);
-
-      dom.simTimeSaved.textContent = `${monthsSaved} mos (${yearsSaved} yrs)`;
-      dom.simInterestSaved.textContent = formatCurrency(interestSaved);
-    }
-  } else {
-    const newTenure = Math.ceil(remPrincipal / newMonthly);
-    const monthsSaved = Math.max(0, remMonths - newTenure);
-    dom.simTimeSaved.textContent = `${monthsSaved} mos`;
-    dom.simInterestSaved.textContent = formatCurrency(0);
+  // 1. Dynamic Baseline Amortization Loop (Base Monthly Payment)
+  let bal1 = remPrincipal;
+  let totalInt1 = 0;
+  let m1 = 0;
+  while (bal1 > 0.01 && m1 < 600) {
+    const interest = r > 0 ? (bal1 * r) : 0;
+    const payment = Math.min(bal1 + interest, baseMonthly);
+    const principalPaid = Math.max(0, payment - interest);
+    totalInt1 += interest;
+    bal1 -= principalPaid;
+    m1++;
   }
+
+  // 2. Dynamic Accelerated Amortization Loop (Base + Extra Payment)
+  const newMonthly = baseMonthly + extra;
+  let bal2 = remPrincipal;
+  let totalInt2 = 0;
+  let m2 = 0;
+  while (bal2 > 0.01 && m2 < 600) {
+    const interest = r > 0 ? (bal2 * r) : 0;
+    const payment = Math.min(bal2 + interest, newMonthly);
+    const principalPaid = Math.max(0, payment - interest);
+    totalInt2 += interest;
+    bal2 -= principalPaid;
+    m2++;
+  }
+
+  const monthsSaved = Math.max(0, m1 - m2);
+  const yearsSaved = (monthsSaved / 12).toFixed(1);
+  const interestSaved = Math.max(0, Number((totalInt1 - totalInt2).toFixed(2)));
+
+  dom.simTimeSaved.textContent = `${monthsSaved} mos (${yearsSaved} yrs)`;
+  dom.simInterestSaved.textContent = formatCurrency(interestSaved);
 }
 
 
