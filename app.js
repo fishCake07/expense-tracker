@@ -940,19 +940,6 @@ function initTheme() {
   } catch (e) {}
 }
 
-// Dynamic Android status bar theme-color controller (forces Blink DOM re-evaluation)
-function updateStatusBarThemeColor(color) {
-  if (typeof document === "undefined" || !document.head) return;
-  try {
-    document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove());
-    const meta = document.createElement("meta");
-    meta.setAttribute("name", "theme-color");
-    meta.setAttribute("id", "theme-color-meta");
-    meta.setAttribute("content", color);
-    document.head.appendChild(meta);
-  } catch (e) {}
-}
-
 function applyTheme(theme) {
   state.theme = theme;
   saveStorage();
@@ -965,9 +952,20 @@ function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
   }
 
-  // Synchronize system status bar theme-color via DOM node recreation for Android & mobile PWA
+  // Synchronize system status bar theme-color for Android & mobile PWA
   const statusColor = effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc";
-  updateStatusBarThemeColor(statusColor);
+  let metaTheme = document.getElementById("theme-color-meta") || document.querySelector('meta[name="theme-color"]:not([media])');
+  if (!metaTheme && typeof document !== "undefined" && document.head) {
+    metaTheme = document.createElement("meta");
+    metaTheme.setAttribute("name", "theme-color");
+    metaTheme.setAttribute("id", "theme-color-meta");
+    document.head.appendChild(metaTheme);
+  }
+  if (metaTheme) {
+    metaTheme.setAttribute("content", statusColor);
+  }
+  // Purge any lingering media query tags so Chrome exclusively follows #theme-color-meta
+  document.querySelectorAll('meta[name="theme-color"][media]').forEach(m => m.remove());
 }
 
 // Navigation Tabs Router (Direction-Aware Slide & Haptic)
