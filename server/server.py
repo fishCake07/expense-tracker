@@ -31,6 +31,7 @@ SESSION_DURATION_DAYS = 30
 RESET_TOKEN_EXPIRE_MINUTES = 15
 
 ENTITIES = [
+    "ewallets",
     "bank_accounts",
     "credit_cards",
     "debit_cards",
@@ -113,11 +114,25 @@ class PWAAuthRequestHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
 
+    def handle_cors(self):
+        origin = self.headers.get("Origin")
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Credentials", "true")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, Authorization")
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.handle_cors()
+        self.end_headers()
+
     def send_json(self, status: int, data: dict, cookies=None):
         body = json.dumps(data).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.handle_cors()
         # Production Security Headers
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
@@ -159,7 +174,7 @@ class PWAAuthRequestHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/v1/csrf":
             token = generate_token(16)
-            cookie = f"csrf_token={token}; Path=/; SameSite=Strict"
+            cookie = f"csrf_token={token}; Path=/; SameSite=Lax"
             return self.send_json(200, {"csrf_token": token}, cookies=[cookie])
 
         conn = get_db()
@@ -297,9 +312,9 @@ class PWAAuthRequestHandler(http.server.BaseHTTPRequestHandler):
         conn.commit()
         conn.close()
 
-        cookie = f"session_id={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_DURATION_DAYS * 86400}"
+        cookie = f"session_id={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={SESSION_DURATION_DAYS * 86400}"
         csrf = generate_token(16)
-        csrf_cookie = f"csrf_token={csrf}; Path=/; SameSite=Strict"
+        csrf_cookie = f"csrf_token={csrf}; Path=/; SameSite=Lax"
         return self.send_json(201, {
             "message": "User registered successfully",
             "csrf_token": csrf,
@@ -356,9 +371,9 @@ class PWAAuthRequestHandler(http.server.BaseHTTPRequestHandler):
         conn.commit()
         conn.close()
 
-        cookie = f"session_id={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_DURATION_DAYS * 86400}"
+        cookie = f"session_id={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={SESSION_DURATION_DAYS * 86400}"
         csrf = generate_token(16)
-        csrf_cookie = f"csrf_token={csrf}; Path=/; SameSite=Strict"
+        csrf_cookie = f"csrf_token={csrf}; Path=/; SameSite=Lax"
         return self.send_json(200, {
             "message": "Login successful",
             "csrf_token": csrf,
@@ -381,7 +396,7 @@ class PWAAuthRequestHandler(http.server.BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
 
-        expired_cookie = "session_id=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+        expired_cookie = "session_id=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
         return self.send_json(200, {"message": "Logged out successfully"}, cookies=[expired_cookie])
 
     def handle_forgot_password(self):
@@ -530,7 +545,7 @@ class PWAAuthRequestHandler(http.server.BaseHTTPRequestHandler):
         conn.commit()
         conn.close()
 
-        expired_cookie = "session_id=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+        expired_cookie = "session_id=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
         return self.send_json(200, {"message": "Account and all associated data deleted successfully."}, cookies=[expired_cookie])
 
     def serve_static(self, path: str):
@@ -562,11 +577,19 @@ class PWAAuthRequestHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
-def run_server(port=8080):
+class ReusableTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
+def run_server(port=None):
+    if port is None:
+        port = int(os.environ.get("PORT", 8080))
     init_db()
-    with socketserver.TCPServer(("0.0.0.0", port), PWAAuthRequestHandler) as httpd:
+    with ReusableTCPServer(("0.0.0.0", port), PWAAuthRequestHandler) as httpd:
         print(f"Server listening on http://0.0.0.0:{port}")
-        httpd.serve_forever()
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print("Shutting down server...")
 
 if __name__ == "__main__":
     run_server()

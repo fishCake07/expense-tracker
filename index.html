@@ -17,8 +17,13 @@
         var effectiveTheme = (savedTheme === "dark" || (savedTheme === "auto" && prefersDark)) ? "dark" : "light";
         document.documentElement.setAttribute("data-theme", effectiveTheme);
         var themeColor = effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc";
-        var meta = document.getElementById("theme-color-meta");
-        if (meta) meta.setAttribute("content", themeColor);
+        var existing = document.getElementById("theme-color-meta");
+        if (existing) existing.remove();
+        var meta = document.createElement("meta");
+        meta.setAttribute("name", "theme-color");
+        meta.setAttribute("id", "theme-color-meta");
+        meta.setAttribute("content", themeColor);
+        document.head.appendChild(meta);
       } catch (e) {}
     })();
   </script>
@@ -228,6 +233,21 @@
         </div>
         <div class="bank-accounts-grid" id="bank-accounts-grid">
           <p class="empty-state">No bank accounts added yet. Click "+ Add Account" to configure liquid assets.</p>
+        </div>
+      </section>
+      <!-- 5. E-Wallets & Digital Balances (Liquid Asset Containers) -->
+      <section class="card ewallets-section">
+        <div class="card-header">
+          <div>
+            <h2>E-Wallets &amp; Digital Balances</h2>
+            <span class="sub-total-commitment" id="ewallets-total-summary">Digital prepaid balances</span>
+          </div>
+          <button type="button" id="open-add-ewallet-btn" class="btn-primary-sm">
+            ➕ Add E-Wallet
+          </button>
+        </div>
+        <div class="bank-accounts-grid" id="ewallets-grid">
+          <p class="empty-state">No e-wallets added yet. Click "+ Add E-Wallet" to configure digital funds.</p>
         </div>
       </section>
     </div>
@@ -1402,6 +1422,84 @@
 
 
         <!-- ================= MODAL: AUTHENTICATION & CLOUD SYNC ================= -->
+    <!-- Add / Edit E-Wallet Modal -->
+    <dialog id="ewallet-dialog" class="custom-dialog">
+      <div class="receipt-dialog-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.25rem;">📱</span>
+          <h3 id="ewallet-modal-title">Add E-Wallet</h3>
+        </div>
+        <button type="button" id="close-ewallet-modal-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+      </div>
+      <p class="dialog-sub">Configure your Malaysian digital wallet and current stored balance.</p>
+
+      <form id="ewallet-form" novalidate style="margin-top: 1rem;">
+        <input type="hidden" id="ewallet-edit-id" value="">
+
+        <div class="form-group">
+          <label for="ewallet-type-select">E-Wallet Type *</label>
+          <select id="ewallet-type-select" required>
+            <option value="TNG" selected>Touch 'n Go eWallet</option>
+            <option value="GRABPAY">GrabPay</option>
+            <option value="BOOST">Boost</option>
+            <option value="BIGPAY">BigPay</option>
+            <option value="SHOPEEPAY">ShopeePay</option>
+            <option value="MAE">MAE by Maybank2u</option>
+            <option value="SETEL">Setel (Petronas)</option>
+            <option value="OTHER">Other / Custom E-Wallet</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="ewallet-name">Wallet Name / Nickname *</label>
+          <input type="text" id="ewallet-name" placeholder="e.g. Touch 'n Go Main" required maxlength="50">
+        </div>
+
+        <div class="form-group">
+          <label for="ewallet-balance">Current Balance *</label>
+          <div class="input-prefix-wrapper">
+            <span class="currency-prefix" id="ewallet-currency-prefix">RM</span>
+            <input type="number" id="ewallet-balance" step="0.01" min="0" placeholder="0.00" required inputmode="decimal">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="ewallet-account-number">Linked Mobile / Account ID (Optional)</label>
+          <input type="text" id="ewallet-account-number" placeholder="e.g. 012-3456789" maxlength="30">
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="cancel-ewallet-modal-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="save-ewallet-btn" class="btn-primary">Save E-Wallet</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- E-Wallet Picker Sheet -->
+    <dialog id="select-ewallet-dialog" class="custom-dialog card-picker-dialog">
+      <div class="receipt-dialog-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.25rem;">📱</span>
+          <h3>Select E-Wallet</h3>
+        </div>
+        <button type="button" id="close-ewallet-picker-btn" class="btn-circle-close" title="Close" aria-label="Close">✕</button>
+      </div>
+      <p class="dialog-sub">Choose which e-wallet was used for this payment.</p>
+
+      <div class="card-picker-body" id="ewallet-picker-body" style="margin: 0.85rem 0; display: flex; flex-direction: column; gap: 0.85rem; max-height: 55vh; overflow-y: auto;">
+        <div class="card-picker-group">
+          <span class="card-picker-group-title">E-WALLETS &amp; DIGITAL BALANCES</span>
+          <div id="picker-ewallets-list" class="picker-cards-list" style="margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.45rem;"></div>
+        </div>
+      </div>
+
+      <div class="dialog-actions" style="justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 0.85rem;">
+        <button type="button" id="nav-to-add-ewallet-btn" class="btn-outline-sm">
+          ➕ Add E-Wallet
+        </button>
+        <button type="button" id="cancel-ewallet-picker-btn" class="btn-secondary">Cancel</button>
+      </div>
+    </dialog>
     <dialog id="auth-account-dialog" class="app-dialog auth-dialog" aria-labelledby="auth-dialog-title">
       <div class="dialog-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2 id="auth-dialog-title" style="font-size: 1.2rem; margin: 0;">Cloud Account &amp; Sync</h2>

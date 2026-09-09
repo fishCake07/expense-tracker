@@ -84,6 +84,22 @@ def init_db(db_path=None):
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
+                CREATE TABLE IF NOT EXISTS ewallets (
+            id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,
+            balance REAL NOT NULL DEFAULT 0.0,
+            account_number TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT,
+            PRIMARY KEY (id, user_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_ewallets_user ON ewallets(user_id);
+
         CREATE TABLE IF NOT EXISTS bank_accounts (
             id TEXT NOT NULL,
             user_id TEXT NOT NULL,

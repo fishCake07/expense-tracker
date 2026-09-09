@@ -292,6 +292,9 @@ const state = {
   creditCards: [],
   debitCards: [],
   bankAccounts: [],
+  ewallets: [],
+  selectedEwalletId: null,
+  selectedEwalletName: null,
   notifications: [],
   selectedBankId: null,
   selectedBankName: null,
@@ -315,6 +318,7 @@ const STORAGE_KEYS = {
   cards: "expense_tracker_credit_cards_v1",
   debitCards: "expense_tracker_debit_cards_v1",
   banks: "expense_tracker_banks_v1",
+  ewallets: "expense_tracker_ewallets_v1",
   notifications: "expense_tracker_notifications_v1",
   lastSeenRelease: "expense_tracker_last_seen_release_v1",
   fabPos: "expense_tracker_fab_pos_v1"
@@ -353,6 +357,24 @@ const dom = {
   cancelBankPickerBtn: $("cancel-bank-picker-btn"),
   pickerBanksList: $("picker-banks-list"),
   navToAddBankBtn: $("nav-to-add-bank-btn"),
+  // E-Wallets Elements
+  openAddEwalletBtn: $("open-add-ewallet-btn"),
+  ewalletsGrid: $("ewallets-grid"),
+  ewalletsTotalSummary: $("ewallets-total-summary"),
+  ewalletDialog: $("ewallet-dialog"),
+  ewalletForm: $("ewallet-form"),
+  ewalletEditId: $("ewallet-edit-id"),
+  ewalletTypeSelect: $("ewallet-type-select"),
+  ewalletName: $("ewallet-name"),
+  ewalletBalance: $("ewallet-balance"),
+  ewalletAccountNumber: $("ewallet-account-number"),
+  closeEwalletModalBtn: $("close-ewallet-modal-btn"),
+  cancelEwalletModalBtn: $("cancel-ewallet-modal-btn"),
+  selectEwalletDialog: $("select-ewallet-dialog"),
+  closeEwalletPickerBtn: $("close-ewallet-picker-btn"),
+  cancelEwalletPickerBtn: $("cancel-ewallet-picker-btn"),
+  pickerEwalletsList: $("picker-ewallets-list"),
+  navToAddEwalletBtn: $("nav-to-add-ewallet-btn"),
   pillBankTx: $("pill-bank-tx"),
   pillCardTx: $("pill-card-tx"),
   pillEwalletTx: $("pill-ewallet-tx"),
@@ -805,6 +827,19 @@ function loadStorage() {
         }
       });
     }
+    const ew = localStorage.getItem(STORAGE_KEYS.ewallets);
+    if (ew) {
+      try {
+        state.ewallets = JSON.parse(ew);
+        state.ewallets.forEach(w => {
+          if (w.initialBalance === undefined || w.initialBalance === null) {
+            w.initialBalance = w.balance || 0;
+          }
+        });
+      } catch (_) {
+        state.ewallets = [];
+      }
+    }
     const nt = localStorage.getItem(STORAGE_KEYS.notifications);
     if (nt) state.notifications = JSON.parse(nt);
   } catch (e) {
@@ -824,6 +859,7 @@ function saveStorage() {
     localStorage.setItem(STORAGE_KEYS.cards, JSON.stringify(state.creditCards));
     localStorage.setItem(STORAGE_KEYS.debitCards, JSON.stringify(state.debitCards));
     localStorage.setItem(STORAGE_KEYS.banks, JSON.stringify(state.bankAccounts));
+    localStorage.setItem(STORAGE_KEYS.ewallets, JSON.stringify(state.ewallets));
     localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(state.notifications));
   } catch (e) {
     // iOS Safari 5MB QuotaExceededError Recovery Safeguard
@@ -940,6 +976,19 @@ function initTheme() {
   } catch (e) {}
 }
 
+// Dynamic Android status bar theme-color controller (forces Blink DOM re-evaluation)
+function updateStatusBarThemeColor(color) {
+  if (typeof document === "undefined" || !document.head) return;
+  try {
+    document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove());
+    const meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    meta.setAttribute("id", "theme-color-meta");
+    meta.setAttribute("content", color);
+    document.head.appendChild(meta);
+  } catch (e) {}
+}
+
 function applyTheme(theme) {
   state.theme = theme;
   saveStorage();
@@ -952,20 +1001,9 @@ function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
   }
 
-  // Synchronize system status bar theme-color for Android & mobile PWA
+  // Synchronize system status bar theme-color via DOM node recreation for Android & mobile PWA
   const statusColor = effectiveTheme === "dark" ? "#0b0f19" : "#f8fafc";
-  let metaTheme = document.getElementById("theme-color-meta") || document.querySelector('meta[name="theme-color"]:not([media])');
-  if (!metaTheme && typeof document !== "undefined" && document.head) {
-    metaTheme = document.createElement("meta");
-    metaTheme.setAttribute("name", "theme-color");
-    metaTheme.setAttribute("id", "theme-color-meta");
-    document.head.appendChild(metaTheme);
-  }
-  if (metaTheme) {
-    metaTheme.setAttribute("content", statusColor);
-  }
-  // Purge any lingering media query tags so Chrome exclusively follows #theme-color-meta
-  document.querySelectorAll('meta[name="theme-color"][media]').forEach(m => m.remove());
+  updateStatusBarThemeColor(statusColor);
 }
 
 // Navigation Tabs Router (Direction-Aware Slide & Haptic)
@@ -1723,18 +1761,25 @@ function bindEvents() {
   }
   if (dom.pillEwalletTx) {
     dom.pillEwalletTx.addEventListener("click", () => {
-      document.querySelectorAll("#wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
-      dom.pillEwalletTx.classList.add("active");
-      if (dom.selectedWallet) dom.selectedWallet.value = "E-Wallet";
-      if (dom.selectedSourceId) dom.selectedSourceId.value = "";
-      if (dom.selectedSourceName) dom.selectedSourceName.value = "";
-      if (dom.pillBankTx) dom.pillBankTx.textContent = "🏦 Bank Transfer ▾";
-      if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
-      state.selectedCardId = null;
-      state.selectedCardType = null;
-      state.selectedCardName = null;
-      state.selectedBankId = null;
-      state.selectedBankName = null;
+      state.pickerTargetContext = "transaction";
+      if (state.ewallets && state.ewallets.length > 0) {
+        openEwalletPicker();
+      } else {
+        document.querySelectorAll("#wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+        dom.pillEwalletTx.classList.add("active");
+        if (dom.selectedWallet) dom.selectedWallet.value = "E-Wallet";
+        if (dom.selectedSourceId) dom.selectedSourceId.value = "";
+        if (dom.selectedSourceName) dom.selectedSourceName.value = "";
+        if (dom.pillBankTx) dom.pillBankTx.textContent = "🏦 Bank Transfer ▾";
+        if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
+        state.selectedCardId = null;
+        state.selectedCardType = null;
+        state.selectedCardName = null;
+        state.selectedBankId = null;
+        state.selectedBankName = null;
+        state.selectedEwalletId = null;
+        state.selectedEwalletName = null;
+      }
     });
   }
   if (dom.pillCashTx) {
@@ -1769,13 +1814,18 @@ function bindEvents() {
   }
   if (dom.pillEwalletSub) {
     dom.pillEwalletSub.addEventListener("click", () => {
-      document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
-      dom.pillEwalletSub.classList.add("active");
-      if (dom.subSelectedWallet) dom.subSelectedWallet.value = "E-Wallet";
-      if (dom.subSelectedSourceId) dom.subSelectedSourceId.value = "";
-      if (dom.subSelectedSourceName) dom.subSelectedSourceName.value = "";
-      if (dom.pillBankSub) dom.pillBankSub.textContent = "🏦 Bank Transfer ▾";
-      if (dom.pillCardSub) dom.pillCardSub.textContent = "💳 Card ▾";
+      state.pickerTargetContext = "subscription";
+      if (state.ewallets && state.ewallets.length > 0) {
+        openEwalletPicker();
+      } else {
+        document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+        dom.pillEwalletSub.classList.add("active");
+        if (dom.subSelectedWallet) dom.subSelectedWallet.value = "E-Wallet";
+        if (dom.subSelectedSourceId) dom.subSelectedSourceId.value = "";
+        if (dom.subSelectedSourceName) dom.subSelectedSourceName.value = "";
+        if (dom.pillBankSub) dom.pillBankSub.textContent = "🏦 Bank Transfer ▾";
+        if (dom.pillCardSub) dom.pillCardSub.textContent = "💳 Card ▾";
+      }
     });
   }
 
@@ -1809,6 +1859,26 @@ function bindEvents() {
   if (dom.closeBankModalBtn) dom.closeBankModalBtn.addEventListener("click", () => dom.bankAccountDialog?.close());
   if (dom.cancelBankModalBtn) dom.cancelBankModalBtn.addEventListener("click", () => dom.bankAccountDialog?.close());
   if (dom.bankAccountForm) dom.bankAccountForm.addEventListener("submit", handleSaveBankAccount);
+
+  // E-Wallet Picker Modal Listeners
+  if (dom.closeEwalletPickerBtn) dom.closeEwalletPickerBtn.addEventListener("click", () => dom.selectEwalletDialog?.close());
+  if (dom.cancelEwalletPickerBtn) dom.cancelEwalletPickerBtn.addEventListener("click", () => dom.selectEwalletDialog?.close());
+  if (dom.navToAddEwalletBtn) {
+    dom.navToAddEwalletBtn.addEventListener("click", () => {
+      dom.selectEwalletDialog?.close();
+      openAddEwalletModal();
+    });
+  }
+
+  // E-Wallet Add/Edit Modal Listeners
+  if (dom.openAddEwalletBtn) {
+    dom.openAddEwalletBtn.addEventListener("click", () => {
+      openAddEwalletModal();
+    });
+  }
+  if (dom.closeEwalletModalBtn) dom.closeEwalletModalBtn.addEventListener("click", () => dom.ewalletDialog?.close());
+  if (dom.cancelEwalletModalBtn) dom.cancelEwalletModalBtn.addEventListener("click", () => dom.ewalletDialog?.close());
+  if (dom.ewalletForm) dom.ewalletForm.addEventListener("submit", handleSaveEwallet);
 
   // Debit Card Modal Listeners
   if (dom.openAddDebitCardBtn) {
@@ -1955,6 +2025,13 @@ function populateIncomeDepositSelect() {
     state.bankAccounts.forEach(b => {
       options += `<option value="${b.id}">🏦 ${escapeHtml(b.name)} (${escapeHtml(b.bank)})</option>`;
     });
+  }
+  if (state.ewallets && state.ewallets.length) {
+    options += '<optgroup label="📱 E-Wallets (Digital Liquid Balances)">';
+    state.ewallets.forEach(ew => {
+      options += `<option value="ewallet:${ew.id}">📱 ${escapeHtml(ew.name)}</option>`;
+    });
+    options += '</optgroup>';
   }
   options += '<option value="cash">💵 Physical Cash</option>';
   dom.incomeDepositSelect.innerHTML = options;
@@ -2189,6 +2266,23 @@ function handleAddTransaction(e) {
     if (targetBank && state.currentFormType === "expense") {
       targetBank.balance = Number(((targetBank.balance || 0) - amt).toFixed(2));
     }
+  } else if (chosenWallet === "E-Wallet") {
+    // Deduct/Add from specific e-wallet
+    const targetEwallet = state.ewallets.find(ew => ew.id === cardId || ew.name === cardName || (!cardId && !cardName)) || state.ewallets[0];
+    if (targetEwallet) {
+      const ewBal = getReconciledEwalletBalance(targetEwallet);
+      if (amt > ewBal && state.currentFormType === "expense") {
+        const shortfall = (amt - ewBal).toFixed(2);
+        if (!confirm(`⚠️ Insufficient Funds in ${targetEwallet.name}!\n\nAvailable Balance: ${formatCurrency(ewBal)}\nTransaction Amount: ${formatCurrency(amt)}\nShortfall: ${formatCurrency(shortfall)}\n\nProceed anyway (E-wallet will become overdrawn)?`)) {
+          return;
+        }
+      }
+      if (state.currentFormType === "expense") {
+        targetEwallet.balance = Number(((targetEwallet.balance || 0) - amt).toFixed(2));
+      } else if (state.currentFormType === "income") {
+        targetEwallet.balance = Number(((targetEwallet.balance || 0) + amt).toFixed(2));
+      }
+    }
   }
 
   const effectiveWallet = isDebit ? "Debit Card" : (isCredit ? "Credit Card" : chosenWallet);
@@ -2268,9 +2362,18 @@ function populateEditWalletSelect(tx) {
     html += '</optgroup>';
   }
 
-  // 4. Digital Wallets & Cash
+  // 4. E-Wallets Optgroup
+  if (state.ewallets && state.ewallets.length) {
+    html += '<optgroup label="📱 E-Wallets (Digital Liquid Balances)">';
+    state.ewallets.forEach(ew => {
+      html += `<option value="ewallet:${ew.id}">📱 ${escapeHtml(ew.name)}</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  // 5. Digital Wallets & Cash
   html += '<optgroup label="Cash & Digital Wallets">';
-  html += '<option value="ewallet:ewallet">📱 E-Wallet</option>';
+  html += '<option value="ewallet:ewallet">📱 Generic E-Wallet</option>';
   html += '<option value="cash:cash">💵 Cash</option>';
   html += '<option value="other:other">📦 Other</option>';
   html += '</optgroup>';
@@ -2284,6 +2387,7 @@ function populateEditWalletSelect(tx) {
       if (state.bankAccounts.some(b => b.id === tx.cardId)) selectedVal = `bank:${tx.cardId}`;
       else if (state.creditCards.some(c => c.id === tx.cardId)) selectedVal = `credit:${tx.cardId}`;
       else if (state.debitCards.some(dc => dc.id === tx.cardId)) selectedVal = `debit:${tx.cardId}`;
+      else if (state.ewallets && state.ewallets.some(ew => ew.id === tx.cardId)) selectedVal = `ewallet:${tx.cardId}`;
     }
 
     if (!selectedVal && tx.cardName) {
@@ -2524,6 +2628,18 @@ function deleteExpense(id) {
     const targetBank = state.bankAccounts.find(b => b.id === deleted.cardId || b.name === deleted.cardName);
     if (targetBank) {
       targetBank.balance = Math.max(0, Number(((targetBank.balance || 0) - deleted.amount).toFixed(2)));
+    }
+  }
+
+  // Revert e-wallet balance if deleted item was an income or expense
+  if (deleted && (deleted.wallet === "E-Wallet" || deleted.cardType === "ewallet") && deleted.cardId) {
+    const targetEwallet = state.ewallets.find(ew => ew.id === deleted.cardId || ew.name === deleted.cardName);
+    if (targetEwallet) {
+      if (deleted.type === "income") {
+        targetEwallet.balance = Number(((targetEwallet.balance || 0) - deleted.amount).toFixed(2));
+      } else if (deleted.type === "expense") {
+        targetEwallet.balance = Number(((targetEwallet.balance || 0) + deleted.amount).toFixed(2));
+      }
     }
   }
 
@@ -2935,6 +3051,7 @@ function render() {
   renderCreditCards();
   renderDebitCards();
   renderBankAccounts();
+  renderEwallets();
   renderLoans();
   renderDashboardInstallments();
   renderBreakdown();
@@ -3765,6 +3882,283 @@ function selectBankAccount(bankId, bankName) {
 
   dom.selectBankDialog?.close();
   showToast(`Selected ${bankName}!`);
+}
+
+// ================= E-WALLETS & DIGITAL BALANCES MANAGEMENT =================
+function getEwalletBrand(type) {
+  const t = (type || "").toUpperCase();
+  switch (t) {
+    case "TNG":
+      return { name: "Touch 'n Go eWallet", icon: "🔷", tagClass: "ewallet-tag-tng" };
+    case "GRABPAY":
+      return { name: "GrabPay", icon: "🟢", tagClass: "ewallet-tag-grabpay" };
+    case "BOOST":
+      return { name: "Boost", icon: "🔴", tagClass: "ewallet-tag-boost" };
+    case "BIGPAY":
+      return { name: "BigPay", icon: "🔵", tagClass: "ewallet-tag-bigpay" };
+    case "SHOPEEPAY":
+      return { name: "ShopeePay", icon: "🟠", tagClass: "ewallet-tag-shopeepay" };
+    case "MAE":
+      return { name: "MAE", icon: "🟡", tagClass: "ewallet-tag-mae" };
+    case "SETEL":
+      return { name: "Setel", icon: "⛽", tagClass: "ewallet-tag-setel" };
+    default:
+      return { name: "Custom E-Wallet", icon: "📱", tagClass: "ewallet-tag-other" };
+  }
+}
+
+function getReconciledEwalletBalance(ewallet) {
+  const initial = (ewallet.initialBalance !== undefined && ewallet.initialBalance !== null)
+    ? Number(ewallet.initialBalance)
+    : Number(ewallet.balance || 0);
+
+  const currentYm = getLocalDateString().substring(0, 7);
+  let netChange = 0;
+
+  state.transactions.forEach(t => {
+    if (t.date && t.date.startsWith(currentYm)) {
+      const isThisWallet = (t.cardId && t.cardId === ewallet.id) ||
+                           (t.cardName && t.cardName === ewallet.name);
+
+      if (isThisWallet) {
+        if (t.type === "income") {
+          netChange += Number(t.amount || 0);
+        } else if (t.type === "expense") {
+          netChange -= Number(t.amount || 0);
+        }
+      }
+    }
+  });
+
+  return Number((initial + netChange).toFixed(2));
+}
+
+function renderEwallets() {
+  if (!dom.ewalletsGrid) return;
+
+  const currentYm = getLocalDateString().substring(0, 7);
+
+  if (dom.ewalletsTotalSummary) {
+    if (state.ewallets && state.ewallets.length > 0) {
+      let totalDigitalBalance = 0;
+      state.ewallets.forEach(ew => {
+        ew.balance = getReconciledEwalletBalance(ew);
+        totalDigitalBalance += (ew.balance || 0);
+      });
+      dom.ewalletsTotalSummary.textContent = `${state.ewallets.length} Active Wallet${state.ewallets.length > 1 ? "s" : ""} • Digital Balance: ${formatCurrency(totalDigitalBalance)}`;
+    } else {
+      dom.ewalletsTotalSummary.textContent = "Digital prepaid balances";
+    }
+  }
+
+  if (!state.ewallets || !state.ewallets.length) {
+    dom.ewalletsGrid.innerHTML = `<p class="empty-state">No e-wallets added yet. Click "+ Add E-Wallet" to configure digital funds.</p>`;
+    return;
+  }
+
+  dom.ewalletsGrid.innerHTML = state.ewallets.map(ew => {
+    ew.balance = getReconciledEwalletBalance(ew);
+    const brand = getEwalletBrand(ew.type);
+    const isNegative = ew.balance < 0;
+
+    let monthlySpent = 0;
+    state.transactions.forEach(t => {
+      if (t.date && t.date.startsWith(currentYm) && t.type === "expense" && (t.wallet === "E-Wallet" || t.cardType === "ewallet")) {
+        if (t.cardId === ew.id || t.cardName === ew.name) {
+          monthlySpent += Number(t.amount || 0);
+        }
+      }
+    });
+
+    return `
+      <div class="ewallet-card" data-id="${ew.id}">
+        <div class="ewallet-card-header">
+          <span class="ewallet-brand-tag ${brand.tagClass}">
+            ${brand.icon} ${escapeHtml(brand.name)}
+          </span>
+          <span class="badge ${isNegative ? "badge-danger" : "badge-success"}">${isNegative ? "Overdrawn" : "Active"}</span>
+        </div>
+        <div class="ewallet-card-body">
+          <div class="ewallet-name">${escapeHtml(ew.name)}</div>
+          ${ew.accountNumber ? `<div class="ewallet-account-sub">Linked ID: ${escapeHtml(ew.accountNumber)}</div>` : ""}
+          <div class="ewallet-balance-label">Current Stored Balance</div>
+          <div class="ewallet-balance-amount ${isNegative ? "negative" : ""}">
+            ${formatCurrency(ew.balance)}
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Spent this month: <strong>${formatCurrency(monthlySpent)}</strong>
+          </div>
+        </div>
+        <div class="ewallet-card-actions">
+          <button type="button" class="btn-text edit-ewallet-btn" data-id="${ew.id}">Edit</button>
+          <button type="button" class="btn-text delete-ewallet-btn text-danger" data-id="${ew.id}">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  dom.ewalletsGrid.querySelectorAll(".edit-ewallet-btn").forEach(btn => {
+    btn.addEventListener("click", () => openEditEwallet(btn.dataset.id));
+  });
+  dom.ewalletsGrid.querySelectorAll(".delete-ewallet-btn").forEach(btn => {
+    btn.addEventListener("click", () => deleteEwallet(btn.dataset.id));
+  });
+}
+
+function openAddEwalletModal() {
+  if (dom.ewalletEditId) dom.ewalletEditId.value = "";
+  if (dom.ewalletName) dom.ewalletName.value = "";
+  if (dom.ewalletTypeSelect) dom.ewalletTypeSelect.value = "TNG";
+  if (dom.ewalletBalance) dom.ewalletBalance.value = "";
+  if (dom.ewalletAccountNumber) dom.ewalletAccountNumber.value = "";
+  const titleEl = document.getElementById("ewallet-modal-title");
+  if (titleEl) titleEl.textContent = "Add E-Wallet";
+  dom.ewalletDialog?.showModal ? dom.ewalletDialog.showModal() : alert("Add E-Wallet modal");
+}
+
+function openEditEwallet(ewId) {
+  const ew = state.ewallets.find(w => w.id === ewId);
+  if (!ew) return;
+
+  if (dom.ewalletEditId) dom.ewalletEditId.value = ew.id;
+  if (dom.ewalletName) dom.ewalletName.value = ew.name;
+  if (dom.ewalletTypeSelect) dom.ewalletTypeSelect.value = ew.type || "TNG";
+  if (dom.ewalletBalance) dom.ewalletBalance.value = (ew.balance !== undefined && ew.balance !== null) ? ew.balance : "";
+  if (dom.ewalletAccountNumber) dom.ewalletAccountNumber.value = ew.accountNumber || "";
+
+  const titleEl = document.getElementById("ewallet-modal-title");
+  if (titleEl) titleEl.textContent = "Edit E-Wallet";
+  dom.ewalletDialog?.showModal ? dom.ewalletDialog.showModal() : alert("Edit E-Wallet modal");
+}
+
+function handleSaveEwallet(e) {
+  e.preventDefault();
+  const editId = dom.ewalletEditId ? dom.ewalletEditId.value : "";
+  const type = dom.ewalletTypeSelect ? dom.ewalletTypeSelect.value : "TNG";
+  const name = dom.ewalletName ? dom.ewalletName.value.trim() : "";
+  const balInput = dom.ewalletBalance;
+  const balance = balInput ? (parseFloat(balInput.value) || 0) : 0;
+  const accNum = dom.ewalletAccountNumber ? dom.ewalletAccountNumber.value.trim() : "";
+
+  if (!name) return showToast("Please enter an e-wallet name.");
+
+  if (editId) {
+    const ew = state.ewallets.find(w => w.id === editId);
+    if (ew) {
+      ew.name = name;
+      ew.type = type;
+      ew.initialBalance = Number(balance.toFixed(2));
+      ew.balance = Number(balance.toFixed(2));
+      ew.accountNumber = accNum;
+      showToast(`Updated "${name}"!`);
+    }
+  } else {
+    state.ewallets.push({
+      id: "ewallet_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+      name,
+      type,
+      initialBalance: Number(balance.toFixed(2)),
+      balance: Number(balance.toFixed(2)),
+      accountNumber: accNum,
+      createdAt: Date.now()
+    });
+    showToast(`Added e-wallet "${name}"!`);
+  }
+
+  saveStorage();
+  render();
+  dom.ewalletDialog?.close();
+}
+
+function deleteEwallet(ewId) {
+  const idx = state.ewallets.findIndex(w => w.id === ewId);
+  if (idx === -1) return;
+  const deleted = state.ewallets.splice(idx, 1)[0];
+  if (state.selectedEwalletId === ewId) {
+    state.selectedEwalletId = null;
+    state.selectedEwalletName = null;
+    if (dom.selectedSourceId) dom.selectedSourceId.value = "";
+    if (dom.selectedSourceName) dom.selectedSourceName.value = "";
+    if (dom.pillEwalletTx) dom.pillEwalletTx.textContent = "📱 E-Wallet ▾";
+  }
+  saveStorage();
+  render();
+  showToast(`Deleted e-wallet "${deleted.name}"`);
+}
+
+function openEwalletPicker() {
+  if (!dom.selectEwalletDialog) return;
+
+  if (dom.pickerEwalletsList) {
+    if (!state.ewallets || !state.ewallets.length) {
+      dom.pickerEwalletsList.innerHTML = `<p class="empty-state" style="padding:0.75rem;">No e-wallets configured. Click "+ Add E-Wallet" below.</p>`;
+    } else {
+      const activeId = state.pickerTargetContext === "subscription"
+        ? (dom.subSelectedSourceId ? dom.subSelectedSourceId.value : "")
+        : (dom.selectedSourceId ? dom.selectedSourceId.value : "");
+
+      dom.pickerEwalletsList.innerHTML = state.ewallets.map(ew => {
+        const isSel = activeId === ew.id;
+        const brand = getEwalletBrand(ew.type);
+        const bal = getReconciledEwalletBalance(ew);
+        return `
+          <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectEwallet('${ew.id}', '${escapeHtml(ew.name)}')">
+            <div class="picker-card-left">
+              <div class="picker-chip-icon">${brand.icon}</div>
+              <div>
+                <div class="picker-card-name">${escapeHtml(ew.name)}</div>
+                <div class="picker-card-bank">${escapeHtml(brand.name)}${ew.accountNumber ? ` • ${escapeHtml(ew.accountNumber)}` : ""}</div>
+              </div>
+            </div>
+            <div class="picker-card-right">
+              <span class="picker-card-balance">${formatCurrency(bal)}</span>
+              <span class="picker-card-tag ${brand.tagClass}">E-Wallet</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  dom.selectEwalletDialog?.showModal ? dom.selectEwalletDialog.showModal() : null;
+}
+
+function selectEwallet(ewId, ewName) {
+  state.selectedEwalletId = ewId;
+  state.selectedEwalletName = ewName;
+
+  if (state.pickerTargetContext === "subscription") {
+    if (dom.subSelectedWallet) dom.subSelectedWallet.value = "E-Wallet";
+    if (dom.subSelectedSourceId) dom.subSelectedSourceId.value = ewId;
+    if (dom.subSelectedSourceName) dom.subSelectedSourceName.value = ewName;
+
+    document.querySelectorAll("#sub-wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+    if (dom.pillEwalletSub) {
+      dom.pillEwalletSub.classList.add("active");
+      dom.pillEwalletSub.textContent = `📱 ${ewName} ▾`;
+    }
+  } else {
+    state.selectedCardId = ewId;
+    state.selectedCardName = ewName;
+    state.selectedCardType = "ewallet";
+    state.selectedBankId = null;
+    state.selectedBankName = null;
+
+    if (dom.selectedWallet) dom.selectedWallet.value = "E-Wallet";
+    if (dom.selectedSourceId) dom.selectedSourceId.value = ewId;
+    if (dom.selectedSourceName) dom.selectedSourceName.value = ewName;
+
+    document.querySelectorAll("#wallet-pill-group .wallet-pill-btn").forEach(b => b.classList.remove("active"));
+    if (dom.pillEwalletTx) {
+      dom.pillEwalletTx.classList.add("active");
+      dom.pillEwalletTx.textContent = `📱 ${ewName} ▾`;
+    }
+    if (dom.pillBankTx) dom.pillBankTx.textContent = "🏦 Bank Transfer ▾";
+    if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
+  }
+
+  dom.selectEwalletDialog?.close();
+  showToast(`Selected ${ewName}!`);
 }
 
 // Card Picker Modal (Hierarchy: Credit Cards vs Debit Cards)
@@ -5527,7 +5921,8 @@ function exportToJSON() {
     loans: state.loans,
     creditCards: state.creditCards,
     debitCards: state.debitCards,
-    bankAccounts: state.bankAccounts
+    bankAccounts: state.bankAccounts,
+    ewallets: state.ewallets || []
   };
 
   const jsonStr = JSON.stringify(backupData, null, 2);
@@ -5651,6 +6046,7 @@ function importJSONData(jsonStr) {
     if (Array.isArray(parsed.creditCards)) state.creditCards = parsed.creditCards;
     if (Array.isArray(parsed.debitCards)) state.debitCards = parsed.debitCards;
     if (Array.isArray(parsed.bankAccounts)) state.bankAccounts = parsed.bankAccounts;
+    if (Array.isArray(parsed.ewallets)) state.ewallets = parsed.ewallets;
   }
 
   saveStorage();
@@ -6066,6 +6462,12 @@ function loadSampleData() {
   // Populate active subscriptions list for Malaysian worker
   const today = new Date();
   const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  // Sample E-Wallets (Liquid Assets & Digital Payment Accounts)
+  state.ewallets = [
+    { id: "ewallet_tng", name: "Touch 'n Go eWallet", type: "TNG", balance: 185.50, initialBalance: 185.50, accountNumber: "012-4567890" },
+    { id: "ewallet_grabpay", name: "GrabPay Wallet", type: "GRABPAY", balance: 84.00, initialBalance: 84.00, accountNumber: "012-4567890" }
+  ];
 
   // Sample Bank Accounts (Liquid Assets & Payment Accounts)
   state.bankAccounts = [

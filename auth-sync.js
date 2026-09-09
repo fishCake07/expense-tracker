@@ -15,6 +15,7 @@ const AuthSync = (() => {
   const DB_NAME = "ExpenseTrackerDB";
   const DB_VERSION = 1;
   const ENTITY_STORES = [
+    "ewallets",
     "bank_accounts",
     "credit_cards",
     "debit_cards",
@@ -273,6 +274,9 @@ const AuthSync = (() => {
   async function snapshotAllToOutbox() {
     if (!window.state) return;
     const s = window.state;
+        if (s.ewallets) {
+      for (const ew of s.ewallets) await queueMutation("ewallets", "UPSERT", ew);
+    }
     if (s.bankAccounts) {
       for (const b of s.bankAccounts) await queueMutation("bank_accounts", "UPSERT", b);
     }
@@ -386,6 +390,9 @@ const AuthSync = (() => {
       return Array.from(map.values());
     }
 
+        if (changes.ewallets && changes.ewallets.length) {
+      s.ewallets = mergeEntities(s.ewallets || [], changes.ewallets);
+    }
     if (changes.bank_accounts && changes.bank_accounts.length) {
       s.bankAccounts = mergeEntities(s.bankAccounts || [], changes.bank_accounts);
     }
