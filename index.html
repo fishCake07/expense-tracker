@@ -227,7 +227,7 @@
             <h2>Bank Accounts &amp; Payment Tools</h2>
             <span class="sub-total-commitment" id="banks-total-summary">Liquid accounts with attached debit cards</span>
           </div>
-          <button type="button" id="open-add-bank-account-btn" class="btn-primary-sm">
+          <button type="button" id="open-add-bank-account-btn" class="btn-primary-sm" onclick="openAddBankAccountModal()">
             ➕ Add Account
           </button>
         </div>
@@ -242,7 +242,7 @@
             <h2>E-Wallets &amp; Digital Balances</h2>
             <span class="sub-total-commitment" id="ewallets-total-summary">Digital prepaid balances</span>
           </div>
-          <button type="button" id="open-add-ewallet-btn" class="btn-primary-sm">
+          <button type="button" id="open-add-ewallet-btn" class="btn-primary-sm" onclick="openAddEwalletModal()">
             ➕ Add E-Wallet
           </button>
         </div>
@@ -1413,7 +1413,7 @@
       </div>
 
       <div class="dialog-actions" style="justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 0.85rem;">
-        <button type="button" id="nav-to-add-bank-btn" class="btn-outline-sm">
+        <button type="button" id="nav-to-add-bank-btn" class="btn-outline-sm" onclick="handleNavToAddBank()">
           ➕ Add Bank Account
         </button>
         <button type="button" id="cancel-bank-picker-btn" class="btn-secondary">Cancel</button>
@@ -1494,7 +1494,7 @@
       </div>
 
       <div class="dialog-actions" style="justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 0.85rem;">
-        <button type="button" id="nav-to-add-ewallet-btn" class="btn-outline-sm">
+        <button type="button" id="nav-to-add-ewallet-btn" class="btn-outline-sm" onclick="handleNavToAddEwallet()">
           ➕ Add E-Wallet
         </button>
         <button type="button" id="cancel-ewallet-picker-btn" class="btn-secondary">Cancel</button>

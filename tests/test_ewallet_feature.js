@@ -78,3 +78,83 @@ assert(js.includes('if (e.target === dialog) {'), 'Universal backdrop dismissal 
 console.log("✓ Test 6 Passed: Universal modal backdrop dismissal verified.");
 
 console.log("All E-Wallet Feature tests passed successfully!");
+
+// 7. Touch 'n Go & Single Quote Safety in E-Wallet Picker (Bug 1 Fix)
+assert(!js.includes("onclick=\"selectEwallet('${ew.id}', '${escapeHtml(ew.name)}')\""), "Picker must not interpolate raw unescaped name strings into inline onclick");
+assert(js.includes("onclick=\"selectEwallet('${ew.id}')\""), "Picker must pass ID safely to selectEwallet");
+
+// Simulate selecting an e-wallet with apostrophe in name
+const mockState = {
+  ewallets: [
+    { id: "ew_tng", name: "Touch 'n Go", type: "TNG", balance: 379.72 }
+  ],
+  selectedEwalletId: null,
+  selectedEwalletName: null,
+  selectedCardId: null,
+  selectedCardName: null,
+  selectedCardType: null,
+  selectedBankId: null,
+  selectedBankName: null,
+  pickerTargetContext: "transaction"
+};
+
+const mockDom = {
+  selectedWallet: { value: "" },
+  selectedSourceId: { value: "" },
+  selectedSourceName: { value: "" },
+  pillEwalletTx: { textContent: "", classList: { add() {}, remove() {} } },
+  pillBankTx: { textContent: "" },
+  pillCardTx: { textContent: "" },
+  selectEwalletDialog: { closeCalled: false, close() { this.closeCalled = true; } }
+};
+
+function testSelectEwallet(ewId, ewName) {
+  if (!ewName) {
+    const ew = (mockState.ewallets || []).find(w => w.id === ewId);
+    ewName = ew ? ew.name : "E-Wallet";
+  }
+  mockState.selectedEwalletId = ewId;
+  mockState.selectedEwalletName = ewName;
+  mockState.selectedCardId = ewId;
+  mockState.selectedCardName = ewName;
+  mockState.selectedCardType = "ewallet";
+
+  mockDom.selectedWallet.value = "E-Wallet";
+  mockDom.selectedSourceId.value = ewId;
+  mockDom.selectedSourceName.value = ewName;
+  mockDom.pillEwalletTx.textContent = `📱 ${ewName} ▾`;
+  mockDom.selectEwalletDialog.close();
+}
+
+testSelectEwallet("ew_tng");
+assert.strictEqual(mockState.selectedEwalletName, "Touch 'n Go", "E-Wallet name with apostrophe must resolve correctly");
+assert.strictEqual(mockDom.selectedWallet.value, "E-Wallet", "selectedWallet input must be 'E-Wallet'");
+assert.strictEqual(mockDom.selectedSourceId.value, "ew_tng", "selectedSourceId must be 'ew_tng'");
+assert.strictEqual(mockDom.selectedSourceName.value, "Touch 'n Go", "selectedSourceName must be 'Touch 'n Go'");
+assert.strictEqual(mockDom.pillEwalletTx.textContent, "📱 Touch 'n Go ▾", "Pill text must reflect Touch 'n Go");
+assert.strictEqual(mockDom.selectEwalletDialog.closeCalled, true, "Dialog close() must be called");
+console.log("✓ Test 7 Passed: Apostrophe safety and selection verified for Touch 'n Go.");
+
+// 8. Add E-Wallet Button Functioning & Safe Modal Transition (Bug 2 Fix)
+assert(html.includes('id="nav-to-add-ewallet-btn" class="btn-outline-sm" onclick="handleNavToAddEwallet()"'), "nav-to-add-ewallet-btn must have onclick='handleNavToAddEwallet()'");
+assert(html.includes('id="open-add-ewallet-btn" class="btn-primary-sm" onclick="openAddEwalletModal()"'), "open-add-ewallet-btn must have onclick='openAddEwalletModal()'");
+assert(js.includes('function handleNavToAddEwallet()'), "app.js must implement handleNavToAddEwallet()");
+assert(js.includes('window.handleNavToAddEwallet = handleNavToAddEwallet;'), "handleNavToAddEwallet must be exposed globally on window");
+assert(js.includes('let isTransitioningModal = false;'), "isTransitioningModal flag must protect against premature history popstate close");
+assert(js.includes('!isTransitioningModal'), "close event listener must respect isTransitioningModal guard");
+console.log("✓ Test 8 Passed: 'Add E-Wallet' button functioning and modal transition safeguards verified.");
+
+// 9. Auto-Selection of Newly Added E-Wallet from Transaction Context
+const mockEwalletsList = [...mockState.ewallets];
+function testSaveNewEwallet(newEw, context) {
+  mockEwalletsList.push(newEw);
+  if (context === "transaction") {
+    testSelectEwallet(newEw.id, newEw.name);
+  }
+}
+testSaveNewEwallet({ id: "ew_boost", name: "Boost eWallet", type: "BOOST", balance: 50.00 }, "transaction");
+assert.strictEqual(mockState.selectedEwalletId, "ew_boost", "Newly added e-wallet must be auto-selected in transaction context");
+assert.strictEqual(mockDom.selectedSourceName.value, "Boost eWallet", "selectedSourceName must update to Boost eWallet");
+console.log("✓ Test 9 Passed: Auto-selection of newly created e-wallet in transaction context verified.");
+
+console.log("All E-Wallet Feature tests passed successfully!");

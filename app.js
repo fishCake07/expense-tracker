@@ -1240,6 +1240,32 @@ function closeNavHub() {
 }
 
 
+let isTransitioningModal = false;
+
+function handleNavToAddEwallet() {
+  isTransitioningModal = true;
+  if (dom.selectEwalletDialog && (dom.selectEwalletDialog.open || dom.selectEwalletDialog.hasAttribute("open"))) {
+    try { dom.selectEwalletDialog.close(); } catch(e) {}
+  }
+  openAddEwalletModal();
+  setTimeout(() => {
+    isTransitioningModal = false;
+  }, 200);
+}
+window.handleNavToAddEwallet = handleNavToAddEwallet;
+
+function handleNavToAddBank() {
+  isTransitioningModal = true;
+  if (dom.selectBankDialog && (dom.selectBankDialog.open || dom.selectBankDialog.hasAttribute("open"))) {
+    try { dom.selectBankDialog.close(); } catch(e) {}
+  }
+  openAddBankAccountModal();
+  setTimeout(() => {
+    isTransitioningModal = false;
+  }, 200);
+}
+window.handleNavToAddBank = handleNavToAddBank;
+
 // Universal Click-Outside Backdrop Dismissal for ALL Modals (iOS & Android)
 // Modal Scroll Lock Engine (Prevents background rubber-band scroll bleed on iOS Safari)
 // Android System Back Button & Modal History Navigation Controller
@@ -1267,7 +1293,7 @@ function initAndroidBackNavigation() {
   document.querySelectorAll("dialog").forEach(d => {
     observer.observe(d, { attributes: true, attributeFilter: ["open"] });
     d.addEventListener("close", () => {
-      if (!isClosingFromPopState) {
+      if (!isClosingFromPopState && !isTransitioningModal) {
         if (history.state && history.state.modalOpen) {
           try { history.back(); } catch (e) {}
         }
@@ -1845,8 +1871,7 @@ function bindEvents() {
   if (dom.cancelBankPickerBtn) dom.cancelBankPickerBtn.addEventListener("click", () => dom.selectBankDialog?.close());
   if (dom.navToAddBankBtn) {
     dom.navToAddBankBtn.addEventListener("click", () => {
-      dom.selectBankDialog?.close();
-      openAddBankAccountModal();
+      handleNavToAddBank();
     });
   }
 
@@ -1865,8 +1890,7 @@ function bindEvents() {
   if (dom.cancelEwalletPickerBtn) dom.cancelEwalletPickerBtn.addEventListener("click", () => dom.selectEwalletDialog?.close());
   if (dom.navToAddEwalletBtn) {
     dom.navToAddEwalletBtn.addEventListener("click", () => {
-      dom.selectEwalletDialog?.close();
-      openAddEwalletModal();
+      handleNavToAddEwallet();
     });
   }
 
@@ -2318,11 +2342,14 @@ function handleAddTransaction(e) {
   if (dom.selectedSourceName) dom.selectedSourceName.value = "";
   if (dom.pillBankTx) dom.pillBankTx.textContent = "🏦 Bank Transfer ▾";
   if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
+  if (dom.pillEwalletTx) dom.pillEwalletTx.textContent = "📱 E-Wallet ▾";
   state.selectedCardId = null;
   state.selectedCardType = null;
   state.selectedCardName = null;
   state.selectedBankId = null;
   state.selectedBankName = null;
+  state.selectedEwalletId = null;
+  state.selectedEwalletName = null;
   dom.amount.focus();
 
   render();
@@ -2394,10 +2421,12 @@ function populateEditWalletSelect(tx) {
       const matchBank = state.bankAccounts.find(b => b.name === tx.cardName || b.bank === tx.cardName);
       const matchCredit = state.creditCards.find(c => c.name === tx.cardName);
       const matchDebit = state.debitCards.find(dc => dc.name === tx.cardName);
+      const matchEwallet = state.ewallets && state.ewallets.find(ew => ew.name === tx.cardName);
 
       if (matchBank) selectedVal = `bank:${matchBank.id}`;
       else if (matchCredit) selectedVal = `credit:${matchCredit.id}`;
       else if (matchDebit) selectedVal = `debit:${matchDebit.id}`;
+      else if (matchEwallet) selectedVal = `ewallet:${matchEwallet.id}`;
     }
 
     if (!selectedVal) {
@@ -3741,8 +3770,20 @@ function openAddBankAccountModal() {
   if (balInput) balInput.value = "";
   const titleEl = document.getElementById("bank-modal-title");
   if (titleEl) titleEl.textContent = "Add Bank Account";
-  dom.bankAccountDialog?.showModal ? dom.bankAccountDialog.showModal() : alert("Add bank account");
+  const modal = dom.bankAccountDialog || document.getElementById("bank-account-dialog");
+  if (modal) {
+    if (typeof modal.showModal === "function") {
+      try {
+        if (!modal.open) modal.showModal();
+      } catch (e) {
+        modal.setAttribute("open", "");
+      }
+    } else {
+      modal.setAttribute("open", "");
+    }
+  }
 }
+window.openAddBankAccountModal = openAddBankAccountModal;
 
 function openEditBankAccountModal(bankId) {
   const bank = state.bankAccounts.find(b => b.id === bankId);
@@ -3826,7 +3867,7 @@ function openBankPicker() {
       dom.pickerBanksList.innerHTML = state.bankAccounts.map(b => {
         const isSel = activeId === b.id;
         return `
-          <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectBankAccount('${b.id}', '${escapeHtml(b.name)}')">
+          <div class="picker-card-option ${isSel ? "selected" : ""}" data-bank-id="${b.id}" onclick="selectBankAccount('${b.id}')" style="cursor:pointer;">
             <div class="picker-card-left">
               <div class="picker-chip-icon" style="color:#2563eb;">🏦</div>
               <div>
@@ -3840,6 +3881,14 @@ function openBankPicker() {
           </div>
         `;
       }).join("");
+
+      dom.pickerBanksList.querySelectorAll(".picker-card-option").forEach(el => {
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const bId = el.getAttribute("data-bank-id");
+          if (bId) selectBankAccount(bId);
+        });
+      });
     }
   }
 
@@ -3847,6 +3896,10 @@ function openBankPicker() {
 }
 
 function selectBankAccount(bankId, bankName) {
+  if (!bankName) {
+    const bank = (state.bankAccounts || []).find(b => b.id === bankId);
+    bankName = bank ? bank.name : "Bank Account";
+  }
   state.selectedBankId = bankId;
   state.selectedBankName = bankName;
 
@@ -3883,6 +3936,7 @@ function selectBankAccount(bankId, bankName) {
   dom.selectBankDialog?.close();
   showToast(`Selected ${bankName}!`);
 }
+window.selectBankAccount = selectBankAccount;
 
 // ================= E-WALLETS & DIGITAL BALANCES MANAGEMENT =================
 function getEwalletBrand(type) {
@@ -4013,8 +4067,20 @@ function openAddEwalletModal() {
   if (dom.ewalletAccountNumber) dom.ewalletAccountNumber.value = "";
   const titleEl = document.getElementById("ewallet-modal-title");
   if (titleEl) titleEl.textContent = "Add E-Wallet";
-  dom.ewalletDialog?.showModal ? dom.ewalletDialog.showModal() : alert("Add E-Wallet modal");
+  const modal = dom.ewalletDialog || document.getElementById("ewallet-dialog");
+  if (modal) {
+    if (typeof modal.showModal === "function") {
+      try {
+        if (!modal.open) modal.showModal();
+      } catch (e) {
+        modal.setAttribute("open", "");
+      }
+    } else {
+      modal.setAttribute("open", "");
+    }
+  }
 }
+window.openAddEwalletModal = openAddEwalletModal;
 
 function openEditEwallet(ewId) {
   const ew = state.ewallets.find(w => w.id === ewId);
@@ -4068,6 +4134,13 @@ function handleSaveEwallet(e) {
   saveStorage();
   render();
   dom.ewalletDialog?.close();
+
+  if (!editId) {
+    const newEw = state.ewallets.find(w => w.name === name) || state.ewallets[state.ewallets.length - 1];
+    if (newEw && (state.pickerTargetContext === "transaction" || state.pickerTargetContext === "subscription")) {
+      selectEwallet(newEw.id, newEw.name);
+    }
+  }
 }
 
 function deleteEwallet(ewId) {
@@ -4102,7 +4175,7 @@ function openEwalletPicker() {
         const brand = getEwalletBrand(ew.type);
         const bal = getReconciledEwalletBalance(ew);
         return `
-          <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectEwallet('${ew.id}', '${escapeHtml(ew.name)}')">
+          <div class="picker-card-option ${isSel ? "selected" : ""}" data-ew-id="${ew.id}" onclick="selectEwallet('${ew.id}')" style="cursor:pointer;">
             <div class="picker-card-left">
               <div class="picker-chip-icon">${brand.icon}</div>
               <div>
@@ -4117,6 +4190,14 @@ function openEwalletPicker() {
           </div>
         `;
       }).join("");
+
+      dom.pickerEwalletsList.querySelectorAll(".picker-card-option").forEach(el => {
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const ewId = el.getAttribute("data-ew-id");
+          if (ewId) selectEwallet(ewId);
+        });
+      });
     }
   }
 
@@ -4124,6 +4205,10 @@ function openEwalletPicker() {
 }
 
 function selectEwallet(ewId, ewName) {
+  if (!ewName) {
+    const ew = (state.ewallets || []).find(w => w.id === ewId);
+    ewName = ew ? ew.name : "E-Wallet";
+  }
   state.selectedEwalletId = ewId;
   state.selectedEwalletName = ewName;
 
@@ -4160,6 +4245,7 @@ function selectEwallet(ewId, ewName) {
   dom.selectEwalletDialog?.close();
   showToast(`Selected ${ewName}!`);
 }
+window.selectEwallet = selectEwallet;
 
 // Card Picker Modal (Hierarchy: Credit Cards vs Debit Cards)
 
@@ -4179,7 +4265,7 @@ function openCardPicker() {
           : (state.selectedCardId || (dom.selectedSourceId ? dom.selectedSourceId.value : ""));
         const isSel = activeId === c.id;
         return `
-          <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectPaymentCard('credit', '${c.id}', '${escapeHtml(c.name)}')">
+          <div class="picker-card-option ${isSel ? "selected" : ""}" data-card-id="${c.id}" onclick="selectPaymentCard('credit', '${c.id}')" style="cursor:pointer;">
             <div class="picker-card-left">
               <div class="picker-chip-icon" style="color:var(--primary);">💳</div>
               <div>
@@ -4210,7 +4296,7 @@ function openCardPicker() {
         const currentDebitSpend = getDebitCardMonthlySpend(dc.id, dc.name, dc.bank);
         dc.totalSpentThisMonth = currentDebitSpend;
         return `
-          <div class="picker-card-option ${isSel ? "selected" : ""}" onclick="selectPaymentCard('debit', '${dc.id}', '${escapeHtml(dc.name)}')">
+          <div class="picker-card-option ${isSel ? "selected" : ""}" data-card-id="${dc.id}" onclick="selectPaymentCard('debit', '${dc.id}')" style="cursor:pointer;">
             <div class="picker-card-left">
               <div class="picker-chip-icon" style="color:#059669;">💳</div>
               <div>
@@ -4232,6 +4318,15 @@ function openCardPicker() {
 }
 
 function selectPaymentCard(type, cardId, cardName) {
+  if (!cardName) {
+    if (type === "credit") {
+      const c = (state.creditCards || []).find(card => card.id === cardId);
+      cardName = c ? c.name : "Credit Card";
+    } else {
+      const dc = (state.debitCards || []).find(card => card.id === cardId);
+      cardName = dc ? dc.name : "Debit Card";
+    }
+  }
   if (state.pickerTargetContext === "subscription") {
     if (dom.subSelectedWallet) {
       dom.subSelectedWallet.value = type === "credit" ? "Credit Card" : "Debit Card";
@@ -4270,6 +4365,7 @@ function selectPaymentCard(type, cardId, cardName) {
   dom.selectCardDialog?.close();
   showToast(`Selected ${cardName}!`);
 }
+window.selectPaymentCard = selectPaymentCard;
 
 function renderCreditCards() {
   if (!dom.creditCardsGrid) return;
