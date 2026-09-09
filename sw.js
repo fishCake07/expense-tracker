@@ -35,10 +35,9 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Fetch Event: NETWORK-FIRST with offline Cache fallback
+// Fetch Event: NETWORK-FIRST with offline Cache fallback (Crucial for iOS PWA updates)
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
-  // Strictly bypass service worker for any API requests
   if (e.request.url.includes("/api/")) return;
 
   e.respondWith(
@@ -56,7 +55,7 @@ self.addEventListener("fetch", (e) => {
         // Offline fallback
         return caches.match(e.request).then((cachedResponse) => {
           if (cachedResponse) return cachedResponse;
-          if (e.request.mode === "navigate" && !e.request.url.includes("/api/")) {
+          if (e.request.mode === "navigate") {
             return caches.match("./index.html");
           }
         });

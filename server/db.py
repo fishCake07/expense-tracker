@@ -1,11 +1,36 @@
 import sqlite3
 import os
 
-DEFAULT_DB_PATH = "/tmp/expense_tracker.db"
-DB_PATH = os.environ.get("EXPENSE_DB_PATH", DEFAULT_DB_PATH)
+import tempfile
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def resolve_db_path(custom_path=None):
+    if custom_path:
+        return custom_path
+    env_path = os.environ.get("EXPENSE_DB_PATH")
+    if env_path:
+        return env_path
+    # 1. Local database file in server directory: server/expense_tracker.db
+    local_path = os.path.join(BASE_DIR, "expense_tracker.db")
+    try:
+        os.makedirs(BASE_DIR, exist_ok=True)
+        conn = sqlite3.connect(local_path)
+        conn.execute("CREATE TABLE IF NOT EXISTS _probe (id INT);")
+        conn.close()
+        return local_path
+    except Exception:
+        pass
+    # 2. Fallback to OS temp directory
+    return os.path.join(tempfile.gettempdir(), "expense_tracker.db")
+
+DB_PATH = resolve_db_path()
 
 def get_db(db_path=None):
-    path = db_path or DB_PATH
+    path = resolve_db_path(db_path)
+    dir_name = os.path.dirname(os.path.abspath(path))
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
