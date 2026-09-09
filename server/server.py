@@ -562,19 +562,11 @@ class PWAAuthRequestHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
-class ReusableTCPServer(socketserver.TCPServer):
-    allow_reuse_address = True
-
-def run_server(port=None):
-    if port is None:
-        port = int(os.environ.get("PORT", 8080))
+def run_server(port=8080):
     init_db()
-    with ReusableTCPServer(("0.0.0.0", port), PWAAuthRequestHandler) as httpd:
+    with socketserver.TCPServer(("0.0.0.0", port), PWAAuthRequestHandler) as httpd:
         print(f"Server listening on http://0.0.0.0:{port}")
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("Shutting down server...")
+        httpd.serve_forever()
 
 if __name__ == "__main__":
     run_server()

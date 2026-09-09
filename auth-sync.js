@@ -12,6 +12,19 @@ const AuthSync = (() => {
   let isSyncing = false;
   let syncTimeout = null;
 
+  // Resolve API Base URL:
+  // If running directly through Python server on 8080 -> relative ""
+  // If running through VS Code Live Server (port 5500) or other static server -> target http://localhost:8080
+  function getApiBase() {
+    if (typeof window === "undefined" || !window.location) return "";
+    const port = window.location.port;
+    if (window.location.protocol === "file:" || (port && port !== "8080")) {
+      return "http://localhost:8080";
+    }
+    return "";
+  }
+  const API_BASE = getApiBase();
+
   const DB_NAME = "ExpenseTrackerDB";
   const DB_VERSION = 1;
   const ENTITY_STORES = [
@@ -25,54 +38,115 @@ const AuthSync = (() => {
     "notifications"
   ];
 
-  // Initialize IndexedDB
+  // Robust Fetch Wrapper ensuring non-JSON (HTML 404/500) never causes SyntaxError
+  async function safeFetchJson(url, options = {}) {
+    options.credentials = "include";
+    let res;
+    try {
+      res = await fetch(url, options);
+    } catch (netErr) {
+      return {
+        ok: false,
+        status: 0,
+        data: null,
+        error: "Network Error",
+        message: "Cannot connect to the backend server at " + (API_BASE || "http://localhost:8080") + ". Please ensure 'python server/server.py' is running."
+      };
+    }
+
+    const contentType = res.headers.get("content-type") || "";
+    let data = null;
+
+    if (contentType.includes("application/json")) {
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        data = null;
+      }
+    } else {
+      const text = await res.text();
+      if (text.trim().startsWith("<")) {
+        return {
+          ok: false,
+          status: res.status,
+          data: null,
+          error: "Invalid Server Response",
+          message: "The backend server returned HTML instead of JSON. Ensure 'python server/server.py' is running on port 8080 and open http://localhost:8080 directly."
+        };
+      }
+      try {
+        data = JSON.parse(text);
+      } catch (_) {
+        data = { message: text };
+      }
+    }
+
+    return {
+      ok: res.ok,
+      status: res.status,
+      data: data,
+      error: res.ok ? null : ((data && data.error) || "Request Failed"),
+      message: (data && data.message) || (res.ok ? "Success" : `Server returned HTTP ${res.status}`)
+    };
+  }
+
+  // Initialize IndexedDB with try-catch safety
   function openDatabase() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (dbInstance) return resolve(dbInstance);
       if (!window.indexedDB) {
-        console.warn("IndexedDB not supported, falling back to local-only storage.");
+        console.warn("IndexedDB not supported in this environment, falling back to local storage.");
         return resolve(null);
       }
 
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      try {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-      request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains("meta")) {
-          db.createObjectStore("meta");
-        }
-        if (!db.objectStoreNames.contains("outbox_mutations")) {
-          db.createObjectStore("outbox_mutations", { keyPath: "id", autoIncrement: true });
-        }
-        ENTITY_STORES.forEach((storeName) => {
-          if (!db.objectStoreNames.contains(storeName)) {
-            db.createObjectStore(storeName, { keyPath: "id" });
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains("meta")) {
+            db.createObjectStore("meta");
           }
-        });
-      };
+          if (!db.objectStoreNames.contains("outbox_mutations")) {
+            db.createObjectStore("outbox_mutations", { keyPath: "id", autoIncrement: true });
+          }
+          ENTITY_STORES.forEach((storeName) => {
+            if (!db.objectStoreNames.contains(storeName)) {
+              db.createObjectStore(storeName, { keyPath: "id" });
+            }
+          });
+        };
 
-      request.onsuccess = (e) => {
-        dbInstance = e.target.result;
-        resolve(dbInstance);
-      };
+        request.onsuccess = (e) => {
+          dbInstance = e.target.result;
+          resolve(dbInstance);
+        };
 
-      request.onerror = (e) => {
-        console.error("Failed to open IndexedDB:", e);
+        request.onerror = (e) => {
+          console.warn("IndexedDB open request error:", e);
+          resolve(null);
+        };
+      } catch (err) {
+        console.warn("IndexedDB open exception:", err);
         resolve(null);
-      };
+      }
     });
   }
 
-  // Helper for IndexedDB transactions
+  // Helpers for IndexedDB transactions
   async function idbGet(storeName, key) {
     const db = await openDatabase();
     if (!db) return null;
     return new Promise((resolve) => {
-      const tx = db.transaction(storeName, "readonly");
-      const store = tx.objectStore(storeName);
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
+      try {
+        const tx = db.transaction(storeName, "readonly");
+        const store = tx.objectStore(storeName);
+        const req = store.get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      } catch (_) {
+        resolve(null);
+      }
     });
   }
 
@@ -80,11 +154,15 @@ const AuthSync = (() => {
     const db = await openDatabase();
     if (!db) return;
     return new Promise((resolve) => {
-      const tx = db.transaction(storeName, "readwrite");
-      const store = tx.objectStore(storeName);
-      const req = key !== undefined ? store.put(value, key) : store.put(value);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => resolve(false);
+      try {
+        const tx = db.transaction(storeName, "readwrite");
+        const store = tx.objectStore(storeName);
+        const req = key !== undefined ? store.put(value, key) : store.put(value);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch (_) {
+        resolve(false);
+      }
     });
   }
 
@@ -92,11 +170,15 @@ const AuthSync = (() => {
     const db = await openDatabase();
     if (!db) return [];
     return new Promise((resolve) => {
-      const tx = db.transaction(storeName, "readonly");
-      const store = tx.objectStore(storeName);
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => resolve([]);
+      try {
+        const tx = db.transaction(storeName, "readonly");
+        const store = tx.objectStore(storeName);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      } catch (_) {
+        resolve([]);
+      }
     });
   }
 
@@ -104,11 +186,15 @@ const AuthSync = (() => {
     const db = await openDatabase();
     if (!db) return;
     return new Promise((resolve) => {
-      const tx = db.transaction(storeName, "readwrite");
-      const store = tx.objectStore(storeName);
-      const req = store.clear();
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => resolve(false);
+      try {
+        const tx = db.transaction(storeName, "readwrite");
+        const store = tx.objectStore(storeName);
+        const req = store.clear();
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch (_) {
+        resolve(false);
+      }
     });
   }
 
@@ -118,12 +204,10 @@ const AuthSync = (() => {
     const db = await openDatabase();
     if (!db) return;
 
-    // Cache locally in IDB entity store first
     if (action === "UPSERT") {
       await idbPut(entity, data);
     }
 
-    // Append to outbox
     const mutation = {
       entity,
       action,
@@ -131,10 +215,11 @@ const AuthSync = (() => {
       timestamp: new Date().toISOString()
     };
 
-    const tx = db.transaction("outbox_mutations", "readwrite");
-    tx.objectStore("outbox_mutations").add(mutation);
+    try {
+      const tx = db.transaction("outbox_mutations", "readwrite");
+      tx.objectStore("outbox_mutations").add(mutation);
+    } catch (_) {}
 
-    // If online and authenticated, trigger debounced sync
     if (currentUser && navigator.onLine) {
       scheduleSync(1500);
     }
@@ -149,16 +234,11 @@ const AuthSync = (() => {
 
   // Fetch CSRF Token
   async function fetchCsrfToken() {
-    try {
-      const res = await fetch("/api/v1/csrf");
-      if (res.ok) {
-        const data = await res.json();
-        csrfToken = data.csrf_token;
-        localStorage.setItem(CSRF_STORAGE_KEY, csrfToken);
-        return csrfToken;
-      }
-    } catch (e) {
-      // Offline or network error
+    const res = await safeFetchJson(`${API_BASE}/api/v1/csrf`);
+    if (res.ok && res.data && res.data.csrf_token) {
+      csrfToken = res.data.csrf_token;
+      localStorage.setItem(CSRF_STORAGE_KEY, csrfToken);
+      return csrfToken;
     }
     csrfToken = localStorage.getItem(CSRF_STORAGE_KEY) || null;
     return csrfToken;
@@ -166,101 +246,81 @@ const AuthSync = (() => {
 
   // Check current session
   async function checkSession() {
-    try {
-      const res = await fetch("/api/v1/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        currentUser = data.user;
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
-        await fetchCsrfToken();
-        updateUI();
-        performSync();
-        return currentUser;
-      } else {
-        currentUser = null;
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-      }
-    } catch (e) {
-      // Offline: load cached user if available
-      const cached = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (cached) {
-        try {
-          currentUser = JSON.parse(cached);
-        } catch (_) {}
-      }
+    const res = await safeFetchJson(`${API_BASE}/api/v1/auth/me`);
+    if (res.ok && res.data && res.data.user) {
+      currentUser = res.data.user;
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
+      await fetchCsrfToken();
+      updateUI();
+      performSync();
+      return currentUser;
+    } else {
+      currentUser = null;
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      updateUI();
+      return null;
     }
-    updateUI();
-    return currentUser;
   }
 
   // Register
   async function register(email, password, importExisting = true) {
-    try {
-      const res = await fetch("/api/v1/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || "Registration failed");
-      }
-      currentUser = data.user;
-      csrfToken = data.csrf_token;
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
-      if (csrfToken) localStorage.setItem(CSRF_STORAGE_KEY, csrfToken);
+    const res = await safeFetchJson(`${API_BASE}/api/v1/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
 
-      // If user wants to import existing local state to their new cloud account
-      if (importExisting && window.state) {
-        await snapshotAllToOutbox();
-      }
-
-      updateUI();
-      performSync();
-      return { success: true, user: currentUser };
-    } catch (err) {
-      return { success: false, error: err.message };
+    if (!res.ok) {
+      return { success: false, error: res.message || "Registration failed" };
     }
+
+    currentUser = res.data.user;
+    csrfToken = res.data.csrf_token;
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
+    if (csrfToken) localStorage.setItem(CSRF_STORAGE_KEY, csrfToken);
+
+    if (importExisting && window.state) {
+      await snapshotAllToOutbox();
+    }
+
+    updateUI();
+    performSync();
+    return { success: true, user: currentUser };
   }
 
   // Login
   async function login(email, password) {
-    try {
-      const res = await fetch("/api/v1/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-      currentUser = data.user;
-      csrfToken = data.csrf_token;
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
-      if (csrfToken) localStorage.setItem(CSRF_STORAGE_KEY, csrfToken);
+    const res = await safeFetchJson(`${API_BASE}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
 
-      updateUI();
-      performSync();
-      return { success: true, user: currentUser };
-    } catch (err) {
-      return { success: false, error: err.message };
+    if (!res.ok) {
+      return { success: false, error: res.message || "Login failed" };
     }
+
+    currentUser = res.data.user;
+    csrfToken = res.data.csrf_token;
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
+    if (csrfToken) localStorage.setItem(CSRF_STORAGE_KEY, csrfToken);
+
+    updateUI();
+    performSync();
+    return { success: true, user: currentUser };
   }
 
   // Logout
   async function logout() {
-    try {
-      if (csrfToken) {
-        await fetch("/api/v1/auth/logout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": csrfToken
-          }
-        });
-      }
-    } catch (e) {}
+    if (csrfToken) {
+      await safeFetchJson(`${API_BASE}/api/v1/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken
+        }
+      });
+    }
     currentUser = null;
     csrfToken = null;
     localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -319,7 +379,7 @@ const AuthSync = (() => {
         }))
       };
 
-      const res = await fetch("/api/v1/sync", {
+      const res = await safeFetchJson(`${API_BASE}/api/v1/sync`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -329,7 +389,6 @@ const AuthSync = (() => {
       });
 
       if (res.status === 401) {
-        // Session expired
         currentUser = null;
         localStorage.removeItem(AUTH_STORAGE_KEY);
         updateUI();
@@ -337,14 +396,11 @@ const AuthSync = (() => {
         return;
       }
 
-      if (res.ok) {
-        const syncData = await res.json();
-        localStorage.setItem(LAST_SYNC_KEY, syncData.synced_at);
-
-        // Clear flushed outbox items
+      if (res.ok && res.data) {
+        const syncData = res.data;
+        if (syncData.synced_at) localStorage.setItem(LAST_SYNC_KEY, syncData.synced_at);
         await idbClear("outbox_mutations");
 
-        // Merge incoming changes from server into local app state if newer
         if (syncData.changes && window.state) {
           applyServerChanges(syncData.changes);
         }
@@ -366,7 +422,6 @@ const AuthSync = (() => {
     let stateModified = false;
     const s = window.state;
 
-    // Helper to merge entity arrays
     function mergeEntities(localArr, serverArr) {
       if (!Array.isArray(serverArr) || serverArr.length === 0) return localArr;
       const map = new Map(localArr.map((item) => [item.id, item]));
@@ -375,7 +430,6 @@ const AuthSync = (() => {
           map.delete(serverItem.id);
           stateModified = true;
         } else {
-          // Normalize column names if needed
           const existing = map.get(serverItem.id);
           if (!existing || (serverItem.updated_at && (!existing.updated_at || serverItem.updated_at >= existing.updated_at))) {
             map.set(serverItem.id, serverItem);
@@ -419,48 +473,43 @@ const AuthSync = (() => {
 
   // Export User Cloud Data
   async function exportCloudData() {
-    try {
-      const res = await fetch("/api/v1/user/export");
-      if (!res.ok) throw new Error("Failed to export server data");
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `expense_tracker_cloud_backup_${new Date().toISOString().substring(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      return { success: true };
-    } catch (e) {
-      return { success: false, error: e.message };
+    const res = await safeFetchJson(`${API_BASE}/api/v1/user/export`);
+    if (!res.ok) {
+      return { success: false, error: res.message || "Failed to export server data" };
     }
+    const data = res.data;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `expense_tracker_cloud_backup_${new Date().toISOString().substring(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return { success: true };
   }
 
   // Delete Account
   async function deleteAccount(password) {
-    try {
-      if (!csrfToken) await fetchCsrfToken();
-      const res = await fetch("/api/v1/user/delete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken || ""
-        },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to delete account");
-      currentUser = null;
-      csrfToken = null;
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      localStorage.removeItem(CSRF_STORAGE_KEY);
-      localStorage.removeItem(LAST_SYNC_KEY);
-      await idbClear("outbox_mutations");
-      updateUI();
-      return { success: true };
-    } catch (e) {
-      return { success: false, error: e.message };
+    if (!csrfToken) await fetchCsrfToken();
+    const res = await safeFetchJson(`${API_BASE}/api/v1/user/delete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken || ""
+      },
+      body: JSON.stringify({ password })
+    });
+    if (!res.ok) {
+      return { success: false, error: res.message || "Failed to delete account" };
     }
+    currentUser = null;
+    csrfToken = null;
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(CSRF_STORAGE_KEY);
+    localStorage.removeItem(LAST_SYNC_KEY);
+    await idbClear("outbox_mutations");
+    updateUI();
+    return { success: true };
   }
 
   // Update UI Pills and Dialogs
@@ -484,7 +533,7 @@ const AuthSync = (() => {
       pill.title = "All financial records safely synchronized.";
     } else {
       label.textContent = "Sync Warning";
-      pill.title = "Sync error. Retrying shortly.";
+      pill.title = "Sync warning. Ensure server is running.";
     }
   }
 
@@ -512,6 +561,31 @@ const AuthSync = (() => {
     }
   }
 
+  function openAuthModal() {
+    const authModal = document.getElementById("auth-account-dialog");
+    if (!authModal) return;
+    updateUI();
+    if (typeof authModal.showModal === "function") {
+      try {
+        authModal.showModal();
+      } catch (_) {
+        authModal.setAttribute("open", "");
+      }
+    } else {
+      authModal.setAttribute("open", "");
+    }
+  }
+
+  function closeAuthModal() {
+    const authModal = document.getElementById("auth-account-dialog");
+    if (!authModal) return;
+    if (typeof authModal.close === "function") {
+      authModal.close();
+    } else {
+      authModal.removeAttribute("open");
+    }
+  }
+
   // Setup DOM Event Listeners
   function setupUI() {
     const syncPill = document.getElementById("sync-status-pill");
@@ -519,35 +593,23 @@ const AuthSync = (() => {
     const closeBtn = document.getElementById("close-auth-modal-btn");
     const settingsAccountBtn = document.getElementById("settings-open-auth-btn");
 
-    if (syncPill && authModal) {
-      syncPill.addEventListener("click", () => {
-        updateUI();
-        if (typeof authModal.showModal === "function") authModal.showModal();
-        else authModal.style.display = "block";
-      });
+    if (syncPill) {
+      syncPill.onclick = () => openAuthModal();
     }
 
-    if (settingsAccountBtn && authModal) {
-      settingsAccountBtn.addEventListener("click", () => {
-        updateUI();
-        if (typeof authModal.showModal === "function") authModal.showModal();
-        else authModal.style.display = "block";
-      });
+    if (settingsAccountBtn) {
+      settingsAccountBtn.onclick = () => openAuthModal();
     }
 
-    if (closeBtn && authModal) {
-      closeBtn.addEventListener("click", () => {
-        if (typeof authModal.close === "function") authModal.close();
-        else authModal.style.display = "none";
-      });
+    if (closeBtn) {
+      closeBtn.onclick = () => closeAuthModal();
     }
 
-    // Universal backdrop dismissal adhering to test requirement: e.target === dialog
+    // Universal backdrop dismissal adhering strictly to test requirement: e.target === dialog
     if (authModal) {
       authModal.addEventListener("click", (e) => {
         if (e.target === authModal) {
-          if (typeof authModal.close === "function") authModal.close();
-          else authModal.style.display = "none";
+          closeAuthModal();
         }
       });
     }
@@ -559,106 +621,118 @@ const AuthSync = (() => {
     const formRegister = document.getElementById("auth-form-register");
 
     if (tabLogin && tabRegister && formLogin && formRegister) {
-      tabLogin.addEventListener("click", () => {
+      tabLogin.onclick = () => {
         tabLogin.classList.add("active");
         tabRegister.classList.remove("active");
         formLogin.style.display = "block";
         formRegister.style.display = "none";
-      });
-      tabRegister.addEventListener("click", () => {
+      };
+      tabRegister.onclick = () => {
         tabRegister.classList.add("active");
         tabLogin.classList.remove("active");
         formRegister.style.display = "block";
         formLogin.style.display = "none";
-      });
+      };
     }
 
     // Form Submissions
     if (formLogin) {
-      formLogin.addEventListener("submit", async (e) => {
+      formLogin.onsubmit = async (e) => {
         e.preventDefault();
         const email = document.getElementById("login-email").value;
         const password = document.getElementById("login-password").value;
         const msgEl = document.getElementById("login-msg");
-        if (msgEl) msgEl.textContent = "Authenticating...";
+        if (msgEl) {
+          msgEl.style.color = "var(--text-muted)";
+          msgEl.textContent = "Authenticating...";
+        }
 
         const res = await login(email, password);
         if (res.success) {
           if (msgEl) msgEl.textContent = "";
-          if (authModal && typeof authModal.close === "function") authModal.close();
+          closeAuthModal();
           if (typeof window.showToast === "function") window.showToast("Signed in as " + res.user.email);
         } else {
-          if (msgEl) msgEl.textContent = res.error;
+          if (msgEl) {
+            msgEl.style.color = "#ef4444";
+            msgEl.textContent = res.error;
+          }
         }
-      });
+      };
     }
 
     if (formRegister) {
-      formRegister.addEventListener("submit", async (e) => {
+      formRegister.onsubmit = async (e) => {
         e.preventDefault();
         const email = document.getElementById("register-email").value;
         const password = document.getElementById("register-password").value;
         const importCheck = document.getElementById("register-import-local").checked;
         const msgEl = document.getElementById("register-msg");
-        if (msgEl) msgEl.textContent = "Creating account...";
+        if (msgEl) {
+          msgEl.style.color = "var(--text-muted)";
+          msgEl.textContent = "Creating account...";
+        }
 
         const res = await register(email, password, importCheck);
         if (res.success) {
           if (msgEl) msgEl.textContent = "";
-          if (authModal && typeof authModal.close === "function") authModal.close();
+          closeAuthModal();
           if (typeof window.showToast === "function") window.showToast("Account created! Synced ledger.");
         } else {
-          if (msgEl) msgEl.textContent = res.error;
+          if (msgEl) {
+            msgEl.style.color = "#ef4444";
+            msgEl.textContent = res.error;
+          }
         }
-      });
+      };
     }
 
     // Logout Button
     const logoutBtn = document.getElementById("auth-logout-btn");
     if (logoutBtn) {
-      logoutBtn.addEventListener("click", async () => {
+      logoutBtn.onclick = async () => {
         await logout();
-        if (authModal && typeof authModal.close === "function") authModal.close();
+        closeAuthModal();
         if (typeof window.showToast === "function") window.showToast("Logged out successfully.");
-      });
+      };
     }
 
     // Manual Sync Button
     const syncNowBtn = document.getElementById("auth-sync-now-btn");
     if (syncNowBtn) {
-      syncNowBtn.addEventListener("click", async () => {
+      syncNowBtn.onclick = async () => {
         syncNowBtn.disabled = true;
         syncNowBtn.textContent = "Syncing...";
         await performSync();
         syncNowBtn.disabled = false;
         syncNowBtn.textContent = "🔄 Sync Now";
         if (typeof window.showToast === "function") window.showToast("Cloud sync completed.");
-      });
+      };
     }
 
     // Export Cloud Data Button
     const exportBtn = document.getElementById("auth-export-cloud-btn");
     if (exportBtn) {
-      exportBtn.addEventListener("click", async () => {
+      exportBtn.onclick = async () => {
         await exportCloudData();
         if (typeof window.showToast === "function") window.showToast("Cloud backup downloaded.");
-      });
+      };
     }
 
     // Delete Account Button
     const deleteBtn = document.getElementById("auth-delete-account-btn");
     if (deleteBtn) {
-      deleteBtn.addEventListener("click", async () => {
+      deleteBtn.onclick = async () => {
         const pw = prompt("SECURITY CONFIRMATION:\nPlease enter your password to permanently delete your account and cloud data:");
         if (!pw) return;
         const res = await deleteAccount(pw);
         if (res.success) {
-          if (authModal && typeof authModal.close === "function") authModal.close();
+          closeAuthModal();
           alert("Your account and cloud records have been deleted.");
         } else {
           alert("Deletion failed: " + res.error);
         }
-      });
+      };
     }
 
     // Network listeners
@@ -677,7 +751,6 @@ const AuthSync = (() => {
       const origSaveStorage = window.saveStorage;
       window.saveStorage = function () {
         origSaveStorage.apply(this, arguments);
-        // Async queue mutations in background
         if (window.state && currentUser) {
           snapshotAllToOutbox();
         }
@@ -687,14 +760,24 @@ const AuthSync = (() => {
 
   // Lifecycle Initialization
   async function init() {
-    await openDatabase();
     setupUI();
     hookAppStorage();
-    await checkSession();
+    try {
+      await openDatabase();
+    } catch (e) {
+      console.warn("IndexedDB init warning:", e);
+    }
+    try {
+      await checkSession();
+    } catch (e) {
+      console.warn("Session check warning:", e);
+    }
   }
 
   return {
     init,
+    openAuthModal,
+    closeAuthModal,
     getCurrentUser: () => currentUser,
     register,
     login,
@@ -706,7 +789,7 @@ const AuthSync = (() => {
   };
 })();
 
-// Auto-boot on DOM ready
+// Auto-boot immediately or on DOM ready
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => AuthSync.init());
 } else {
