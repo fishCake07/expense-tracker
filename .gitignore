@@ -1,8 +1,7 @@
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
-*.sha256
-.env
-__pycache__/
-*.pyc
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+*.log
+
+# Local dev servers (e.g. `npx serve`, `python -m http.server`)
+.cache/
