@@ -499,6 +499,13 @@ const dom = {
   settingsExportJson: $("settings-export-json"),
   settingsImportBtn: $("settings-import-btn"),
   settingsFileInput: $("settings-file-input"),
+  backupFolderStatus: $("backup-folder-status"),
+  linkBackupFolderBtn: $("link-backup-folder-btn"),
+  unlinkBackupFolderBtn: $("unlink-backup-folder-btn"),
+  openRestoreDialogBtn: $("open-restore-dialog-btn"),
+  restoreBackupDialog: $("restore-backup-dialog"),
+  closeRestoreDialogBtn: $("close-restore-dialog-btn"),
+  restoreSnapshotList: $("restore-snapshot-list"),
   toggleSurplusSweep: $("toggle-surplus-sweep"),
   // Header Notification Bell
   openNotificationsBtn: $("open-notifications-btn"),
@@ -663,14 +670,14 @@ function getCategoryIcon(name) {
 }
 
 // Initialize Application
-function init() {
+async function init() {
   // Programmatic dialog safeguard: ensure all closed dialogs are strictly closed
   document.querySelectorAll("dialog").forEach(d => {
     if (!d.hasAttribute("open") && d.open) {
       try { d.close(); } catch(e) {}
     }
   });
-  loadStorage();
+  await loadStorage();
   initTheme();
   setDefaultDate();
   scheduleMidnightRollover();
@@ -688,6 +695,7 @@ function init() {
   render();
   updateRollingNavBar();
   renderDashboardInstallments();
+  refreshBackupFolderStatus();
   registerSW();
   initSwipeGestures();
   initMovableMenuFAB();
@@ -742,10 +750,12 @@ function initDateLifecycleListeners() {
   });
 }
 
-// Local Storage
-function loadStorage() {
+// Local Storage (IndexedDB-backed, via db.js — see ExpenseDB)
+async function loadStorage() {
   try {
-    const tx = localStorage.getItem(STORAGE_KEYS.tx);
+    await ExpenseDB.migrateFromLocalStorage(STORAGE_KEYS);
+
+    const tx = await ExpenseDB.getItem(STORAGE_KEYS.tx);
     if (tx) {
       state.transactions = JSON.parse(tx);
       // Auto-heal legacy sample transactions to link to specific accounts
@@ -779,9 +789,9 @@ function loadStorage() {
         }
       });
     }
-    const curr = localStorage.getItem(STORAGE_KEYS.currency);
+    const curr = await ExpenseDB.getItem(STORAGE_KEYS.currency);
     if (curr) state.currency = curr;
-    const subs = localStorage.getItem(STORAGE_KEYS.subs);
+    const subs = await ExpenseDB.getItem(STORAGE_KEYS.subs);
     if (subs) {
       state.subscriptions = JSON.parse(subs);
       // Auto-heal legacy subscriptions to link them to specific accounts
@@ -806,19 +816,19 @@ function loadStorage() {
         }
       });
     }
-    const cats = localStorage.getItem(STORAGE_KEYS.customCats);
+    const cats = await ExpenseDB.getItem(STORAGE_KEYS.customCats);
     if (cats) state.customCategories = JSON.parse(cats);
-    const th = localStorage.getItem(STORAGE_KEYS.theme);
+    const th = await ExpenseDB.getItem(STORAGE_KEYS.theme);
     if (th) state.theme = th;
-    const swp = localStorage.getItem(STORAGE_KEYS.autoSweep);
-    if (swp !== null) state.autoSweepSurplus = (swp === "true");
-    const ln = localStorage.getItem(STORAGE_KEYS.loans);
+    const swp = await ExpenseDB.getItem(STORAGE_KEYS.autoSweep);
+    if (swp != null) state.autoSweepSurplus = (swp === "true");
+    const ln = await ExpenseDB.getItem(STORAGE_KEYS.loans);
     if (ln) state.loans = JSON.parse(ln);
-    const cd = localStorage.getItem(STORAGE_KEYS.cards);
+    const cd = await ExpenseDB.getItem(STORAGE_KEYS.cards);
     if (cd) state.creditCards = JSON.parse(cd);
-    const dcd = localStorage.getItem(STORAGE_KEYS.debitCards);
+    const dcd = await ExpenseDB.getItem(STORAGE_KEYS.debitCards);
     if (dcd) state.debitCards = JSON.parse(dcd);
-    const bks = localStorage.getItem(STORAGE_KEYS.banks);
+    const bks = await ExpenseDB.getItem(STORAGE_KEYS.banks);
     if (bks) {
       state.bankAccounts = JSON.parse(bks);
       state.bankAccounts.forEach(b => {
@@ -827,7 +837,7 @@ function loadStorage() {
         }
       });
     }
-    const ew = localStorage.getItem(STORAGE_KEYS.ewallets);
+    const ew = await ExpenseDB.getItem(STORAGE_KEYS.ewallets);
     if (ew) {
       try {
         state.ewallets = JSON.parse(ew);
@@ -840,48 +850,69 @@ function loadStorage() {
         state.ewallets = [];
       }
     }
-    const nt = localStorage.getItem(STORAGE_KEYS.notifications);
+    const nt = await ExpenseDB.getItem(STORAGE_KEYS.notifications);
     if (nt) state.notifications = JSON.parse(nt);
   } catch (e) {
     state.transactions = [];
   }
 }
 
+// Builds the full exportable snapshot of app data (shared by saveStorage's
+// rolling snapshots, the linked-folder backup, and the manual JSON export).
+function buildFullBackupPayload() {
+  return {
+    appName: "Expense Tracker",
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    currency: state.currency,
+    transactions: state.transactions,
+    subscriptions: state.subscriptions,
+    customCategories: state.customCategories,
+    loans: state.loans,
+    creditCards: state.creditCards,
+    debitCards: state.debitCards,
+    bankAccounts: state.bankAccounts,
+    ewallets: state.ewallets || [],
+    notifications: state.notifications || [],
+    theme: state.theme,
+    autoSweepSurplus: state.autoSweepSurplus
+  };
+}
+
+// Persists state to IndexedDB (primary store). Fire-and-forget from the
+// caller's point of view — every mutation in the app already re-renders
+// from the in-memory `state` object, so nothing needs to await this.
 function saveStorage() {
-  try {
-    localStorage.setItem(STORAGE_KEYS.tx, JSON.stringify(state.transactions));
-    localStorage.setItem(STORAGE_KEYS.currency, state.currency);
-    localStorage.setItem(STORAGE_KEYS.subs, JSON.stringify(state.subscriptions));
-    localStorage.setItem(STORAGE_KEYS.customCats, JSON.stringify(state.customCategories));
-    localStorage.setItem(STORAGE_KEYS.theme, state.theme);
-    localStorage.setItem(STORAGE_KEYS.autoSweep, state.autoSweepSurplus ? "true" : "false");
-    localStorage.setItem(STORAGE_KEYS.loans, JSON.stringify(state.loans));
-    localStorage.setItem(STORAGE_KEYS.cards, JSON.stringify(state.creditCards));
-    localStorage.setItem(STORAGE_KEYS.debitCards, JSON.stringify(state.debitCards));
-    localStorage.setItem(STORAGE_KEYS.banks, JSON.stringify(state.bankAccounts));
-    localStorage.setItem(STORAGE_KEYS.ewallets, JSON.stringify(state.ewallets));
-    localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(state.notifications));
-  } catch (e) {
-    // iOS Safari 5MB QuotaExceededError Recovery Safeguard
-    if (e.name === "QuotaExceededError" || e.code === 22 || e.code === 1014) {
-      let freed = false;
-      for (let i = state.transactions.length - 1; i >= 0; i--) {
-        if (state.transactions[i].receiptImage) {
-          state.transactions[i].receiptImage = null;
-          freed = true;
-          break;
-        }
-      }
-      if (freed) {
-        try {
-          localStorage.setItem(STORAGE_KEYS.tx, JSON.stringify(state.transactions));
-          showToast("Storage quota nearly full. Pruned oldest receipt to preserve ledger.");
-        } catch (retryErr) {}
-      } else {
-        showToast("Storage quota full! Export a JSON backup to clear old records.");
-      }
-    }
-  }
+  const entries = [
+    [STORAGE_KEYS.tx, JSON.stringify(state.transactions)],
+    [STORAGE_KEYS.currency, state.currency],
+    [STORAGE_KEYS.subs, JSON.stringify(state.subscriptions)],
+    [STORAGE_KEYS.customCats, JSON.stringify(state.customCategories)],
+    [STORAGE_KEYS.theme, state.theme],
+    [STORAGE_KEYS.autoSweep, state.autoSweepSurplus ? "true" : "false"],
+    [STORAGE_KEYS.loans, JSON.stringify(state.loans)],
+    [STORAGE_KEYS.cards, JSON.stringify(state.creditCards)],
+    [STORAGE_KEYS.debitCards, JSON.stringify(state.debitCards)],
+    [STORAGE_KEYS.banks, JSON.stringify(state.bankAccounts)],
+    [STORAGE_KEYS.ewallets, JSON.stringify(state.ewallets)],
+    [STORAGE_KEYS.notifications, JSON.stringify(state.notifications)]
+  ];
+
+  ExpenseDB.setItems(entries)
+    .then(() => {
+      // Rolling internal snapshot (throttled to ~every 12h inside db.js)
+      return ExpenseDB.snapshotIfDue(buildFullBackupPayload);
+    })
+    .then(() => {
+      // Optional linked-folder backup (no-op if nothing is linked, or
+      // unsupported in this browser)
+      const json = JSON.stringify(buildFullBackupPayload(), null, 2);
+      return ExpenseDB.writeFolderBackup(json);
+    })
+    .catch((e) => {
+      console.warn("Save to IndexedDB failed:", e);
+      showToast("Couldn't save locally — storage may be unavailable. Export a JSON backup to be safe.");
+    });
 }
 
 
@@ -1935,6 +1966,12 @@ function bindEvents() {
   dom.settingsExportJson.addEventListener("click", exportToJSON);
   if (dom.settingsImportBtn && dom.settingsImportBtn.tagName === "BUTTON") { dom.settingsImportBtn.addEventListener("click", () => dom.settingsFileInput.click()); }
   dom.settingsFileInput.addEventListener("change", handleFileImport);
+
+  // Automatic Local Backups (linked folder + snapshot restore)
+  if (dom.linkBackupFolderBtn) dom.linkBackupFolderBtn.addEventListener("click", handleLinkBackupFolder);
+  if (dom.unlinkBackupFolderBtn) dom.unlinkBackupFolderBtn.addEventListener("click", handleUnlinkBackupFolder);
+  if (dom.openRestoreDialogBtn) dom.openRestoreDialogBtn.addEventListener("click", openRestoreDialog);
+  if (dom.closeRestoreDialogBtn) dom.closeRestoreDialogBtn.addEventListener("click", () => dom.restoreBackupDialog.close());
 
   const purgeBtn = document.getElementById("force-update-cache-btn");
   if (purgeBtn) {
@@ -6006,22 +6043,7 @@ function exportToCSV() {
 }
 
 function exportToJSON() {
-  const backupData = {
-    appName: "Expense Tracker",
-    version: 2,
-    exportedAt: new Date().toISOString(),
-    currency: state.currency,
-    transactions: state.transactions,
-    subscriptions: state.subscriptions,
-    customCategories: state.customCategories,
-    loans: state.loans,
-    creditCards: state.creditCards,
-    debitCards: state.debitCards,
-    bankAccounts: state.bankAccounts,
-    ewallets: state.ewallets || []
-  };
-
-  const jsonStr = JSON.stringify(backupData, null, 2);
+  const jsonStr = JSON.stringify(buildFullBackupPayload(), null, 2);
   const today = getLocalDateString();
   exportFile(new Blob([jsonStr], { type: "application/json;charset=utf-8;" }), `expense_tracker_backup_${today}.json`);
   showToast("Full backup file ready!");
@@ -6056,6 +6078,125 @@ function downloadBlob(blob, filename) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 60000); // 60s for iOS Safari download manager
+}
+
+// ---- Automatic Local Backup UI (Linked Folder + Snapshot Restore) ----
+
+async function refreshBackupFolderStatus() {
+  if (!dom.backupFolderStatus) return;
+  if (!ExpenseDB.folderBackupsSupported()) {
+    dom.backupFolderStatus.textContent = "Automatic folder backups aren't supported in this browser. Rolling snapshots are still saved on this device — use \"Full JSON Backup\" for an off-device copy.";
+    dom.linkBackupFolderBtn.style.display = "none";
+    dom.unlinkBackupFolderBtn.style.display = "none";
+    return;
+  }
+  try {
+    const handle = await ExpenseDB.getLinkedFolderHandle();
+    if (handle) {
+      dom.backupFolderStatus.textContent = `Automatic local backups: linked to "${handle.name}". A backup file is written there every time you save.`;
+      dom.linkBackupFolderBtn.style.display = "none";
+      dom.unlinkBackupFolderBtn.style.display = "flex";
+    } else {
+      dom.backupFolderStatus.textContent = "Automatic local backups: not linked. Link a folder so backups are saved outside the app too.";
+      dom.linkBackupFolderBtn.style.display = "flex";
+      dom.unlinkBackupFolderBtn.style.display = "none";
+    }
+  } catch (e) {
+    dom.backupFolderStatus.textContent = "Automatic local backups: status unavailable.";
+  }
+}
+
+async function handleLinkBackupFolder() {
+  try {
+    await ExpenseDB.linkBackupFolder();
+    await ExpenseDB.writeFolderBackup(JSON.stringify(buildFullBackupPayload(), null, 2));
+    showToast("Backup folder linked! A backup was written immediately.");
+    refreshBackupFolderStatus();
+  } catch (e) {
+    if (e && e.name === "AbortError") return; // user cancelled the picker
+    showToast("Couldn't link a backup folder on this device.");
+  }
+}
+
+async function handleUnlinkBackupFolder() {
+  await ExpenseDB.unlinkBackupFolder();
+  showToast("Backup folder unlinked.");
+  refreshBackupFolderStatus();
+}
+
+function formatSnapshotTimestamp(ms) {
+  const d = new Date(ms);
+  return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+async function openRestoreDialog() {
+  if (!dom.restoreBackupDialog) return;
+  dom.restoreSnapshotList.innerHTML = `<p class="dialog-sub">Loading snapshots…</p>`;
+  dom.restoreBackupDialog.showModal();
+
+  // Always offer "restore the current data as-is" has no meaning here; just
+  // make sure there's at least one up-to-date snapshot to restore from.
+  await ExpenseDB.forceSnapshot(buildFullBackupPayload);
+
+  const snapshots = await ExpenseDB.listSnapshots();
+  if (!snapshots.length) {
+    dom.restoreSnapshotList.innerHTML = `<p class="dialog-sub">No snapshots yet.</p>`;
+    return;
+  }
+
+  dom.restoreSnapshotList.innerHTML = "";
+  snapshots.forEach((snap) => {
+    const row = document.createElement("div");
+    row.className = "restore-snapshot-item";
+
+    const meta = document.createElement("div");
+    meta.className = "restore-snapshot-meta";
+    const txCount = (snap.data && snap.data.transactions && snap.data.transactions.length) || 0;
+    meta.textContent = `${formatSnapshotTimestamp(snap.takenAt)} · ${txCount} transactions`;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-secondary";
+    btn.textContent = "Restore";
+    btn.addEventListener("click", () => confirmRestoreSnapshot(snap.id));
+
+    row.appendChild(meta);
+    row.appendChild(btn);
+    dom.restoreSnapshotList.appendChild(row);
+  });
+}
+
+async function confirmRestoreSnapshot(snapshotId) {
+  const ok = window.confirm("Restore this snapshot? Your current data will be replaced (your current data is itself snapshotted first, so nothing is lost).");
+  if (!ok) return;
+
+  // Safety net: snapshot the current state before overwriting it.
+  await ExpenseDB.forceSnapshot(buildFullBackupPayload);
+
+  const snap = await ExpenseDB.getSnapshot(snapshotId);
+  if (!snap) {
+    showToast("That snapshot is no longer available.");
+    return;
+  }
+
+  const d = snap.data;
+  state.transactions = d.transactions || [];
+  state.subscriptions = d.subscriptions || [];
+  state.customCategories = d.customCategories || [];
+  state.loans = d.loans || [];
+  state.creditCards = d.creditCards || [];
+  state.debitCards = d.debitCards || [];
+  state.bankAccounts = d.bankAccounts || [];
+  state.ewallets = d.ewallets || [];
+  state.notifications = d.notifications || [];
+  if (d.currency) state.currency = d.currency;
+  if (d.theme) state.theme = d.theme;
+  if (typeof d.autoSweepSurplus === "boolean") state.autoSweepSurplus = d.autoSweepSurplus;
+
+  saveStorage();
+  render();
+  dom.restoreBackupDialog.close();
+  showToast("Restored from snapshot.");
 }
 
 function handleFileImport(e) {

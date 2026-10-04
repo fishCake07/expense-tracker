@@ -1328,6 +1328,42 @@ body {
   gap: 0.6rem;
 }
 
+.backup-status-row {
+  margin: 1rem 0 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+}
+
+.backup-status-row .dialog-sub {
+  margin: 0;
+}
+
+.restore-snapshot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.restore-snapshot-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-subtle);
+}
+
+.restore-snapshot-item .restore-snapshot-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 .btn-tool-lg {
   display: flex;
   align-items: center;

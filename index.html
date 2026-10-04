@@ -652,6 +652,21 @@
               📥 Import Backup (.json or .csv)
             </label>
             <input type="file" id="settings-file-input" accept=".json,.csv,application/json,text/csv,text/comma-separated-values,text/plain,*/*" class="visually-hidden-input">
+          </div>
+
+          <div class="backup-status-row" id="backup-folder-status-row">
+            <p class="dialog-sub" id="backup-folder-status">Automatic local backups: checking…</p>
+          </div>
+          <div class="backup-actions-grid">
+            <button type="button" id="link-backup-folder-btn" class="btn-tool-lg">
+              📁 Link a Backup Folder
+            </button>
+            <button type="button" id="unlink-backup-folder-btn" class="btn-secondary" style="display: none;">
+              Unlink Backup Folder
+            </button>
+            <button type="button" id="open-restore-dialog-btn" class="btn-tool-lg">
+              ♻️ Restore from Snapshot
+            </button>
             <button type="button" id="force-update-cache-btn" class="btn-tool-lg" style="color: var(--primary); font-weight: 700;">
               🔄 Force Purge Cache &amp; Update App
             </button>
@@ -717,6 +732,18 @@
     </div>
 
     <!-- ================= MODAL DIALOGS ================= -->
+    <!-- Restore From Snapshot Dialog -->
+    <dialog id="restore-backup-dialog" class="app-dialog">
+      <div class="dialog-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-size: 1.2rem; margin: 0;">Restore from Snapshot</h2>
+        <button type="button" id="close-restore-dialog-btn" class="btn-icon" aria-label="Close dialog">&times;</button>
+      </div>
+      <p class="dialog-sub">Automatic snapshots are taken periodically and kept on this device. Restoring replaces your current data with the selected snapshot.</p>
+      <div id="restore-snapshot-list" class="restore-snapshot-list">
+        <p class="dialog-sub">No snapshots yet.</p>
+      </div>
+    </dialog>
+
     <!-- Custom Category Creator Dialog -->
     <dialog id="category-creator-dialog" class="custom-dialog">
       <form method="dialog" id="category-creator-form">
@@ -1494,6 +1521,7 @@
 
   </div>
 
+  <script src="./db.js?v=83" defer></script>
   <script src="./app.js?v=83" defer></script>
 
 </body>
