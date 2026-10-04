@@ -1395,8 +1395,18 @@ function initModalScrollLock() {
 function initUniversalBackdropDismissal() {
   document.querySelectorAll("dialog").forEach(dialog => {
     dialog.addEventListener("click", (e) => {
-      // If clicking directly on the native <dialog> backdrop
-      if (e.target === dialog) {
+      // Close only when the click genuinely lands outside the dialog's
+      // rendered box. We deliberately do NOT use `e.target === dialog` here:
+      // picking an option from a native <select> inside a <dialog> can report
+      // the resulting click's target as the <dialog> itself in some browsers
+      // (the option list renders outside the normal layout tree), which was
+      // auto-closing Add/Edit Card, Debit Card, Bank Account, E-Wallet and
+      // Loan modals the instant a bank/payment-method dropdown was used.
+      const rect = dialog.getBoundingClientRect();
+      const isOutside =
+        e.clientX < rect.left || e.clientX > rect.right ||
+        e.clientY < rect.top || e.clientY > rect.bottom;
+      if (isOutside) {
         dialog.close();
       }
     });
@@ -3866,9 +3876,16 @@ function handleSaveBankAccount(e) {
   if (editId) {
     const bank = state.bankAccounts.find(b => b.id === editId);
     if (bank) {
+      // `bank.balance` (shown in the form) is already this month's net
+      // transactions reconciled on top of `bank.initialBalance`. Back that
+      // net change out of the new baseline so saving doesn't apply it a
+      // second time on the next render — the account's current balance
+      // should end up equal to what was typed, not typed-value-plus-this-
+      // month-again.
+      const netChangeThisMonth = Number(((bank.balance || 0) - (bank.initialBalance || 0)).toFixed(2));
       bank.name = name;
       bank.bank = provider;
-      bank.initialBalance = Number(balance.toFixed(2));
+      bank.initialBalance = Number((balance - netChangeThisMonth).toFixed(2));
       bank.balance = Number(balance.toFixed(2));
       showToast(`Updated "${name}"!`);
     }
@@ -4148,9 +4165,14 @@ function handleSaveEwallet(e) {
   if (editId) {
     const ew = state.ewallets.find(w => w.id === editId);
     if (ew) {
+      // Same reconciliation fix as bank accounts: `ew.balance` already has
+      // this month's net transactions applied on top of `ew.initialBalance`.
+      // Back that out so saving sets the true current balance to what was
+      // typed instead of double-counting this month's activity.
+      const netChangeThisMonth = Number(((ew.balance || 0) - (ew.initialBalance || 0)).toFixed(2));
       ew.name = name;
       ew.type = type;
-      ew.initialBalance = Number(balance.toFixed(2));
+      ew.initialBalance = Number((balance - netChangeThisMonth).toFixed(2));
       ew.balance = Number(balance.toFixed(2));
       ew.accountNumber = accNum;
       showToast(`Updated "${name}"!`);
