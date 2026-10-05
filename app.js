@@ -678,6 +678,12 @@ async function init() {
     }
   });
   await loadStorage();
+  // One-time sweep for notifications left over from a loan/card that was
+  // since deleted — handles anything already sitting in storage from
+  // before this fix existed (future deletions clean up after themselves).
+  if (pruneOrphanedNotifications() > 0) {
+    saveStorage();
+  }
   initTheme();
   setDefaultDate();
   scheduleMidnightRollover();
@@ -986,6 +992,20 @@ function formatDate(ds) {
 let toastTimer;
 function showToast(msg) {
   if (!dom.toast) return;
+
+  // A native <dialog> shown with showModal() is promoted to the browser's
+  // "top layer", which always paints above regular position:fixed content
+  // no matter its z-index. Left as a child of <body>, the toast renders
+  // underneath any open dialog's backdrop — exactly the barely-visible,
+  // blurred bar this was producing. Reparent the toast into the topmost
+  // open dialog so it shares that dialog's top-layer stacking and actually
+  // shows up above the backdrop; fall back to <body> when nothing's open.
+  const openDialogs = Array.from(document.querySelectorAll("dialog")).filter(d => d.open);
+  const targetParent = openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body;
+  if (dom.toast.parentElement !== targetParent) {
+    targetParent.appendChild(dom.toast);
+  }
+
   dom.toast.textContent = msg;
   dom.toast.classList.add("show");
   clearTimeout(toastTimer);
@@ -1630,11 +1650,21 @@ function bindEvents() {
 
   if (dom.clearAllNotifsBtn) {
     dom.clearAllNotifsBtn.addEventListener("click", () => {
-      state.notifications.forEach(n => n.isRead = true);
+      // The button says "Clear Read Notifications" — it should remove
+      // already-read notifications from the list, not just mark things as
+      // read (which never actually shrank the list, no matter how many
+      // times you clicked it).
+      const beforeCount = state.notifications.length;
+      state.notifications = state.notifications.filter(n => !n.isRead);
+      const removedCount = beforeCount - state.notifications.length;
+
       saveStorage();
       updateNotificationBadge();
       renderNotificationsFeed();
-      showToast("Marked all notifications as read.");
+
+      showToast(removedCount > 0
+        ? `Cleared ${removedCount} read notification${removedCount === 1 ? "" : "s"}.`
+        : "No read notifications to clear.");
     });
   }
 
@@ -3424,6 +3454,25 @@ function processCreditCardCycles() {
   updateNotificationBadge();
 }
 
+// Removes any "action due" notification whose underlying loan/credit card
+// no longer exists (e.g. it was deleted from the Commitments page after the
+// reminder was created). Without this, a deleted loan's "Installment Due"
+// card lingers in the Notification Center forever, and its "Pay
+// Installment" button silently does nothing since there's no loan left to
+// act on. Returns how many were removed.
+function pruneOrphanedNotifications() {
+  if (!state.notifications || !state.notifications.length) return 0;
+  const loanIds = new Set((state.loans || []).map(l => l.id));
+  const cardIds = new Set((state.creditCards || []).map(c => c.id));
+  const before = state.notifications.length;
+  state.notifications = state.notifications.filter(n => {
+    if (n.loanId) return loanIds.has(n.loanId);
+    if (n.cardId) return cardIds.has(n.cardId);
+    return true;
+  });
+  return before - state.notifications.length;
+}
+
 function updateNotificationBadge() {
   if (!dom.notifBadgeCount) return;
   const unreadCount = state.notifications.filter(n => !n.isRead).length;
@@ -3494,7 +3543,16 @@ function renderNotificationsFeed() {
 function settleLoanFromNotification(notifId, loanId) {
   const loan = state.loans.find(l => l.id === loanId);
   const notif = state.notifications.find(n => n.id === notifId);
-  if (!loan) return;
+  if (!loan) {
+    // The loan behind this reminder is gone — don't leave a dead button
+    // that does nothing when tapped.
+    state.notifications = state.notifications.filter(n => n.id !== notifId);
+    saveStorage();
+    updateNotificationBadge();
+    renderNotificationsFeed();
+    showToast("That loan no longer exists — removed the reminder.");
+    return;
+  }
 
   if (processLoanPayment(loan, loan.monthlyInstallment)) {
     if (notif) {
@@ -3512,7 +3570,17 @@ function settleCardBillInFull(notifId, cardId) {
   const card = state.creditCards.find(c => c.id === cardId);
   const notif = state.notifications.find(n => n.id === notifId);
 
-  if (card && card.currentBilled > 0) {
+  if (!card) {
+    // The card behind this reminder is gone — don't leave a dead button.
+    state.notifications = state.notifications.filter(n => n.id !== notifId);
+    saveStorage();
+    updateNotificationBadge();
+    renderNotificationsFeed();
+    showToast("That card no longer exists — removed the reminder.");
+    return;
+  }
+
+  if (card.currentBilled > 0) {
     const paidAmt = card.currentBilled;
     if (executeBillSettlement(card, paidAmt)) {
       if (notif) {
@@ -3531,7 +3599,17 @@ function settleCardBillPartial(notifId, cardId) {
   const card = state.creditCards.find(c => c.id === cardId);
   const notif = state.notifications.find(n => n.id === notifId);
 
-  if (card && card.currentBilled > 0) {
+  if (!card) {
+    // The card behind this reminder is gone — don't leave a dead button.
+    state.notifications = state.notifications.filter(n => n.id !== notifId);
+    saveStorage();
+    updateNotificationBadge();
+    renderNotificationsFeed();
+    showToast("That card no longer exists — removed the reminder.");
+    return;
+  }
+
+  if (card.currentBilled > 0) {
     const amtStr = prompt(`Enter amount to pay for ${card.name} (Current Bill: ${formatCurrency(card.currentBilled)}):`);
     const paid = parseFloat(amtStr);
     if (!isNaN(paid) && paid > 0) {
@@ -4672,8 +4750,11 @@ function deleteCreditCard(cardId) {
     if (dom.selectedSourceName) dom.selectedSourceName.value = "";
     if (dom.pillCardTx) dom.pillCardTx.textContent = "💳 Card ▾";
   }
+  pruneOrphanedNotifications();
   saveStorage();
   render();
+  renderNotificationsFeed();
+  updateNotificationBadge();
   showToast(`Deleted card "${deleted.name}"`);
 }
 
@@ -5135,8 +5216,11 @@ function deleteLoan(id) {
   const idx = state.loans.findIndex(l => l.id === id);
   if (idx === -1) return;
   const deleted = state.loans.splice(idx, 1)[0];
+  pruneOrphanedNotifications();
   saveStorage();
   render();
+  renderNotificationsFeed();
+  updateNotificationBadge();
   showToast(`Removed loan "${deleted.name}"`);
 }
 
