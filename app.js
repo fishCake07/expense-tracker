@@ -1302,6 +1302,12 @@ window.handleNavToAddBank = handleNavToAddBank;
 // Android System Back Button & Modal History Navigation Controller
 function initAndroidBackNavigation() {
   let isClosingFromPopState = false;
+  // True while a dialog's own "close" handler is popping ITS history entry
+  // via history.back(). The resulting popstate is cleanup for a dialog that
+  // has already closed itself — not a real back-button press — so the
+  // popstate handler must not treat it as "please close the topmost dialog"
+  // or it ends up closing a DIFFERENT, still-open dialog underneath it.
+  let isSyncingHistoryForClosedDialog = false;
 
   const pushModalHistory = (identifier) => {
     try {
@@ -1326,7 +1332,13 @@ function initAndroidBackNavigation() {
     d.addEventListener("close", () => {
       if (!isClosingFromPopState && !isTransitioningModal) {
         if (history.state && history.state.modalOpen) {
-          try { history.back(); } catch (e) {}
+          // This dialog (e.g. a bank/card/e-wallet picker opened on top of
+          // another open form dialog) just closed itself in code — pop the
+          // history entry it pushed when it opened, but mark that the next
+          // popstate is just this cleanup, so it doesn't cascade into
+          // closing whatever dialog is still open underneath it.
+          isSyncingHistoryForClosedDialog = true;
+          try { history.back(); } catch (e) { isSyncingHistoryForClosedDialog = false; }
         }
       }
     });
@@ -1352,6 +1364,12 @@ function initAndroidBackNavigation() {
 
   // Handle hardware / gesture back navigation on Android
   window.addEventListener("popstate", () => {
+    // A dialog already closed itself and is just cleaning up its history
+    // entry (see the "close" handler above) — nothing further to close.
+    if (isSyncingHistoryForClosedDialog) {
+      isSyncingHistoryForClosedDialog = false;
+      return;
+    }
     isClosingFromPopState = true;
     try {
       // 1. Close Nav Hub if active
@@ -3935,14 +3953,9 @@ function openBankPicker() {
           </div>
         `;
       }).join("");
-
-      dom.pickerBanksList.querySelectorAll(".picker-card-option").forEach(el => {
-        el.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const bId = el.getAttribute("data-bank-id");
-          if (bId) selectBankAccount(bId);
-        });
-      });
+      // Note: each option already carries its own onclick="selectBankAccount(...)"
+      // above — intentionally not also binding addEventListener here, which
+      // previously fired the selection twice per tap.
     }
   }
 
@@ -4249,14 +4262,9 @@ function openEwalletPicker() {
           </div>
         `;
       }).join("");
-
-      dom.pickerEwalletsList.querySelectorAll(".picker-card-option").forEach(el => {
-        el.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const ewId = el.getAttribute("data-ew-id");
-          if (ewId) selectEwallet(ewId);
-        });
-      });
+      // Note: each option already carries its own onclick="selectEwallet(...)"
+      // above — intentionally not also binding addEventListener here, which
+      // previously fired the selection twice per tap.
     }
   }
 
